@@ -5,7 +5,9 @@ import { normalizeThemeTitle } from "@/server/themes";
 
 describe("domain helpers", () => {
   it("normalizes theme titles for case-insensitive uniqueness", () => {
-    expect(normalizeThemeTitle("  Analyse de Texte  ")).toBe("analyse de texte");
+    expect(normalizeThemeTitle("  Analyse de Texte  ")).toBe(
+      "analyse de texte",
+    );
   });
 
   it("builds a stable seed from the document id", () => {

@@ -12,7 +12,9 @@ export function resetRateLimitStore() {
 }
 
 function getRequestOrigin(request: Request) {
-  return request.headers.get("origin") ?? request.headers.get("referer") ?? null;
+  return (
+    request.headers.get("origin") ?? request.headers.get("referer") ?? null
+  );
 }
 
 export function assertSameOrigin(request: Request) {
@@ -26,7 +28,11 @@ export function assertSameOrigin(request: Request) {
   const normalizedOrigin = new URL(origin, request.url).origin;
 
   if (normalizedOrigin !== requestUrl.origin) {
-    throw new ApiError("Cross-origin request blocked", 403, "CROSS_ORIGIN_BLOCKED");
+    throw new ApiError(
+      "Cross-origin request blocked",
+      403,
+      "CROSS_ORIGIN_BLOCKED",
+    );
   }
 }
 
@@ -50,6 +56,9 @@ export function assertRateLimit(
 }
 
 export function buildRateLimitKey(scope: string, request: Request) {
-  const forwardedFor = request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "anonymous";
+  const forwardedFor =
+    request.headers.get("x-forwarded-for") ??
+    request.headers.get("x-real-ip") ??
+    "anonymous";
   return `${scope}:${forwardedFor.split(",")[0].trim()}`;
 }

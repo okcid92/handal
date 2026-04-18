@@ -30,7 +30,9 @@ describe("security helpers", () => {
     assertRateLimit(key, { limit: 2, windowMs: 1000 });
     assertRateLimit(key, { limit: 2, windowMs: 1000 });
 
-    expect(() => assertRateLimit(key, { limit: 2, windowMs: 1000 })).toThrow(ApiError);
+    expect(() => assertRateLimit(key, { limit: 2, windowMs: 1000 })).toThrow(
+      ApiError,
+    );
   });
 
   it("blocks cross-origin requests", () => {

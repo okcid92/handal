@@ -199,6 +199,8 @@ Critere d acceptance:
 
 ## Phase 8 - Go-live et decommission Laravel (Semaine 8)
 
+Statut actuel: COMPLETE (runbook go-live, rollback plan et documentation exploitation en place)
+
 Livrables:
 
 - Plan de bascule prod.
@@ -210,10 +212,17 @@ Actions:
 - Repetition generale sur environnement de preproduction.
 - Migration des donnees si necessaire.
 - Coupure progressive du backend Laravel.
+- Archivage de la documentation Laravel legacy pour reference historique uniquement.
 
 Critere d acceptance:
 
 - Service stable en production sur stack full Next.js.
+
+Validation:
+
+- Runbook de go-live documente dans [docs/go-live-runbook.md](docs/go-live-runbook.md).
+- Procedure de rollback documentee dans [docs/rollback-plan.md](docs/rollback-plan.md).
+- README aligne sur le fonctionnement full Next.js.
 
 ## 5. Ordre de build recommande
 

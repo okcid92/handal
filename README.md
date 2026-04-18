@@ -1,13 +1,13 @@
-# Application Next.js avec MySQL local
+# Origina Next.js
 
-Projet initialise avec Next.js (App Router, TypeScript) et integration MySQL via le package mysql2.
+Application full Next.js pour Origina, avec MySQL, Prisma, RBAC, tests unitaires et e2e, et documentation de go-live.
 
-## Prerequis
+## Prerequisites
 
 - Node.js installe
 - MySQL installe et demarre sur votre PC
 
-## Configuration
+## Configuration locale
 
 1. Copiez le fichier d environnement:
 
@@ -35,7 +35,21 @@ npm run dev
 
 - http://localhost:3000/api/db-test
 
-Si la connexion fonctionne, vous verrez un JSON avec ok: true.
+Si la connexion fonctionne, vous verrez un JSON avec `ok: true`.
+
+## Commandes utiles
+
+- `npm run lint` pour verifier le code.
+- `npm run test:unit` pour les tests Vitest.
+- `npm run test:e2e` pour les tests Playwright.
+- `npm run build` pour valider la compilation de production.
+- `npm run prisma:deploy` pour appliquer les migrations en production.
+
+## Exploitation
+
+- Lire [docs/go-live-runbook.md](docs/go-live-runbook.md) avant toute bascule prod.
+- Lire [docs/rollback-plan.md](docs/rollback-plan.md) pour la procedure de retour arriere.
+- Le plan de livraison est decrit dans [roadmap.md](roadmap.md).
 
 ## Fichiers importants
 

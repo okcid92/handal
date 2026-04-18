@@ -12,6 +12,7 @@
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
     "prisma:generate": "prisma generate",
+    "prisma:deploy": "prisma migrate deploy",
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
