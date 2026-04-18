@@ -58,6 +58,8 @@ Critere d acceptance:
 
 ## Phase 1 - Fondation backend Next.js (Semaines 1-2)
 
+Statut actuel: COMPLETE (Prisma configure, migration appliquee, couche db/erreurs/logger/session en place, endpoints /api/ping /api/login /api/logout /api/me/overview operationnels)
+
 Livrables:
 
 - Prisma configure avec migrations MySQL.

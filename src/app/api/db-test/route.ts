@@ -1,19 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { getDbPool } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  let connection;
-
   try {
-    const dbPool = getDbPool();
-    connection = await dbPool.getConnection();
-    const [rows] = await connection.query("SELECT NOW() AS now");
+    const rows = await prisma.$queryRaw<Array<{ now: Date }>>`SELECT NOW() AS now`;
 
     return NextResponse.json({
       ok: true,
       mysql: "connected",
-      serverTime: (rows as Array<{ now: string }>)[0]?.now ?? null,
+      serverTime: rows[0]?.now?.toISOString() ?? null,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -26,7 +22,5 @@ export async function GET() {
       },
       { status: 500 },
     );
-  } finally {
-    connection?.release();
   }
 }
