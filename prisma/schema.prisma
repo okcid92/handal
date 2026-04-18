@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  DA
+  ADMIN
+}
+
+enum ThemeStatus {
+  PENDING
+  VALIDATED_CD
+  VALIDATED_DA
+  REJECTED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DeliberationDecision {
+  FINAL_VALIDATION @map("final_validation")
+  SANCTION         @map("sanction")
+  REWRITE_REQUIRED @map("rewrite_required")
+}
+
+model User {
+  id              BigInt    @id @default(autoincrement())
+  name            String
+  ine             String?   @unique @db.VarChar(12)
+  email           String?   @unique
+  password        String
+  role            Role      @default(STUDENT)
+  department      String?
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  themesModerated  Theme[]         @relation("ThemeModeratedBy")
+  themesValidatedC Theme[]         @relation("ThemeValidatedCdBy")
+  themesValidatedD Theme[]         @relation("ThemeValidatedDaBy")
+  reportsGenerated SimilarityReport[]
+  themesOwned      Theme[]         @relation("ThemeStudent")
+  documentsOwned   Document[]      @relation("DocumentStudent")
+  deliberations    Deliberation[]
+
+  @@map("users")
+}
+
+model Theme {
+  id                   BigInt      @id @default(autoincrement())
+  studentId            BigInt      @map("student_id")
+  title                String
+  description          String      @db.Text
+  status               ThemeStatus @default(PENDING)
+  moderatedBy          BigInt?     @map("moderated_by")
+  moderationComment    String?     @map("moderation_comment") @db.Text
+  moderatedAt          DateTime?   @map("moderated_at")
+  validatedCdBy        BigInt?     @map("validated_cd_by")
+  validatedCdAt        DateTime?   @map("validated_cd_at")
+  validatedDaBy        BigInt?     @map("validated_da_by")
+  validatedDaAt        DateTime?   @map("validated_da_at")
+  finalScore           Decimal?    @map("final_score") @db.Decimal(5, 2)
+  finalScoreAssignedAt DateTime?   @map("final_score_assigned_at")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  student       User      @relation("ThemeStudent", fields: [studentId], references: [id])
+  moderator     User?     @relation("ThemeModeratedBy", fields: [moderatedBy], references: [id])
+  validatedCdByUser User? @relation("ThemeValidatedCdBy", fields: [validatedCdBy], references: [id])
+  validatedDaByUser User? @relation("ThemeValidatedDaBy", fields: [validatedDaBy], references: [id])
+  documents      Document[]
+
+  @@unique([studentId, title], map: "themes_student_title_unique")
+  @@index([status], map: "themes_status_idx")
+  @@map("themes")
+}
+
+model Document {
+  id           BigInt    @id @default(autoincrement())
+  themeId      BigInt    @map("theme_id")
+  studentId    BigInt    @map("student_id")
+  originalName String    @map("original_name")
+  storagePath  String    @map("storage_path")
+  mimeType     String    @map("mime_type")
+  fileSize     BigInt    @map("file_size")
+  checksum     String
+  isFinal      Boolean   @default(true) @map("is_final")
+  submittedAt  DateTime  @map("submitted_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  theme   Theme             @relation(fields: [themeId], references: [id])
+  student User              @relation("DocumentStudent", fields: [studentId], references: [id])
+  reports SimilarityReport[]
+
+  @@index([themeId], map: "documents_theme_id_idx")
+  @@index([studentId], map: "documents_student_id_idx")
+  @@map("documents")
+}
+
+model SimilarityReport {
+  id                  BigInt     @id @default(autoincrement())
+  documentId          BigInt     @map("document_id")
+  globalSimilarity    Decimal    @map("global_similarity") @db.Decimal(5, 2)
+  aiScore             Decimal?   @map("ai_score") @db.Decimal(5, 2)
+  riskLevel           RiskLevel  @map("risk_level")
+  matchedSources      Json       @map("matched_sources")
+  highlightedSegments Json       @map("highlighted_segments")
+  analyzedAt          DateTime   @map("analyzed_at")
+  generatedBy         BigInt?    @map("generated_by")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  document      Document       @relation(fields: [documentId], references: [id])
+  generatorUser User?          @relation(fields: [generatedBy], references: [id])
+  deliberations Deliberation[]
+
+  @@index([documentId], map: "similarity_reports_document_id_idx")
+  @@map("similarity_reports")
+}
+
+model Deliberation {
+  id                 BigInt               @id @default(autoincrement())
+  similarityReportId BigInt               @map("similarity_report_id")
+  decidedBy          BigInt               @map("decided_by")
+  committee          String?
+  decision           DeliberationDecision
+  notes              String?              @db.Text
+  decidedAt          DateTime             @map("decided_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+
+  report  SimilarityReport @relation(fields: [similarityReportId], references: [id])
+  decider User             @relation(fields: [decidedBy], references: [id])
+
+  @@index([similarityReportId], map: "deliberations_similarity_report_id_idx")
+  @@index([decidedBy], map: "deliberations_decided_by_idx")
+  @@map("deliberations")
+}

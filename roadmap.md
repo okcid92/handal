@@ -38,6 +38,8 @@ Decision structurante:
 
 ## Phase 0 - Cadrage full stack (Semaine 1)
 
+Statut actuel: COMPLETE (artefacts dans docs/domain-dictionary.md, docs/phase-0-validation.md et prisma/schema.prisma)
+
 Livrables:
 
 - Mapping complet des regles metier issues de l existant.
@@ -76,7 +78,7 @@ Critere d acceptance:
 
 Livrables:
 
-- Auth.js (session) avec login par email/mot de passe.
+- Auth.js (session) avec login par INE/mot de passe pour student, et email/mot de passe pour teacher/da/admin.
 - Middleware de protection des pages et API.
 - Policies RBAC reutilisables cote server.
 
