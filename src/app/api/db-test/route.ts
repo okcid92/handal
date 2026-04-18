@@ -24,7 +24,7 @@ export async function GET() {
         mysql: "disconnected",
         error: message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     connection?.release();
