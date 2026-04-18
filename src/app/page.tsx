@@ -1,32 +1,27 @@
+import { LoginPanel } from "@/components/login-panel";
+
 export default function Home() {
   return (
-    <div className="min-h-screen bg-zinc-100 px-6 py-16 text-zinc-900">
-      <main className="mx-auto max-w-3xl rounded-2xl bg-white p-8 shadow-sm">
-        <h1 className="text-3xl font-bold tracking-tight">Next.js + MySQL</h1>
-        <p className="mt-3 text-zinc-700">
-          Le projet est initialise et pret a se connecter a votre serveur MySQL
-          local.
-        </p>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.18),_transparent_34%),linear-gradient(180deg,#09090b_0%,#111827_100%)] px-4 py-6 text-zinc-900 sm:px-6 lg:px-8">
+      <main className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <LoginPanel />
 
-        <section className="mt-8 space-y-3">
-          <h2 className="text-xl font-semibold">Etapes rapides</h2>
-          <ol className="list-decimal space-y-2 pl-5 text-zinc-700">
-            <li>Copiez .env.example vers .env.local.</li>
-            <li>Renseignez vos identifiants MySQL.</li>
-            <li>Lancez npm run dev.</li>
-            <li>Ouvrez l endpoint de test pour verifier la connexion.</li>
-          </ol>
+        <section className="grid gap-4 md:grid-cols-4">
+          <LinkCard href="/api/db-test" title="DB test" description="Vérifier MySQL" />
+          <LinkCard href="/student" title="Student" description="Flux étudiant" />
+          <LinkCard href="/teacher" title="Teacher" description="Validation et analyse" />
+          <LinkCard href="/da" title="DA" description="Validation finale" />
         </section>
-
-        <div className="mt-8">
-          <a
-            className="inline-flex items-center rounded-full bg-zinc-900 px-5 py-3 text-sm font-semibold text-white hover:bg-zinc-700"
-            href="/api/db-test"
-          >
-            Tester la connexion MySQL
-          </a>
-        </div>
       </main>
     </div>
+  );
+}
+
+function LinkCard({ href, title, description }: { href: string; title: string; description: string }) {
+  return (
+    <a href={href} className="rounded-[1.5rem] border border-white/10 bg-white/5 p-5 text-white shadow-[0_18px_70px_rgba(0,0,0,0.28)] transition hover:-translate-y-1 hover:border-white/25 hover:bg-white/10">
+      <div className="text-sm uppercase tracking-[0.25em] text-emerald-300">{title}</div>
+      <div className="mt-2 text-sm text-zinc-300">{description}</div>
+    </a>
   );
 }

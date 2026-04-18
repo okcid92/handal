@@ -1,3 +1,13 @@
+import { DashboardShell } from "@/components/dashboard-shell";
+import { StudentDashboard } from "@/components/student-dashboard";
+
 export default function StudentPage() {
-  return <main>Student dashboard</main>;
+  return (
+    <DashboardShell
+      title="Espace étudiant"
+      subtitle="Propose un thème, dépose le mémoire final et lance l’auto-test depuis un seul tableau de bord."
+    >
+      <StudentDashboard />
+    </DashboardShell>
+  );
 }

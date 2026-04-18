@@ -159,6 +159,8 @@ Critere d acceptance:
 
 ## Phase 6 - Frontend Next.js complet (Semaines 4-6)
 
+Statut actuel: COMPLETE (login UX, dashboards student/teacher/DA/admin, formulaires metier, navigation role-based)
+
 Livrables:
 
 - Login et dashboard par role.
