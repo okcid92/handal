@@ -18,6 +18,7 @@ Le role `var` n est pas retenu dans la logique metier.
 - Personnel (TEACHER, DA, ADMIN): connexion avec email + mot de passe.
 
 Regle de donnees:
+
 - `ine` doit etre unique lorsqu il est renseigne.
 - `email` doit etre unique lorsqu il est renseigne.
 
