@@ -60,6 +60,7 @@ model Theme {
   id                   BigInt      @id @default(autoincrement())
   studentId            BigInt      @map("student_id")
   title                String
+  titleNormalized      String      @unique @map("title_normalized")
   description          String      @db.Text
   status               ThemeStatus @default(PENDING)
   moderatedBy          BigInt?     @map("moderated_by")
@@ -74,13 +75,12 @@ model Theme {
   createdAt            DateTime    @default(now()) @map("created_at")
   updatedAt            DateTime    @updatedAt @map("updated_at")
 
-  student       User      @relation("ThemeStudent", fields: [studentId], references: [id])
-  moderator     User?     @relation("ThemeModeratedBy", fields: [moderatedBy], references: [id])
-  validatedCdByUser User? @relation("ThemeValidatedCdBy", fields: [validatedCdBy], references: [id])
-  validatedDaByUser User? @relation("ThemeValidatedDaBy", fields: [validatedDaBy], references: [id])
+  student       User      @relation("ThemeStudent", fields: [studentId], references: [id], map: "themes_student_id_fkey")
+  moderator     User?     @relation("ThemeModeratedBy", fields: [moderatedBy], references: [id], map: "themes_moderated_by_fkey")
+  validatedCdByUser User? @relation("ThemeValidatedCdBy", fields: [validatedCdBy], references: [id], map: "themes_validated_cd_by_fkey")
+  validatedDaByUser User? @relation("ThemeValidatedDaBy", fields: [validatedDaBy], references: [id], map: "themes_validated_da_by_fkey")
   documents      Document[]
 
-  @@unique([studentId, title], map: "themes_student_title_unique")
   @@index([status], map: "themes_status_idx")
   @@map("themes")
 }
@@ -99,8 +99,8 @@ model Document {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  theme   Theme             @relation(fields: [themeId], references: [id])
-  student User              @relation("DocumentStudent", fields: [studentId], references: [id])
+  theme   Theme             @relation(fields: [themeId], references: [id], map: "documents_theme_id_fkey")
+  student User              @relation("DocumentStudent", fields: [studentId], references: [id], map: "documents_student_id_fkey")
   reports SimilarityReport[]
 
   @@index([themeId], map: "documents_theme_id_idx")
@@ -121,8 +121,8 @@ model SimilarityReport {
   createdAt           DateTime   @default(now()) @map("created_at")
   updatedAt           DateTime   @updatedAt @map("updated_at")
 
-  document      Document       @relation(fields: [documentId], references: [id])
-  generatorUser User?          @relation(fields: [generatedBy], references: [id])
+  document      Document       @relation(fields: [documentId], references: [id], map: "similarity_reports_document_id_fkey")
+  generatorUser User?          @relation(fields: [generatedBy], references: [id], map: "similarity_reports_generated_by_fkey")
   deliberations Deliberation[]
 
   @@index([documentId], map: "similarity_reports_document_id_idx")
@@ -140,8 +140,8 @@ model Deliberation {
   createdAt          DateTime             @default(now()) @map("created_at")
   updatedAt          DateTime             @updatedAt @map("updated_at")
 
-  report  SimilarityReport @relation(fields: [similarityReportId], references: [id])
-  decider User             @relation(fields: [decidedBy], references: [id])
+  report  SimilarityReport @relation(fields: [similarityReportId], references: [id], map: "deliberations_similarity_report_id_fkey")
+  decider User             @relation(fields: [decidedBy], references: [id], map: "deliberations_decided_by_fkey")
 
   @@index([similarityReportId], map: "deliberations_similarity_report_id_idx")
   @@index([decidedBy], map: "deliberations_decided_by_idx")

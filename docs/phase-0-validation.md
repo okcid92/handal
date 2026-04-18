@@ -16,6 +16,7 @@ Date: 2026-04-18
 - [x] Decisions figees: final_validation, sanction, rewrite_required
 - [x] Role `var` exclu de la logique metier
 - [x] Regle d authentification fixee: student via INE + mot de passe (exemple N01331820231)
+- [x] Regle de theme fixee: unicite globale du titre, insensible a la casse
 
 ## Critere d acceptance
 

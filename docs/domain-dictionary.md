@@ -47,7 +47,7 @@ Regle de donnees:
 
 ## Contraintes critiques
 
-- Unicite de theme par etudiant sur `(student_id, title)`.
+- Unicite globale de theme sur le titre, insensible a la casse.
 - Le document final n est autorise que si le theme est VALIDATED_DA avec note finale.
 - Analyse officielle reservee a TEACHER/ADMIN.
 - Deliberation reservee a DA/ADMIN.

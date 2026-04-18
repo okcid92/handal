@@ -27,7 +27,11 @@ export function guardAdmin(request: NextRequest) {
   return guardRole(request, ["ADMIN"]);
 }
 
-export function assertSameUserOrAdmin(requestUserId: string, targetUserId: string, role: AppRole) {
+export function assertSameUserOrAdmin(
+  requestUserId: string,
+  targetUserId: string,
+  role: AppRole,
+) {
   if (role !== "ADMIN" && requestUserId !== targetUserId) {
     throw new ApiError("Forbidden", 403, "FORBIDDEN");
   }

@@ -98,6 +98,8 @@ Critere d acceptance:
 
 ## Phase 3 - Domain themes (Semaines 2-3)
 
+Statut actuel: COMPLETE (unicite globale du titre, routes propose/pending/validate-cd/validate-da, migration et build valides)
+
 Livrables:
 
 - POST /api/themes/propose.

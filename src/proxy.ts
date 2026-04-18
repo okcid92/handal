@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { readSessionFromRequest } from "@/lib/session";
 
-const publicPaths = ["/", "/api/ping", "/api/login", "/api/logout", "/api/db-test"];
+const publicPaths = [
+  "/",
+  "/api/ping",
+  "/api/login",
+  "/api/logout",
+  "/api/db-test",
+];
 
 const studentPaths = ["/student"];
 const teacherPaths = ["/teacher"];
@@ -57,7 +63,10 @@ export function proxy(request: NextRequest) {
   if (!session) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json(
-        { ok: false, error: { code: "UNAUTHENTICATED", message: "Unauthenticated" } },
+        {
+          ok: false,
+          error: { code: "UNAUTHENTICATED", message: "Unauthenticated" },
+        },
         { status: 401 },
       );
     }
@@ -80,7 +89,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
