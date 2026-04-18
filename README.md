@@ -42,8 +42,18 @@ Si la connexion fonctionne, vous verrez un JSON avec `ok: true`.
 - `npm run lint` pour verifier le code.
 - `npm run test:unit` pour les tests Vitest.
 - `npm run test:e2e` pour les tests Playwright.
+- `npm run test:selenium` pour lancer les tests Selenium.
+- `npm run test:selenium:headed` pour lancer Selenium avec une fenetre visible.
 - `npm run build` pour valider la compilation de production.
 - `npm run prisma:deploy` pour appliquer les migrations en production.
+
+## Tests Selenium
+
+- Les tests Selenium demarrent automatiquement `npm run start` sur le port 3000.
+- Installer les dependances Python avec `npm run test:selenium:install`.
+- Le navigateur par defaut est Chrome/Chromium. Vous pouvez changer avec `SELENIUM_BROWSER=firefox`.
+- L execution est headless par defaut. Utilisez `HEADLESS=false` pour voir la fenetre.
+- Si aucun navigateur compatible n est installe, installez Chrome/Chromium ou Firefox avant de lancer le script.
 
 ## Exploitation
 

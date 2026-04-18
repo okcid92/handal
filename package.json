@@ -11,6 +11,9 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:selenium": "python3 scripts/run_selenium_tests.py",
+    "test:selenium:headed": "HEADLESS=false python3 scripts/run_selenium_tests.py",
+    "test:selenium:install": "python3 -m pip install -r requirements-selenium.txt",
     "prisma:generate": "prisma generate",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:migrate": "prisma migrate dev"
