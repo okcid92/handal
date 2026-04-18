@@ -119,6 +119,8 @@ Critere d acceptance:
 
 ## Phase 4 - Domain documents et analyses (Semaines 3-4)
 
+Statut actuel: COMPLETE (upload metadata, auto-test, analyse officielle, liste/detail des rapports)
+
 Livrables:
 
 - POST /api/documents/upload (metadata puis upload reel en sous-phase).
@@ -137,6 +139,8 @@ Critere d acceptance:
 - Teacher/admin peuvent produire et consulter un rapport persiste.
 
 ## Phase 5 - Domain deliberations (Semaine 4)
+
+Statut actuel: COMPLETE (POST deliberate, historique des decisions expose dans le detail de rapport)
 
 Livrables:
 
