@@ -7,8 +7,11 @@ import { assertSameOrigin } from "@/lib/security";
 import { createTheme } from "@/server/themes";
 
 const payloadSchema = z.object({
-  title: z.string().trim().min(8),
-  description: z.string().trim().min(1),
+  title: z
+    .string()
+    .trim()
+    .min(8, "Theme title must contain at least 8 characters"),
+  description: z.string().trim().min(1, "Theme description is required"),
 });
 
 export async function POST(request: NextRequest) {

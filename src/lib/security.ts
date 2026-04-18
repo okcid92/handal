@@ -17,6 +17,37 @@ function getRequestOrigin(request: Request) {
   );
 }
 
+function isLoopbackHost(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
+function hasTrustedOrigin(origin: string) {
+  const trusted = process.env.TRUSTED_ORIGINS;
+  if (!trusted) {
+    return false;
+  }
+
+  const allowedOrigins = trusted
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  return allowedOrigins.includes(origin);
+}
+
+function areEquivalentOrigins(originA: URL, originB: URL) {
+  if (originA.origin === originB.origin) {
+    return true;
+  }
+
+  return (
+    originA.protocol === originB.protocol &&
+    originA.port === originB.port &&
+    isLoopbackHost(originA.hostname) &&
+    isLoopbackHost(originB.hostname)
+  );
+}
+
 export function assertSameOrigin(request: Request) {
   const origin = getRequestOrigin(request);
 
@@ -25,9 +56,13 @@ export function assertSameOrigin(request: Request) {
   }
 
   const requestUrl = new URL(request.url);
-  const normalizedOrigin = new URL(origin, request.url).origin;
+  const normalizedOrigin = new URL(origin, request.url);
 
-  if (normalizedOrigin !== requestUrl.origin) {
+  if (hasTrustedOrigin(normalizedOrigin.origin)) {
+    return;
+  }
+
+  if (!areEquivalentOrigins(normalizedOrigin, requestUrl)) {
     throw new ApiError(
       "Cross-origin request blocked",
       403,

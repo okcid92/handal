@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2026-04-18T18:42:15.727027+00:00",
+  "baseUrl": "http://localhost:3000",
+  "browser": "chrome",
+  "headless": "false",
+  "durationSeconds": 27.4,
+  "total": 9,
+  "failed": 0,
+  "errors": 0,
+  "skipped": 0,
+  "passed": 9,
+  "records": [
+    {
+      "test": "test_01_home_page_shows_login_panel (tests.selenium.test_home.HomePageSeleniumTests.test_01_home_page_shows_login_panel)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_02_invalid_login_shows_error (tests.selenium.test_home.HomePageSeleniumTests.test_02_invalid_login_shows_error)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_03_student_theme_submission_success_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_03_student_theme_submission_success_and_errors)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_04_teacher_validates_cd_with_options_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_04_teacher_validates_cd_with_options_and_errors)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_05_da_validation_options_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_05_da_validation_options_and_errors)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_06_student_upload_and_auto_test (tests.selenium.test_home.HomePageSeleniumTests.test_06_student_upload_and_auto_test)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_07_teacher_analyzes_document (tests.selenium.test_home.HomePageSeleniumTests.test_07_teacher_analyzes_document)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_08_da_creates_deliberation (tests.selenium.test_home.HomePageSeleniumTests.test_08_da_creates_deliberation)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_09_other_role_logins_work (tests.selenium.test_home.HomePageSeleniumTests.test_09_other_role_logins_work)",
+      "status": "passed",
+      "details": ""
+    }
+  ]
+}

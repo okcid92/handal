@@ -14,7 +14,7 @@ from pathlib import Path
 
 
 PORT = os.environ.get("PORT", "3000")
-BASE_URL = os.environ.get("BASE_URL", f"http://127.0.0.1:{PORT}")
+BASE_URL = os.environ.get("BASE_URL", f"http://localhost:{PORT}")
 RESULTS_DIR = Path("tests/selenium/results")
 
 
@@ -139,18 +139,34 @@ def wait_for_server(base_url: str, timeout_seconds: int = 120) -> None:
     raise RuntimeError(f"Timed out waiting for Next.js at {base_url}")
 
 
+def is_server_ready(base_url: str) -> bool:
+    try:
+        with urllib.request.urlopen(f"{base_url}/api/ping", timeout=2) as response:
+            return response.status == 200
+    except (urllib.error.URLError, TimeoutError):
+        return False
+
+
 def main() -> int:
     env = os.environ.copy()
     env.setdefault("HEADLESS", "true")
     env.setdefault("SELENIUM_BROWSER", "chrome")
     env["BASE_URL"] = BASE_URL
 
-    server = subprocess.Popen(
-        ["npm", "run", "start", "--", "--port", PORT],
-        env=env,
-    )
+    server = None
+    started_server = False
+
+    if not is_server_ready(BASE_URL):
+        server = subprocess.Popen(
+            ["npm", "run", "start", "--", "--port", PORT],
+            env=env,
+        )
+        started_server = True
 
     def stop_server() -> None:
+        if not started_server or server is None:
+            return
+
         if server.poll() is None:
             server.terminate()
             try:

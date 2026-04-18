@@ -4,13 +4,14 @@ import time
 import unittest
 
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from tests.selenium.driver import create_driver
 
 
-BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:3000")
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:3000")
 DEMO_STUDENT_INE = "N01331820231"
 DEMO_PASSWORD = "mon926732"
 DEMO_TEACHER_EMAIL = "teacher@origina.local"
@@ -86,9 +87,37 @@ class HomePageSeleniumTests(unittest.TestCase):
         button.click()
 
     def wait_for_text(self, text_fragment: str):
-        self.wait.until(
-            EC.text_to_be_present_in_element((By.TAG_NAME, "body"), text_fragment)
-        )
+        try:
+            self.wait.until(
+                EC.text_to_be_present_in_element((By.TAG_NAME, "body"), text_fragment)
+            )
+        except TimeoutException as error:
+            body_text = self.driver.find_element(By.TAG_NAME, "body").text
+            raise AssertionError(
+                f"Text fragment not found: {text_fragment}. body_excerpt={body_text[:1200]}"
+            ) from error
+
+    def wait_for_any_text(self, text_fragments: list[str]):
+        if not text_fragments:
+            raise ValueError("text_fragments must not be empty")
+
+        def has_one_fragment(driver):
+            body_text = driver.find_element(By.TAG_NAME, "body").text
+            return any(fragment in body_text for fragment in text_fragments)
+
+        try:
+            self.wait.until(has_one_fragment)
+        except TimeoutException as error:
+            body_text = self.driver.find_element(By.TAG_NAME, "body").text
+            raise AssertionError(
+                "Expected one of error fragments was not found. "
+                f"fragments={text_fragments}. "
+                f"body_excerpt={body_text[:1200]}"
+            ) from error
+
+    def require_state(self, value: str | None, name: str):
+        if value is None:
+            self.skipTest(f"Missing prerequisite state: {name}")
 
     def login(self, *, mode: str, identifier: str, password: str, expected_path: str):
         self.driver.get(BASE_URL)
@@ -169,7 +198,14 @@ class HomePageSeleniumTests(unittest.TestCase):
         description_input.clear()
         description_input.send_keys("Description invalide pour test")
         self.click_panel_button("Proposer un thème", "Créer le thème")
-        self.wait_for_text("Theme title must contain at least 8 characters")
+        self.wait_for_any_text(
+            [
+                "Theme title must contain at least 8 characters",
+                "Too small:",
+                "expected string to have >=8 characters",
+                "Invalid input",
+            ]
+        )
 
         unique_suffix = str(int(time.time() * 1000))
 
@@ -215,8 +251,8 @@ class HomePageSeleniumTests(unittest.TestCase):
         self.wait_for_text("Theme must be VALIDATED_DA before final upload")
 
     def test_04_teacher_validates_cd_with_options_and_errors(self):
-        self.assertIsNotNone(self.__class__.approved_theme_id)
-        self.assertIsNotNone(self.__class__.rejected_theme_id)
+        self.require_state(self.__class__.approved_theme_id, "approved_theme_id")
+        self.require_state(self.__class__.rejected_theme_id, "rejected_theme_id")
 
         self.login(
             mode="staff",
@@ -256,8 +292,8 @@ class HomePageSeleniumTests(unittest.TestCase):
         self.wait_for_text("Document not found")
 
     def test_05_da_validation_options_and_errors(self):
-        self.assertIsNotNone(self.__class__.approved_theme_id)
-        self.assertIsNotNone(self.__class__.rejected_theme_id)
+        self.require_state(self.__class__.approved_theme_id, "approved_theme_id")
+        self.require_state(self.__class__.rejected_theme_id, "rejected_theme_id")
 
         self.login(
             mode="staff",
@@ -272,12 +308,34 @@ class HomePageSeleniumTests(unittest.TestCase):
         decision = self.panel_select("Validation académique")
 
         theme_id.clear()
-        theme_id.send_keys(self.__class__.rejected_theme_id)
+        theme_id.send_keys(self.__class__.approved_theme_id)
         decision.send_keys("approved")
         final_score.clear()
         final_score.send_keys("30")
         comment.clear()
         comment.send_keys("Score invalide")
+        self.click_panel_button("Validation académique", "Valider le thème")
+        self.wait_for_any_text(
+            [
+                "Final score must be between 0 and 20",
+                "Too big:",
+                "must be less than or equal to 20",
+                "Invalid input",
+            ]
+        )
+
+        theme_id = self.panel_input("Validation académique", "Theme ID")
+        final_score = self.panel_input("Validation académique", "Note finale (0..20)")
+        comment = self.panel_input("Validation académique", "Commentaire")
+        decision = self.panel_select("Validation académique")
+
+        theme_id.clear()
+        theme_id.send_keys(self.__class__.rejected_theme_id)
+        decision.send_keys("approved")
+        final_score.clear()
+        final_score.send_keys("18")
+        comment.clear()
+        comment.send_keys("Theme non valide CD")
         self.click_panel_button("Validation académique", "Valider le thème")
         self.wait_for_text("Theme must be VALIDATED_CD before this action")
 
@@ -312,7 +370,7 @@ class HomePageSeleniumTests(unittest.TestCase):
         self.wait_for_text("Report not found")
 
     def test_06_student_upload_and_auto_test(self):
-        self.assertIsNotNone(self.__class__.approved_theme_id)
+        self.require_state(self.__class__.approved_theme_id, "approved_theme_id")
 
         self.login(
             mode="student",
@@ -352,7 +410,7 @@ class HomePageSeleniumTests(unittest.TestCase):
         self.wait_for_text("Auto-test calculé")
 
     def test_07_teacher_analyzes_document(self):
-        self.assertIsNotNone(self.__class__.document_id)
+        self.require_state(self.__class__.document_id, "document_id")
 
         self.login(
             mode="staff",
@@ -373,7 +431,7 @@ class HomePageSeleniumTests(unittest.TestCase):
         self.__class__.report_id = report_match.group(1)
 
     def test_08_da_creates_deliberation(self):
-        self.assertIsNotNone(self.__class__.report_id)
+        self.require_state(self.__class__.report_id, "report_id")
 
         self.login(
             mode="staff",

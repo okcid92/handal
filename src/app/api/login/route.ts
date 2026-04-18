@@ -22,13 +22,30 @@ const loginPayloadSchema = z
     message: "ine or email is required",
   });
 
+function getLoginRateLimitConfig() {
+  const defaultLimit = process.env.NODE_ENV === "production" ? 8 : 100;
+  const envLimit = Number(process.env.LOGIN_RATE_LIMIT);
+  const envWindowMs = Number(process.env.LOGIN_RATE_WINDOW_MS);
+
+  return {
+    limit:
+      Number.isFinite(envLimit) && envLimit > 0
+        ? Math.floor(envLimit)
+        : defaultLimit,
+    windowMs:
+      Number.isFinite(envWindowMs) && envWindowMs > 0
+        ? Math.floor(envWindowMs)
+        : 60_000,
+  };
+}
+
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
-    assertRateLimit(buildRateLimitKey("login", request), {
-      limit: 8,
-      windowMs: 60_000,
-    });
+    assertRateLimit(
+      buildRateLimitKey("login", request),
+      getLoginRateLimitConfig(),
+    );
     const payload = loginPayloadSchema.parse(await request.json());
 
     const user = payload.ine
