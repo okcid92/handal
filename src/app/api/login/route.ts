@@ -29,17 +29,28 @@ export async function POST(request: Request) {
       throw new ApiError("Invalid credentials", 401, "INVALID_CREDENTIALS");
     }
 
-    const isValidPassword = await bcrypt.compare(payload.password, user.password);
+    const isValidPassword = await bcrypt.compare(
+      payload.password,
+      user.password,
+    );
     if (!isValidPassword) {
       throw new ApiError("Invalid credentials", 401, "INVALID_CREDENTIALS");
     }
 
     if (payload.ine && user.role !== "STUDENT") {
-      throw new ApiError("INE login is only allowed for students", 403, "INVALID_LOGIN_CHANNEL");
+      throw new ApiError(
+        "INE login is only allowed for students",
+        403,
+        "INVALID_LOGIN_CHANNEL",
+      );
     }
 
     if (payload.email && user.role === "STUDENT") {
-      throw new ApiError("Student must login with INE", 403, "INVALID_LOGIN_CHANNEL");
+      throw new ApiError(
+        "Student must login with INE",
+        403,
+        "INVALID_LOGIN_CHANNEL",
+      );
     }
 
     const response = NextResponse.json({
@@ -66,7 +77,11 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    logger.error("auth.login.failed", error instanceof Error ? error.message : "unknown", {});
+    logger.error(
+      "auth.login.failed",
+      error instanceof Error ? error.message : "unknown",
+      {},
+    );
     return errorResponse(error);
   }
 }

@@ -21,7 +21,10 @@ function getSessionSecret() {
 }
 
 function sign(value: string) {
-  return crypto.createHmac("sha256", getSessionSecret()).update(value).digest("base64url");
+  return crypto
+    .createHmac("sha256", getSessionSecret())
+    .update(value)
+    .digest("base64url");
 }
 
 function encode(payload: SessionPayload) {
@@ -42,7 +45,9 @@ function decode(token: string): SessionPayload | null {
   }
 
   try {
-    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SessionPayload;
+    const parsed = JSON.parse(
+      Buffer.from(body, "base64url").toString("utf8"),
+    ) as SessionPayload;
     if (!parsed.userId || !parsed.role) {
       return null;
     }
@@ -52,7 +57,10 @@ function decode(token: string): SessionPayload | null {
   }
 }
 
-export function setSessionCookie(response: NextResponse, payload: SessionPayload) {
+export function setSessionCookie(
+  response: NextResponse,
+  payload: SessionPayload,
+) {
   response.cookies.set(SESSION_COOKIE_NAME, encode(payload), {
     httpOnly: true,
     sameSite: "lax",

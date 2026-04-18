@@ -78,6 +78,8 @@ Critere d acceptance:
 
 ## Phase 2 - Auth et RBAC robustes (Semaine 2)
 
+Statut actuel: COMPLETE (session cookie signee, proxy de protection, helpers RBAC, comptes demo seedes)
+
 Livrables:
 
 - Auth.js (session) avec login par INE/mot de passe pour student, et email/mot de passe pour teacher/da/admin.

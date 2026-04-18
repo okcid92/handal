@@ -4,7 +4,9 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const rows = await prisma.$queryRaw<Array<{ now: Date }>>`SELECT NOW() AS now`;
+    const rows = await prisma.$queryRaw<
+      Array<{ now: Date }>
+    >`SELECT NOW() AS now`;
 
     return NextResponse.json({
       ok: true,
