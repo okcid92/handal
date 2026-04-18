@@ -1,6 +1,7 @@
 import { DeliberationDecision } from "@prisma/client";
 
 import { ApiError } from "@/lib/api-errors";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 export type DeliberationPayload = {
@@ -18,7 +19,11 @@ function normalizeDecision(decision: DeliberationPayload["decision"]) {
     case "rewrite_required":
       return DeliberationDecision.REWRITE_REQUIRED;
     default:
-      throw new ApiError("Invalid deliberation decision", 422, "INVALID_DELIBERATION_DECISION");
+      throw new ApiError(
+        "Invalid deliberation decision",
+        422,
+        "INVALID_DELIBERATION_DECISION",
+      );
   }
 }
 
@@ -89,7 +94,11 @@ export async function createDeliberation(
   const report = await loadReport(reportId);
 
   if (!Array.isArray(report.deliberations)) {
-    throw new ApiError("Report deliberations unavailable", 500, "DELIBERATION_STATE_INVALID");
+    throw new ApiError(
+      "Report deliberations unavailable",
+      500,
+      "DELIBERATION_STATE_INVALID",
+    );
   }
 
   const created = await prisma.deliberation.create({
@@ -110,6 +119,12 @@ export async function createDeliberation(
         },
       },
     },
+  });
+
+  logger.info("report.deliberated", {
+    reportId: report.id.toString(),
+    decidedBy: decidedBy.toString(),
+    decision: created.decision,
   });
 
   return {

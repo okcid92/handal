@@ -1,6 +1,14 @@
-import { Prisma, RiskLevel, ThemeStatus, type Document, type Role, type SimilarityReport } from "@prisma/client";
+import {
+  Prisma,
+  RiskLevel,
+  ThemeStatus,
+  type Document,
+  type Role,
+  type SimilarityReport,
+} from "@prisma/client";
 
 import { ApiError } from "@/lib/api-errors";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 type DocumentPayload = {
@@ -25,7 +33,12 @@ type HighlightedSegment = {
 };
 
 type DocumentWithRelations = Document & {
-  theme: { id: bigint; studentId: bigint; status: ThemeStatus; finalScore: Prisma.Decimal | null };
+  theme: {
+    id: bigint;
+    studentId: bigint;
+    status: ThemeStatus;
+    finalScore: Prisma.Decimal | null;
+  };
   student: { id: bigint; role: Role };
 };
 
@@ -48,16 +61,16 @@ function toNumber(value: bigint | Prisma.Decimal | number) {
   return typeof value === "number" ? value : Number(value.toString());
 }
 
-function buildSeed(documentId: bigint) {
+export function buildSeed(documentId: bigint) {
   return Number(documentId % BigInt(97));
 }
 
-function simulateScore(seed: number, offset: number) {
+export function simulateScore(seed: number, offset: number) {
   const raw = (seed * (offset + 11) * 17 + offset * 13) % 100;
   return Math.max(3, Math.min(97, raw));
 }
 
-function deriveRiskLevel(globalSimilarity: number): RiskLevel {
+export function deriveRiskLevel(globalSimilarity: number): RiskLevel {
   if (globalSimilarity >= 70) {
     return RiskLevel.HIGH;
   }
@@ -183,7 +196,10 @@ async function loadReport(reportId: bigint) {
   return report as SimilarityReportWithRelations;
 }
 
-export async function createDocument(payload: DocumentPayload, studentId: bigint) {
+export async function createDocument(
+  payload: DocumentPayload,
+  studentId: bigint,
+) {
   const themeId = BigInt(payload.themeId);
 
   const theme = await prisma.theme.findUnique({
@@ -201,15 +217,27 @@ export async function createDocument(payload: DocumentPayload, studentId: bigint
   }
 
   if (theme.studentId !== studentId) {
-    throw new ApiError("Theme must belong to the current student", 403, "THEME_OWNER_FORBIDDEN");
+    throw new ApiError(
+      "Theme must belong to the current student",
+      403,
+      "THEME_OWNER_FORBIDDEN",
+    );
   }
 
   if (theme.status !== ThemeStatus.VALIDATED_DA) {
-    throw new ApiError("Theme must be VALIDATED_DA before final upload", 409, "THEME_NOT_READY_FOR_UPLOAD");
+    throw new ApiError(
+      "Theme must be VALIDATED_DA before final upload",
+      409,
+      "THEME_NOT_READY_FOR_UPLOAD",
+    );
   }
 
   if (theme.finalScore === null) {
-    throw new ApiError("Final score is required before upload", 409, "THEME_FINAL_SCORE_REQUIRED");
+    throw new ApiError(
+      "Final score is required before upload",
+      409,
+      "THEME_FINAL_SCORE_REQUIRED",
+    );
   }
 
   const storagePath = `/storage/final/${themeId.toString()}/${Date.now()}-${payload.originalName}`;
@@ -232,6 +260,12 @@ export async function createDocument(payload: DocumentPayload, studentId: bigint
     },
   });
 
+  logger.info("document.uploaded", {
+    documentId: created.id.toString(),
+    themeId: created.themeId.toString(),
+    studentId: created.studentId.toString(),
+  });
+
   return serializeDocument(created as DocumentWithRelations);
 }
 
@@ -239,15 +273,28 @@ export async function autoTestDocument(documentId: bigint, studentId: bigint) {
   const document = await loadDocument(documentId);
 
   if (document.studentId !== studentId) {
-    throw new ApiError("Document must belong to the current student", 403, "DOCUMENT_OWNER_FORBIDDEN");
+    throw new ApiError(
+      "Document must belong to the current student",
+      403,
+      "DOCUMENT_OWNER_FORBIDDEN",
+    );
   }
 
   const seed = buildSeed(document.id);
   const localShingle = simulateScore(seed, 1);
   const webSearch = simulateScore(seed, 2);
   const aiDetection = simulateScore(seed, 3);
-  const globalSimilarity = Math.round((localShingle + webSearch + aiDetection) / 3);
+  const globalSimilarity = Math.round(
+    (localShingle + webSearch + aiDetection) / 3,
+  );
   const riskLevel = deriveRiskLevel(globalSimilarity);
+
+  logger.info("document.auto_tested", {
+    documentId: document.id.toString(),
+    studentId: studentId.toString(),
+    globalSimilarity,
+    riskLevel,
+  });
 
   return {
     document: serializeDocument(document),
@@ -270,14 +317,20 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
   }
 
   if (document.theme.status !== ThemeStatus.VALIDATED_DA) {
-    throw new ApiError("Theme must be VALIDATED_DA for official analysis", 409, "THEME_NOT_VALIDATED_DA");
+    throw new ApiError(
+      "Theme must be VALIDATED_DA for official analysis",
+      409,
+      "THEME_NOT_VALIDATED_DA",
+    );
   }
 
   const seed = buildSeed(document.id);
   const localShingle = simulateScore(seed, 4);
   const webSearch = simulateScore(seed, 5);
   const aiScore = simulateScore(seed, 6);
-  const globalSimilarity = Math.round((localShingle * 0.45 + webSearch * 0.35 + aiScore * 0.2));
+  const globalSimilarity = Math.round(
+    localShingle * 0.45 + webSearch * 0.35 + aiScore * 0.2,
+  );
   const riskLevel = deriveRiskLevel(globalSimilarity);
   const matchedSources = generateSources(seed);
   const highlightedSegments = generateHighlightedSegments(seed);
@@ -289,13 +342,22 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
       aiScore: new Prisma.Decimal(aiScore),
       riskLevel,
       matchedSources: matchedSources as unknown as Prisma.InputJsonValue,
-      highlightedSegments: highlightedSegments as unknown as Prisma.InputJsonValue,
+      highlightedSegments:
+        highlightedSegments as unknown as Prisma.InputJsonValue,
       analyzedAt: new Date(),
       generatedBy: analystId,
     },
     include: {
       document: true,
     },
+  });
+
+  logger.info("document.analyzed", {
+    documentId: document.id.toString(),
+    analystId: analystId.toString(),
+    reportId: created.id.toString(),
+    globalSimilarity,
+    riskLevel,
   });
 
   return {
@@ -320,16 +382,23 @@ export async function listReports() {
     },
   });
 
-  return reports.map((report) => serializeReport(report as SimilarityReportWithRelations));
+  return reports.map((report) =>
+    serializeReport(report as SimilarityReportWithRelations),
+  );
 }
 
 export async function getReport(reportId: bigint) {
   const report = await loadReport(reportId);
-  const sources = Array.isArray(report.matchedSources) ? (report.matchedSources as ReportSource[]) : [];
-  const sourceDistribution = sources.reduce<Record<string, number>>((acc, source) => {
-    acc[source.type] = (acc[source.type] ?? 0) + 1;
-    return acc;
-  }, {});
+  const sources = Array.isArray(report.matchedSources)
+    ? (report.matchedSources as ReportSource[])
+    : [];
+  const sourceDistribution = sources.reduce<Record<string, number>>(
+    (acc, source) => {
+      acc[source.type] = (acc[source.type] ?? 0) + 1;
+      return acc;
+    },
+    {},
+  );
 
   return {
     report: serializeReport(report),

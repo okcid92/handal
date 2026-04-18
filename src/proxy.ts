@@ -15,7 +15,7 @@ const teacherPaths = ["/teacher"];
 const daPaths = ["/da"];
 const adminPaths = ["/admin"];
 
-function isPublicPath(pathname: string) {
+export function isPublicPath(pathname: string) {
   if (publicPaths.includes(pathname)) {
     return true;
   }
@@ -31,7 +31,7 @@ function isPublicPath(pathname: string) {
   return false;
 }
 
-function roleIsAllowed(pathname: string, role: string) {
+export function roleIsAllowed(pathname: string, role: string) {
   if (studentPaths.some((path) => pathname.startsWith(path))) {
     return role === "STUDENT" || role === "ADMIN";
   }

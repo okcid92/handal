@@ -18,7 +18,10 @@ type ApiErrorPayload = {
   };
 };
 
-export async function apiFetch<T>(input: RequestInfo | URL, init?: RequestInit): Promise<ApiSuccess<T>> {
+export async function apiFetch<T>(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<ApiSuccess<T>> {
   const response = await fetch(input, {
     ...init,
     headers: {
@@ -27,7 +30,9 @@ export async function apiFetch<T>(input: RequestInfo | URL, init?: RequestInit):
     },
   });
 
-  const data = (await response.json().catch(() => ({}))) as ApiSuccess<T> | ApiFailure;
+  const data = (await response.json().catch(() => ({}))) as
+    | ApiSuccess<T>
+    | ApiFailure;
 
   if (!response.ok || !data.ok) {
     const errorPayload = data as ApiErrorPayload;

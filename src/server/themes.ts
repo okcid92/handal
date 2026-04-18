@@ -1,6 +1,7 @@
 import { Prisma, ThemeStatus, type Role, type Theme } from "@prisma/client";
 
 import { ApiError } from "@/lib/api-errors";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 
 export type ThemeDecision = "approved" | "rejected";
@@ -29,7 +30,7 @@ type ThemePayload = {
   description: string;
 };
 
-function normalizeTitle(title: string) {
+export function normalizeThemeTitle(title: string) {
   return title.trim().toLowerCase();
 }
 
@@ -68,7 +69,7 @@ function serializeTheme(
 
 async function ensureThemeTitleAvailable(title: string) {
   const existing = await prisma.theme.findUnique({
-    where: { titleNormalized: normalizeTitle(title) },
+    where: { titleNormalized: normalizeThemeTitle(title) },
     select: { id: true },
   });
 
@@ -103,7 +104,7 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
     data: {
       studentId,
       title,
-      titleNormalized: normalizeTitle(title),
+      titleNormalized: normalizeThemeTitle(title),
       description,
       status: ThemeStatus.PENDING,
     },
@@ -118,6 +119,11 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
         },
       },
     },
+  });
+
+  logger.info("theme.created", {
+    themeId: created.id.toString(),
+    studentId: created.studentId.toString(),
   });
 
   return serializeTheme(created);
@@ -212,6 +218,12 @@ export async function validateThemeCd(
     },
   });
 
+  logger.info("theme.validated.cd", {
+    themeId: updated.id.toString(),
+    moderatorId: moderatorId.toString(),
+    decision,
+  });
+
   return serializeTheme(updated);
 }
 
@@ -275,6 +287,13 @@ export async function validateThemeDa(
         },
       },
     },
+  });
+
+  logger.info("theme.validated.da", {
+    themeId: updated.id.toString(),
+    validatorId: validatorId.toString(),
+    decision,
+    finalScore: updated.finalScore?.toString() ?? null,
   });
 
   return serializeTheme(updated);

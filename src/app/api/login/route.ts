@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ApiError, errorResponse } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { assertRateLimit, assertSameOrigin, buildRateLimitKey } from "@/lib/security";
 import { setSessionCookie } from "@/lib/session";
 
 const loginPayloadSchema = z
@@ -19,6 +20,8 @@ const loginPayloadSchema = z
 
 export async function POST(request: Request) {
   try {
+    assertSameOrigin(request);
+    assertRateLimit(buildRateLimitKey("login", request), { limit: 8, windowMs: 60_000 });
     const payload = loginPayloadSchema.parse(await request.json());
 
     const user = payload.ine

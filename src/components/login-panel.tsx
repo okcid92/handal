@@ -14,15 +14,25 @@ type LoginResponse = {
 
 const demoAccounts = {
   student: { label: "Etudiant", login: "N01331820231", password: "mon926732" },
-  teacher: { label: "Enseignant", login: "teacher@origina.local", password: "mon926732" },
+  teacher: {
+    label: "Enseignant",
+    login: "teacher@origina.local",
+    password: "mon926732",
+  },
   da: { label: "DA", login: "da@origina.local", password: "mon926732" },
-  admin: { label: "Admin", login: "admin@origina.local", password: "mon926732" },
+  admin: {
+    label: "Admin",
+    login: "admin@origina.local",
+    password: "mon926732",
+  },
 } as const;
 
 export function LoginPanel() {
   const [mode, setMode] = useState<LoginMode>("student");
   const [login, setLogin] = useState<string>(demoAccounts.student.login);
-  const [password, setPassword] = useState<string>(demoAccounts.student.password);
+  const [password, setPassword] = useState<string>(
+    demoAccounts.student.password,
+  );
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -45,13 +55,15 @@ export function LoginPanel() {
       const role = result.user.role.toLowerCase();
       window.location.assign(`/${role}`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Erreur de connexion");
+      setMessage(
+        error instanceof Error ? error.message : "Erreur de connexion",
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  function useDemo(account: keyof typeof demoAccounts) {
+  function fillDemoAccount(account: keyof typeof demoAccounts) {
     const selected = demoAccounts[account];
     setMode(account === "student" ? "student" : "staff");
     setLogin(selected.login);
@@ -61,7 +73,9 @@ export function LoginPanel() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
       <section className="rounded-[2rem] border border-white/10 bg-zinc-950 p-8 text-white shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
-        <p className="text-sm uppercase tracking-[0.25em] text-emerald-300">Origina</p>
+        <p className="text-sm uppercase tracking-[0.25em] text-emerald-300">
+          Origina
+        </p>
         <h1 className="mt-4 max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl">
           Plateforme académique Next.js pour le suivi de mémoire.
         </h1>
@@ -73,16 +87,28 @@ export function LoginPanel() {
 
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-zinc-400">Student</div>
-            <div className="mt-2 text-sm text-zinc-200">Proposition, dépôt, auto-test</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-zinc-400">
+              Student
+            </div>
+            <div className="mt-2 text-sm text-zinc-200">
+              Proposition, dépôt, auto-test
+            </div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-zinc-400">Teacher</div>
-            <div className="mt-2 text-sm text-zinc-200">Validation locale, analyse officielle</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-zinc-400">
+              Teacher
+            </div>
+            <div className="mt-2 text-sm text-zinc-200">
+              Validation locale, analyse officielle
+            </div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-zinc-400">DA / Admin</div>
-            <div className="mt-2 text-sm text-zinc-200">Validation finale, délibération</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-zinc-400">
+              DA / Admin
+            </div>
+            <div className="mt-2 text-sm text-zinc-200">
+              Validation finale, délibération
+            </div>
           </div>
         </div>
       </section>
@@ -113,18 +139,24 @@ export function LoginPanel() {
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label className="text-sm font-medium text-zinc-700">{mode === "student" ? "INE" : "Email"}</label>
+            <label className="text-sm font-medium text-zinc-700">
+              {mode === "student" ? "INE" : "Email"}
+            </label>
             <input
               value={login}
               onChange={(event) => setLogin(event.target.value)}
               className="mt-2 w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900"
-              placeholder={mode === "student" ? "N01331820231" : "teacher@origina.local"}
+              placeholder={
+                mode === "student" ? "N01331820231" : "teacher@origina.local"
+              }
               autoComplete="username"
             />
           </div>
 
           <div>
-            <label className="text-sm font-medium text-zinc-700">Mot de passe</label>
+            <label className="text-sm font-medium text-zinc-700">
+              Mot de passe
+            </label>
             <input
               type="password"
               value={password}
@@ -154,7 +186,7 @@ export function LoginPanel() {
             <button
               key={key}
               type="button"
-              onClick={() => useDemo(key as keyof typeof demoAccounts)}
+              onClick={() => fillDemoAccount(key as keyof typeof demoAccounts)}
               className="rounded-2xl border border-zinc-200 px-4 py-3 text-left text-sm transition hover:border-zinc-900 hover:bg-zinc-50"
             >
               <div className="font-semibold text-zinc-900">{account.label}</div>

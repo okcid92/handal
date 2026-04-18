@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { errorResponse } from "@/lib/api-errors";
 import { guardRole } from "@/lib/route-guards";
+import { assertSameOrigin } from "@/lib/security";
 import { createTheme } from "@/server/themes";
 
 const payloadSchema = z.object({
@@ -12,6 +13,7 @@ const payloadSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    assertSameOrigin(request);
     const session = guardRole(request, ["STUDENT"]);
     const payload = payloadSchema.parse(await request.json());
 

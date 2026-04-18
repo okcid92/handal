@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { errorResponse } from "@/lib/api-errors";
 import { guardStudent } from "@/lib/route-guards";
+import { assertSameOrigin } from "@/lib/security";
 import { autoTestDocument } from "@/server/documents";
 
 export async function POST(
@@ -9,10 +10,14 @@ export async function POST(
   { params }: { params: Promise<{ document: string }> },
 ) {
   try {
+    assertSameOrigin(request);
     const session = guardStudent(request);
     const { document } = await params;
 
-    const result = await autoTestDocument(BigInt(document), BigInt(session.userId));
+    const result = await autoTestDocument(
+      BigInt(document),
+      BigInt(session.userId),
+    );
 
     return NextResponse.json({
       ok: true,

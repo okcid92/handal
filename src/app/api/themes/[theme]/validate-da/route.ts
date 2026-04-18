@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { errorResponse } from "@/lib/api-errors";
 import { guardRole } from "@/lib/route-guards";
+import { assertSameOrigin } from "@/lib/security";
 import { validateThemeDa } from "@/server/themes";
 
 const payloadSchema = z.object({
@@ -16,6 +17,7 @@ export async function PATCH(
   { params }: { params: Promise<{ theme: string }> },
 ) {
   try {
+    assertSameOrigin(request);
     const session = guardRole(request, ["DA", "ADMIN"]);
     const { theme } = await params;
     const payload = payloadSchema.parse(await request.json());
