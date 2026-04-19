@@ -27,6 +27,27 @@ export async function GET(request: NextRequest) {
       throw new ApiError("User not found", 404, "USER_NOT_FOUND");
     }
 
+    // Thème actif de l'étudiant (le plus récent non rejeté)
+    const activeTheme = session.role === "STUDENT"
+      ? await prisma.theme.findFirst({
+          where: {
+            studentId: BigInt(session.userId),
+            status: { not: "REJECTED" },
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            teacherApproval: true,
+            daApproval: true,
+            // champs legacy v1
+            validatedCdBy: true,
+            validatedDaBy: true,
+          },
+        })
+      : null;
+
     return NextResponse.json({
       ok: true,
       user: {
@@ -40,6 +61,17 @@ export async function GET(request: NextRequest) {
       overview: {
         role: user.role,
       },
+      activeTheme: activeTheme ? {
+        id: activeTheme.id.toString(),
+        title: activeTheme.title,
+        status: activeTheme.status,
+        // v2 : votes simultanés
+        teacherApproval: activeTheme.teacherApproval,
+        daApproval: activeTheme.daApproval,
+        // v1 legacy : validé séquentiellement
+        validatedCd: activeTheme.validatedCdBy !== null,
+        validatedDa: activeTheme.validatedDaBy !== null,
+      } : null,
     });
   } catch (error) {
     return errorResponse(error);

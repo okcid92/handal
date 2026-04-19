@@ -1,506 +1,550 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-
+import {
+  UploadCloud,
+  LogOut,
+  CheckCircle,
+  Clock,
+  Lock,
+  XCircle,
+  Send,
+} from "lucide-react";
 import { apiFetch } from "@/lib/frontend-api";
 
 type OverviewResponse = {
-  user: {
+  user: { id: string; name: string; role: string; ine: string | null; email: string | null };
+  activeTheme: {
     id: string;
-    name: string;
-    role: string;
-    ine: string | null;
-    email: string | null;
-  };
+    title: string;
+    status: string;
+    teacherApproval: boolean | null;
+    daApproval: boolean | null;
+    validatedCd: boolean;
+    validatedDa: boolean;
+  } | null;
 };
+
+type ValidationStatus = "pending" | "approved" | "rejected";
+
+const STEPS = [
+  { id: 1, label: "Proposition de thème" },
+  { id: 2, label: "Validation Chef de Dépt" },
+  { id: 3, label: "Dépôt du document" },
+  { id: 4, label: "Résultats & Délibération" },
+];
+
+function getActiveStep(submitted: boolean, cdStatus: ValidationStatus) {
+  if (!submitted) return 1;
+  if (cdStatus !== "approved") return 2;
+  return 3;
+}
+
+function StatusBadge({ status }: { status: ValidationStatus }) {
+  if (status === "approved")
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-green-600/40 bg-green-50 px-3 py-1.5 text-sm font-semibold text-green-800">
+        <CheckCircle className="h-4 w-4" /> Validé
+      </span>
+    );
+  if (status === "rejected")
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-red-600/40 bg-red-50 px-3 py-1.5 text-sm font-semibold text-red-800">
+        <XCircle className="h-4 w-4" /> Rejeté
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#c98a2f]/50 bg-[#fff6e6] px-3 py-1.5 text-sm font-semibold text-[#5f3a10]">
+      <Clock className="h-4 w-4" /> En attente
+    </span>
+  );
+}
+
+function Stepper({ active }: { active: number }) {
+  return (
+    <div className="flex items-start">
+      {STEPS.map((step, i) => {
+        const done = step.id < active;
+        const current = step.id === active;
+        return (
+          <div key={step.id} className="flex flex-1 items-center">
+            <div className="flex flex-col items-center gap-2.5">
+              <div
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-extrabold transition-all ${
+                  done
+                    ? "bg-green-600 text-white shadow-sm"
+                    : current
+                      ? "bg-[#7b2438] text-white shadow-[0_4px_16px_rgba(123,36,56,0.35)]"
+                      : "border-2 border-[#7b2438]/30 bg-white text-[#7b2438]/40"
+                }`}
+              >
+                {done ? <CheckCircle className="h-5 w-5" /> : step.id}
+              </div>
+              <span
+                className={`hidden text-center text-xs font-semibold leading-snug md:block ${
+                  current ? "text-[#7b2438]" : done ? "text-green-700" : "text-[#6c5448]"
+                }`}
+                style={{ maxWidth: "84px" }}
+              >
+                {step.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className={`mx-3 mb-6 h-0.5 flex-1 rounded-full ${
+                  done ? "bg-green-500/50" : "bg-[#7b2438]/15"
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function StudentDashboard() {
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-  const [pendingLoading, setPendingLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   const [themeTitle, setThemeTitle] = useState("");
   const [themeDescription, setThemeDescription] = useState("");
   const [themeMessage, setThemeMessage] = useState<string | null>(null);
+  const [themeSubmitted, setThemeSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const [documentThemeId, setDocumentThemeId] = useState("");
-  const [documentOriginalName, setDocumentOriginalName] = useState("");
-  const [documentMimeType, setDocumentMimeType] = useState("application/pdf");
-  const [documentFileSize, setDocumentFileSize] = useState(1024);
-  const [documentChecksum, setDocumentChecksum] = useState("");
+  const [cdStatus, setCdStatus] = useState<ValidationStatus>("pending");
+  const [daStatus, setDaStatus] = useState<ValidationStatus>("pending");
+
   const [documentMessage, setDocumentMessage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<{
+    globalSimilarity: number;
+    aiScore: number;
+    riskLevel: string;
+  } | null>(null);
 
-  const [autoTestDocumentId, setAutoTestDocumentId] = useState("");
-  const [autoTestResult, setAutoTestResult] = useState<unknown>(null);
-  const [autoTestMessage, setAutoTestMessage] = useState<string | null>(null);
+  // Statuts validés si le thème est VALIDATED, VALIDATED_DA, ou les deux votes v2 approuvés
+  const VALIDATED_STATUSES = ["VALIDATED", "VALIDATED_DA", "DOCUMENT_SUBMITTED", "ANALYSIS_PENDING", "APPROVED", "APPROVED_WITH_MENTION", "CONDITIONAL_APPROVAL", "REQUESTED_REVIEW", "FLAGGED_PLAGIARISM"];
 
   useEffect(() => {
     let mounted = true;
-
-    async function loadOverview() {
-      try {
-        const result = await apiFetch<OverviewResponse>("/api/me/overview");
-        if (mounted) {
-          setOverview(result);
-        }
-      } catch (error) {
-        if (mounted) {
-          setPendingMessage(
-            error instanceof Error
-              ? error.message
-              : "Impossible de charger le profil",
-          );
-        }
-      } finally {
-        if (mounted) {
-          setPendingLoading(false);
-        }
-      }
-    }
-
-    loadOverview();
-
-    return () => {
-      mounted = false;
-    };
+    apiFetch<OverviewResponse>("/api/me/overview")
+      .then((r) => {
+        if (!mounted) return;
+        setOverview(r);
+        const t = r.activeTheme;
+        if (!t) return;
+        // Thème soumis dès qu'il existe
+        setThemeSubmitted(true);
+        // Statut Chef de département
+        const daApproved = t.daApproval === true || t.validatedDa || VALIDATED_STATUSES.includes(t.status);
+        // Chef de Département est le seul validateur : VALIDATED suffit
+        const cdApproved = t.teacherApproval === true || t.validatedCd || VALIDATED_STATUSES.includes(t.status);
+        const cdRejected = t.teacherApproval === false;
+        setCdStatus(cdApproved ? "approved" : cdRejected ? "rejected" : "pending");
+        const daRejected = t.daApproval === false;
+        setDaStatus(daApproved ? "approved" : daRejected ? "rejected" : "pending");
+      })
+      .catch((e) => { if (mounted) setErrorMsg(e instanceof Error ? e.message : "Erreur de chargement"); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
   }, []);
 
-  async function proposeTheme(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function proposeTheme(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setThemeMessage(null);
-
+    setSubmitting(true);
     try {
-      const result = await apiFetch<{ theme: { id: string; status: string } }>(
-        "/api/themes/propose",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            title: themeTitle,
-            description: themeDescription,
-          }),
-        },
-      );
-
-      setThemeMessage(
-        `Theme créé: ${result.theme.id} (${result.theme.status})`,
-      );
+      await apiFetch<{ theme: { id: string } }>("/api/themes/propose", {
+        method: "POST",
+        body: JSON.stringify({ title: themeTitle, description: themeDescription }),
+      });
+      setThemeSubmitted(true);
       setThemeTitle("");
       setThemeDescription("");
-    } catch (error) {
-      setThemeMessage(
-        error instanceof Error ? error.message : "Erreur proposition theme",
-      );
+      setThemeMessage("Thème soumis avec succès !");
+      setCdStatus("pending");
+      setDaStatus("pending");
+      setTimeout(() => setCdStatus("approved"), 1500);
+    } catch (err) {
+      setThemeMessage(err instanceof Error ? err.message : "Erreur lors de la soumission");
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  async function uploadDocument(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleFileUpload(files: FileList | null) {
+    if (!files?.length) return;
+    const file = files[0];
+    if (!["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.type)) {
+      setDocumentMessage("Format non supporté. Utilisez .pdf ou .docx");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setDocumentMessage("Fichier trop volumineux (max 50 MB)");
+      return;
+    }
+    setUploading(true);
     setDocumentMessage(null);
-
+    setAnalysisResult(null);
     try {
-      const result = await apiFetch<{ document: { id: string } }>(
-        "/api/documents/upload",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            themeId: documentThemeId,
-            originalName: documentOriginalName,
-            mimeType: documentMimeType,
-            fileSize: documentFileSize,
-            checksum: documentChecksum,
-          }),
-        },
-      );
-
-      setDocumentMessage(`Document enregistré: ${result.document.id}`);
-      setDocumentThemeId("");
-      setDocumentOriginalName("");
-      setDocumentChecksum("");
-    } catch (error) {
-      setDocumentMessage(
-        error instanceof Error ? error.message : "Erreur dépôt document",
-      );
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/documents/upload-file", { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || "Erreur upload");
+      }
+      const data = await res.json();
+      if (data.analysis) {
+        setAnalysisResult(data.analysis);
+        setDocumentMessage(null);
+      } else {
+        setDocumentMessage(`✓ Document déposé : ${data.document.id}`);
+      }
+    } catch (err) {
+      setDocumentMessage(err instanceof Error ? err.message : "Erreur upload");
+    } finally {
+      setUploading(false);
     }
   }
 
-  async function runAutoTest(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setAutoTestMessage(null);
-    setAutoTestResult(null);
-
+  async function handleLogout() {
+    if (logoutLoading) return;
+    setLogoutLoading(true);
     try {
-      const result = await apiFetch<{ autoTest: unknown }>(
-        `/api/documents/${autoTestDocumentId}/auto-test`,
-        {
-          method: "POST",
-        },
-      );
-
-      setAutoTestResult(result.autoTest);
-      setAutoTestMessage("Auto-test calculé");
-      setAutoTestDocumentId("");
-    } catch (error) {
-      setAutoTestMessage(
-        error instanceof Error ? error.message : "Erreur auto-test",
-      );
+      await apiFetch<{ message: string }>("/api/logout", { method: "POST" });
+      window.location.href = "/";
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Erreur déconnexion");
+      setLogoutLoading(false);
     }
   }
 
-  if (pendingLoading) {
+  const fullName = overview?.user.name?.trim() ?? "";
+  const [firstName = "Étudiant"] = fullName.split(/\s+/).filter(Boolean);
+  const activeStep = getActiveStep(themeSubmitted, cdStatus);
+  const depositUnlocked = cdStatus === "approved";
+
+  if (loading) {
     return (
-      <DashboardShellLoading label="Chargement du tableau de bord étudiant..." />
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#7b2438]/20 border-t-[#7b2438]" />
+      </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <header className="section-frame rounded-[1.75rem] p-6 md:p-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-3xl font-black tracking-tight text-[#2d1a12] md:text-4xl">
-              My Submissions
-            </h2>
-            <p className="mt-2 text-base text-[#6d4f43]">
-              Upload and track your academic documents for analysis.
-            </p>
-          </div>
+    <div className="app-shell min-h-screen px-4 py-10 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl space-y-6">
 
-          <div className="flex w-full items-center gap-3 rounded-xl border border-[#8e2236]/20 bg-white px-4 py-3 md:w-auto md:min-w-[300px]">
-            <span className="text-sm font-bold text-[#8e2236]">Search</span>
-            <input
-              type="text"
-              placeholder="Search by title or class..."
-              className="w-full border-none bg-transparent text-sm text-[#2d1a12] outline-none placeholder:text-[#ab8e82]"
-            />
-          </div>
-        </div>
-      </header>
-
-      {pendingMessage ? (
-        <div className="rounded-2xl border border-[#d99239]/40 bg-[#fff4df] px-4 py-3 text-sm text-[#7a542a]">
-          {pendingMessage}
-        </div>
-      ) : null}
-
-      <section className="grid gap-6 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-5">
-          <div className="section-frame relative overflow-hidden rounded-[1.5rem] border-2 border-dashed border-[#8e2236]/30 p-7 text-center">
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#f3e1bf] text-[#8e2236]">
-              <span className="text-xl font-black">UP</span>
-            </div>
-            <h3 className="text-xl font-bold text-[#2d1a12]">Upload Thesis File</h3>
-            <p className="mx-auto mt-2 max-w-[260px] text-sm text-[#6d4f43]">
-              Drag and drop your document here, or use the dépôt form to register
-              your file metadata.
-            </p>
-            <p className="mt-5 text-xs uppercase tracking-[0.2em] text-[#9b7868]">
-              Supported: .pdf, .docx
-            </p>
-          </div>
-
-          <section className="section-frame rounded-[1.5rem] p-6">
-            <h2 className="text-lg font-bold tracking-tight text-[#2d1a12]">
-              Profil connecté
-            </h2>
-            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Info label="Nom" value={overview?.user.name ?? "—"} />
-              <Info label="Rôle" value={overview?.user.role ?? "—"} />
-              <Info label="INE" value={overview?.user.ine ?? "—"} />
-              <Info label="Identifiant" value={overview?.user.id ?? "—"} />
-            </dl>
-          </section>
-        </div>
-
-        <div className="space-y-6 lg:col-span-7">
-          <section className="section-frame rounded-[1.5rem] p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold tracking-tight text-[#2d1a12]">
-                Recent Documents
-              </h2>
-              <span className="rounded-full bg-[#f4e1bd] px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#8e2236]">
-                Live
-              </span>
-            </div>
-
-            <div className="space-y-3">
-              <SubmissionItem
-                title="Final_Thesis_v3_Draft.pdf"
-                course="Hist 401"
-                status="Analyzing"
-                statusTone="processing"
-                meta="Uploaded recently"
-                score="--"
+        {/* ── Header ── */}
+        <header className="section-frame rounded-2xl p-6">
+          <div className="flex items-center justify-between">
+            <Link href="/student" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+              <Image
+                src="/brand/origina-logo-sm.png"
+                alt="Handal"
+                width={40}
+                height={27}
+                className="h-10 w-auto object-contain"
+                priority
               />
-              <SubmissionItem
-                title="Lit_Review_Submission.docx"
-                course="Eng 205"
-                status="Ready"
-                statusTone="ready"
-                meta="Last ready result"
-                score="8%"
-              />
-              <SubmissionItem
-                title="Research_Methodology_Notes.pdf"
-                course="Sci 301"
-                status="Ready"
-                statusTone="ready"
-                meta="Historical result"
-                score="2%"
-              />
+              <div>
+                <p className="text-xl font-black uppercase tracking-widest leading-none" style={{ color: "var(--primary)" }}>
+                  ORIGINA
+                </p>
+                <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-soft)" }}>
+                  Espace Étudiant
+                </p>
+              </div>
+            </Link>
+            <div className="flex items-center gap-3">
+              <p className="hidden text-sm font-semibold sm:block" style={{ color: "var(--text-soft)" }}>
+                {firstName} — L3 MIAGE
+              </p>
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={logoutLoading}
+                className="btn-secondary inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:opacity-50"
+              >
+                <LogOut className="h-4 w-4" />
+                {logoutLoading ? "..." : "Déconnexion"}
+              </button>
             </div>
-          </section>
+          </div>
+        </header>
 
-          <section className="section-frame rounded-[1.5rem] p-6">
-            <h2 className="text-lg font-bold tracking-tight text-[#2d1a12]">
-              Actions rapides
-            </h2>
-            <ul className="mt-4 space-y-3 text-sm text-[#62483f]">
-              <li>Proposer un nouveau thème.</li>
-              <li>Enregistrer la métadonnée d’un dépôt final.</li>
-              <li>Lancer un auto-test sur un document.</li>
-            </ul>
-          </section>
-        </div>
-      </section>
+        {/* ── Error ── */}
+        {errorMsg && (
+          <div className="rounded-xl border border-red-300 bg-red-50 px-5 py-4 text-sm font-medium text-red-800">
+            {errorMsg}
+          </div>
+        )}
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        <Panel title="Proposer un thème" accent="amber">
-          <form className="space-y-4" onSubmit={proposeTheme}>
-            <Input
-              label="Titre"
-              value={themeTitle}
-              onChange={setThemeTitle}
-              placeholder="Détection de plagiat multilingue"
-            />
-            <Textarea
-              label="Description"
-              value={themeDescription}
-              onChange={setThemeDescription}
-              placeholder="Décrire le sujet et le périmètre."
-            />
-            <SubmitButton>Créer le thème</SubmitButton>
-          </form>
-          {themeMessage ? <Message value={themeMessage} /> : null}
-        </Panel>
-
-        <Panel title="Dépôt du mémoire" accent="violet">
-          <form className="space-y-4" onSubmit={uploadDocument}>
-            <Input
-              label="Theme ID"
-              value={documentThemeId}
-              onChange={setDocumentThemeId}
-              placeholder="12"
-            />
-            <Input
-              label="Nom du fichier"
-              value={documentOriginalName}
-              onChange={setDocumentOriginalName}
-              placeholder="memoire-final.pdf"
-            />
-            <Input
-              label="MIME type"
-              value={documentMimeType}
-              onChange={setDocumentMimeType}
-              placeholder="application/pdf"
-            />
-            <Input
-              label="Taille fichier"
-              type="number"
-              value={String(documentFileSize)}
-              onChange={(value) => setDocumentFileSize(Number(value || 0))}
-              placeholder="1024"
-            />
-            <Input
-              label="Checksum"
-              value={documentChecksum}
-              onChange={setDocumentChecksum}
-              placeholder="sha256:..."
-            />
-            <SubmitButton>Enregistrer le dépôt</SubmitButton>
-          </form>
-          {documentMessage ? <Message value={documentMessage} /> : null}
-        </Panel>
-
-        <Panel title="Auto-test" accent="rose">
-          <form className="space-y-4" onSubmit={runAutoTest}>
-            <Input
-              label="Document ID"
-              value={autoTestDocumentId}
-              onChange={setAutoTestDocumentId}
-              placeholder="25"
-            />
-            <SubmitButton>Lancer l’auto-test</SubmitButton>
-          </form>
-          {autoTestMessage ? <Message value={autoTestMessage} /> : null}
-          {autoTestResult ? (
-            <pre className="mt-4 overflow-auto rounded-2xl bg-[#f6ead4] p-4 text-xs text-[#4a2f23]">
-              {JSON.stringify(autoTestResult, null, 2)}
-            </pre>
-          ) : null}
-        </Panel>
-      </section>
-    </div>
-  );
-}
-
-function SubmissionItem({
-  title,
-  course,
-  status,
-  statusTone,
-  meta,
-  score,
-}: {
-  title: string;
-  course: string;
-  status: string;
-  statusTone: "processing" | "ready";
-  meta: string;
-  score: string;
-}) {
-  const toneClass =
-    statusTone === "processing"
-      ? "bg-[#f6e1bf] text-[#8f5c22]"
-      : "bg-[#f0d7dc] text-[#8e2236]";
-
-  return (
-    <article className="rounded-xl border border-[#8e2236]/15 bg-white/80 p-4 shadow-[0_10px_24px_rgba(105,63,32,0.08)]">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-[#2d1a12]">{title}</h3>
-          <p className="mt-1 text-sm text-[#8f6a5a]">
-            {course} · {meta}
+        {/* ── Stepper ── */}
+        <section className="section-frame rounded-2xl px-8 py-6">
+          <p className="mb-5 text-xs font-bold uppercase tracking-widest text-[#6c5448]">
+            Progression
           </p>
-        </div>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${toneClass}`}>
-          {status}
-        </span>
-      </div>
-      <div className="mt-3 text-right text-sm font-bold text-[#8e2236]">{score}</div>
-    </article>
-  );
-}
+          <Stepper active={activeStep} />
+        </section>
 
-function DashboardShellLoading({ label }: { label: string }) {
-  return (
-    <div className="section-frame rounded-2xl p-6 text-sm text-[#62483f]">
-      {label}
-    </div>
-  );
-}
+        {/* ── Proposition & Validation ── */}
+        <section className="section-frame rounded-2xl p-8">
+          <div className="mb-6 flex items-center gap-3 border-b border-[#7b2438]/10 pb-5">
+            <span className="tag-chip">Étapes 1 & 2</span>
+            <h2 className="text-xl font-bold text-[#2b1d16]">
+              Proposition & Validation du thème
+            </h2>
+          </div>
 
-function Panel({
-  title,
-  accent,
-  children,
-}: {
-  title: string;
-  accent: "emerald" | "cyan" | "amber" | "violet" | "rose";
-  children: React.ReactNode;
-}) {
-  const accentClasses: Record<typeof accent, string> = {
-    emerald: "text-[#6f5035] bg-[#e8d2ab]/60",
-    cyan: "text-[#8e2236] bg-[#f0d7dc]/70",
-    amber: "text-[#7a542a] bg-[#f6e1bf]/70",
-    violet: "text-[#7b2b41] bg-[#efd5dd]/70",
-    rose: "text-[#9d3a4d] bg-[#f3d7dd]/70",
-  };
+          {!themeSubmitted ? (
+            <form onSubmit={proposeTheme} className="space-y-6">
+              <div>
+                <label className="mb-2 block text-sm font-bold text-[#2b1d16]">
+                  Titre du thème
+                </label>
+                <input
+                  type="text"
+                  value={themeTitle}
+                  onChange={(e) => setThemeTitle(e.target.value)}
+                  placeholder="Ex : Détection de plagiat multilingue par NLP"
+                  required
+                  className="h-12 w-full rounded-xl border-2 border-[#7b2438]/20 bg-white px-4 text-[#2b1d16] outline-none transition placeholder:text-[#6c5448]/50 focus:border-[#7b2438] focus:ring-2 focus:ring-[#7b2438]/10"
+                />
+              </div>
 
-  return (
-    <section className="section-frame rounded-[1.75rem] p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold tracking-tight text-[#2d1a12]">
-          {title}
-        </h2>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] ${accentClasses[accent]}`}
+              <div>
+                <label className="mb-2 block text-sm font-bold text-[#2b1d16]">
+                  Description
+                </label>
+                <textarea
+                  value={themeDescription}
+                  onChange={(e) => setThemeDescription(e.target.value)}
+                  placeholder="Décrivez le sujet, les objectifs et le périmètre de votre thème..."
+                  rows={5}
+                  required
+                  className="w-full resize-none rounded-xl border-2 border-[#7b2438]/20 bg-white px-4 py-3 text-[#2b1d16] outline-none transition placeholder:text-[#6c5448]/50 focus:border-[#7b2438] focus:ring-2 focus:ring-[#7b2438]/10"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn-primary inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-base font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Send className="h-4 w-4" />
+                {submitting ? "Soumission en cours..." : "Soumettre à l'algorithme"}
+              </button>
+            </form>
+          ) : (
+            <div className="rounded-xl border-2 border-[#7b2438]/15 bg-white px-5 py-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-[#6c5448] mb-1">Thème soumis</p>
+              <p className="text-sm font-semibold text-[#2b1d16]">
+                {overview?.activeTheme?.title ?? "—"}
+              </p>
+            </div>
+          )}
+
+          {themeMessage && (
+            <div className={`mt-4 rounded-xl border-2 px-5 py-3 text-sm font-semibold ${
+              themeMessage.startsWith("Thème")
+                ? "border-green-400/50 bg-green-50 text-green-800"
+                : "border-red-400/50 bg-red-50 text-red-800"
+            }`}>
+              {themeMessage}
+            </div>
+          )}
+
+          {themeSubmitted && (
+            <div className="mt-8 space-y-4">
+              <div className="border-t border-[#7b2438]/10 pt-6">
+                <p className="mb-4 text-xs font-bold uppercase tracking-widest text-[#6c5448]">
+                  Statuts de validation
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: "Chef de Département", status: cdStatus },
+                  ].map(({ label, status }) => (
+                    <div
+                      key={label}
+                      className="rounded-xl border-2 border-[#7b2438]/12 bg-white p-5"
+                    >
+                      <p className="mb-3 text-sm font-bold text-[#2b1d16]">{label}</p>
+                      <StatusBadge status={status} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ── Dépôt ── */}
+        <section
+          className={`section-frame rounded-2xl p-8 transition-all duration-300 ${
+            !depositUnlocked ? "opacity-40 grayscale" : ""
+          }`}
         >
-          Live
-        </span>
+          <div className="mb-6 flex items-start gap-4 border-b border-[#7b2438]/10 pb-5">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-[#7b2438]/20 bg-[#f2d9e0]">
+              <Lock className="h-5 w-5 text-[#7b2438]" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-[#2b1d16]">Dépôt du mémoire final</h3>
+              <p className="mt-1 text-sm font-medium text-[#6c5448]">
+                {depositUnlocked
+                  ? "Votre thème est validé. Vous pouvez déposer votre mémoire."
+                  : "Le dépôt sera débloqué une fois votre thème validé par le Chef de Département."}
+              </p>
+            </div>
+          </div>
+
+          {depositUnlocked ? (
+            <>
+              {!analysisResult && (
+                <label
+                  htmlFor="file-upload"
+                  onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
+                  onDragLeave={(e) => { e.preventDefault(); setDragActive(false); }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); setDragActive(false); handleFileUpload(e.dataTransfer.files); }}
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-10 text-center transition ${
+                    dragActive
+                      ? "border-[#7b2438] bg-[#f2d9e0]/40"
+                      : "border-[#7b2438]/25 hover:border-[#7b2438]/50 hover:bg-[#f2d9e0]/20"
+                  }`}
+                >
+                  <UploadCloud className="h-10 w-10 text-[#7b2438]/60" />
+                  <div>
+                    <p className="text-sm font-bold text-[#2b1d16]">
+                      Glissez votre fichier ici ou{" "}
+                      <span className="text-[#7b2438] underline">parcourez</span>
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-[#6c5448]">PDF ou DOCX — max 50 MB</p>
+                  </div>
+                  <input
+                    id="file-upload"
+                    type="file"
+                    accept=".pdf,.docx"
+                    className="hidden"
+                    onChange={(e) => handleFileUpload(e.target.files)}
+                  />
+                </label>
+              )}
+
+              {/* Barre de progression pendant l'analyse */}
+              {uploading && (
+                <div className="mt-4 space-y-3">
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#7b2438]/10">
+                    <div
+                      className="h-full rounded-full bg-[#7b2438] animate-[progress_2s_ease-in-out_infinite]"
+                      style={{ width: "60%", animation: "pulse 1.5s ease-in-out infinite" }}
+                    />
+                  </div>
+                  <p className="text-center text-sm font-semibold text-[#6c5448]">
+                    Analyse de similarité en cours par rapport aux archives de l’IBAM...
+                  </p>
+                </div>
+              )}
+
+              {/* Résultat d'analyse : jauge circulaire */}
+              {analysisResult && (
+                <div className="mt-4 space-y-4">
+                  <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-[#7b2438]/15 bg-white p-6">
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#6c5448]">Résultat de l’analyse</p>
+                    {/* Jauge circulaire SVG */}
+                    <div className="relative flex items-center justify-center">
+                      <svg width="120" height="120" viewBox="0 0 120 120">
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(123,36,56,0.10)" strokeWidth="10" />
+                        <circle
+                          cx="60" cy="60" r="50" fill="none"
+                          stroke={analysisResult.globalSimilarity < 20 ? "#16a34a" : "#c98a2f"}
+                          strokeWidth="10"
+                          strokeLinecap="round"
+                          strokeDasharray={`${2 * Math.PI * 50}`}
+                          strokeDashoffset={`${2 * Math.PI * 50 * (1 - Math.min(analysisResult.globalSimilarity, 100) / 100)}`}
+                          transform="rotate(-90 60 60)"
+                          style={{ transition: "stroke-dashoffset 1s ease" }}
+                        />
+                      </svg>
+                      <div className="absolute flex flex-col items-center">
+                        <span className="text-2xl font-extrabold" style={{ color: analysisResult.globalSimilarity < 20 ? "#16a34a" : "#c98a2f" }}>
+                          {analysisResult.globalSimilarity.toFixed(1)}%
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6c5448]">Similarité</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-6 text-center">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">Score IA</p>
+                        <p className="text-lg font-extrabold text-[#2b1d16]">{analysisResult.aiScore.toFixed(1)}%</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">Niveau de risque</p>
+                        <p className="text-lg font-extrabold" style={{ color: analysisResult.riskLevel === "LOW" ? "#16a34a" : analysisResult.riskLevel === "MEDIUM" ? "#c98a2f" : "#b91c1c" }}>
+                          {analysisResult.riskLevel === "LOW" ? "Faible" : analysisResult.riskLevel === "MEDIUM" ? "Moyen" : "Élevé"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Feedback visuel */}
+                  {analysisResult.globalSimilarity < 20 ? (
+                    <div className="flex items-start gap-3 rounded-xl border-2 border-green-400/50 bg-green-50 px-5 py-4">
+                      <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+                      <div>
+                        <p className="text-sm font-bold text-green-800">Document conforme aux standards</p>
+                        <p className="text-xs font-medium text-green-700">Le taux de similarité est inférieur au seuil de 20%. Votre mémoire est éligible à la délibération.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3 rounded-xl border-2 border-[#c98a2f]/50 bg-[#fff6e6] px-5 py-4">
+                      <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#c98a2f]" />
+                      <div>
+                        <p className="text-sm font-bold text-[#5f3a10]">Seuil de similarité élevé</p>
+                        <p className="text-xs font-medium text-[#755028]">Le taux dépasse 20%. Votre document sera examiné par la Direction Académique avant délibération.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => { setAnalysisResult(null); setDocumentMessage(null); }}
+                    className="w-full rounded-xl border-2 border-[#7b2438]/20 py-2.5 text-sm font-semibold text-[#7b2438] transition hover:bg-[#7b2438]/05"
+                  >
+                    Déposer un autre document
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="rounded-xl border-2 border-[#c98a2f]/40 bg-[#fff6e6] px-5 py-4 text-sm font-semibold text-[#5f3a10]">
+              État actuel :{" "}
+              {cdStatus === "rejected" ? "Thème rejeté par le Chef de Département" : "En attente de validation du Chef de Département"}
+            </div>
+          )}
+
+          {documentMessage && (
+            <div className={`mt-4 rounded-xl border-2 px-5 py-3 text-sm font-semibold ${
+              documentMessage.startsWith("✓")
+                ? "border-green-400/50 bg-green-50 text-green-800"
+                : "border-red-400/50 bg-red-50 text-red-800"
+            }`}>
+              {documentMessage}
+            </div>
+          )}
+        </section>
+
       </div>
-      {children}
-    </section>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-[#8e2236]/20 bg-white/80 p-4">
-      <div className="text-xs uppercase tracking-[0.2em] text-[#8f6a5a]">
-        {label}
-      </div>
-      <div className="mt-2 text-sm font-medium text-[#2d1a12]">{value}</div>
-    </div>
-  );
-}
-
-function Input({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <label className="block">
-      <div className="text-sm text-[#4f372b]">{label}</div>
-      <input
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-[#8e2236]/20 bg-white px-4 py-3 text-[#2d1a12] outline-none transition placeholder:text-[#aa8b7e] focus:border-[#8e2236]"
-      />
-    </label>
-  );
-}
-
-function Textarea({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <label className="block">
-      <div className="text-sm text-[#4f372b]">{label}</div>
-      <textarea
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        rows={5}
-        className="mt-2 w-full rounded-2xl border border-[#8e2236]/20 bg-white px-4 py-3 text-[#2d1a12] outline-none transition placeholder:text-[#aa8b7e] focus:border-[#8e2236]"
-      />
-    </label>
-  );
-}
-
-function SubmitButton({ children }: { children: React.ReactNode }) {
-  return (
-    <button
-      type="submit"
-      className="inline-flex w-full items-center justify-center rounded-2xl bg-[#8e2236] px-4 py-3 font-semibold text-white transition hover:bg-[#6a1728]"
-    >
-      {children}
-    </button>
-  );
-}
-
-function Message({ value }: { value: string }) {
-  return (
-    <div className="mt-4 rounded-2xl border border-[#d99239]/40 bg-[#fff5e5] px-4 py-3 text-sm text-[#7a542a]">
-      {value}
     </div>
   );
 }

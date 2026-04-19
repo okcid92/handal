@@ -1,4 +1,8 @@
-# Origina
+# Origina — Référence Historique (Legacy Laravel)
+
+> [!WARNING]
+> **Document de référence historique.** Ce fichier documente l'architecture et les contrats API du **backend Laravel original** (Origina). Il sert de base fonctionnelle pour la migration, mais l'implémentation active du projet est désormais en **Next.js** (voir `README.md`, `roadmap.md` et `workflow.md`).
+> Les commandes d'installation Laravel ci-dessous ne s'appliquent plus à la stack courante.
 
 Origina est un système intégré de détection de plagiat et de gestion académique conçu pour un contexte universitaire de type IBAM / MIAGE. Le projet couvre le cycle complet d'un mémoire ou d'un travail de recherche: proposition du thème, validation successive, dépôt du document, analyse de similarité, puis délibération finale.
 

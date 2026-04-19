@@ -6,7 +6,7 @@ Ce document formalise les objets metier et regles de base pour la version full N
 
 - STUDENT: propose un theme, depose un document final, lance auto-test.
 - TEACHER: modere themes, lance analyse officielle.
-- DA: valide acadamiquement les themes, delibere sur rapports.
+- DA: valide académiquement les themes, delibere sur rapports.
 - ADMIN: cumule les permissions teacher + da.
 
 Le role `var` n est pas retenu dans la logique metier.
@@ -48,7 +48,7 @@ Regle de donnees:
 ## Contraintes critiques
 
 - Unicite globale de theme sur le titre, insensible a la casse.
-- Le document final n est autorise que si le theme est VALIDATED_DA avec note finale.
+- Le document final n est autorise que si le theme est VALIDATED_DA. La note finale (0..20) est requise par la regle metier lors de la validation DA ; sa presence n est pas re-verifiee a l upload (verification cote validation DA).
 - Analyse officielle reservee a TEACHER/ADMIN.
 - Deliberation reservee a DA/ADMIN.
 
@@ -67,7 +67,8 @@ Regle de donnees:
 - GET /api/themes/pending
 - PATCH /api/themes/{theme}/validate-cd
 - PATCH /api/themes/{theme}/validate-da
-- POST /api/documents/upload
+- POST /api/documents/upload-file (upload reel multipart — route active)
+- POST /api/documents/upload (route metadata seule — conservee pour compatibilite)
 - POST /api/documents/{document}/auto-test
 - POST /api/documents/{document}/analyze
 - GET /api/reports

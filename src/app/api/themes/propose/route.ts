@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error) {
+    console.error("[propose] raw error:", error);
     return errorResponse(error);
   }
 }

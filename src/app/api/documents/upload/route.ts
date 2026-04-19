@@ -7,7 +7,7 @@ import { assertSameOrigin } from "@/lib/security";
 import { createDocument } from "@/server/documents";
 
 const payloadSchema = z.object({
-  themeId: z.string().trim().min(1),
+  themeId: z.string().trim().min(1).optional(),
   originalName: z.string().trim().min(1),
   mimeType: z.string().trim().min(1),
   fileSize: z.number().int().positive(),

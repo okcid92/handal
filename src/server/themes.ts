@@ -1,8 +1,13 @@
-import { Prisma, ThemeStatus, type Role, type Theme } from "@prisma/client";
+import { Prisma, ThemeStatus, DocumentStatus, type Role, type Theme } from "@prisma/client";
 
 import { ApiError } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import {
+  analyzeTheme,
+  compareOneToMany,
+} from "@/server/analysis/themeanalysor";
+import { listReferenceProfiles } from "@/server/reference-documents";
 
 export type ThemeDecision = "approved" | "rejected";
 
@@ -14,15 +19,27 @@ export type ThemeSummary = {
   status: ThemeStatus;
   moderationComment: string | null;
   finalScore: string | null;
+  themeSimilarityScore?: string | null;
+  themeSimilarityLabel?: string | null;
   createdAt: string;
   updatedAt: string;
   student: {
     id: string;
     name: string;
+    firstName: string;
+    lastName: string;
     ine: string | null;
     email: string | null;
+    department: string | null;
     role: Role;
   };
+  theme_id: string;
+  theme_title: string;
+  student_name: string;
+  student_firstname: string;
+  student_department: string | null;
+  similarity_score: string;
+  submitted_at: string;
 };
 
 type ThemePayload = {
@@ -41,10 +58,22 @@ function serializeTheme(
       name: string;
       ine: string | null;
       email: string | null;
+      department: string | null;
       role: Role;
     };
   },
 ) {
+  const fullName = theme.student?.name?.trim() ?? "";
+  const nameParts = fullName.split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] ?? "";
+  const lastName = nameParts.slice(1).join(" ") || firstName;
+  const similarityScoreValue =
+    theme.themeSimilarityScore?.toString() !== undefined &&
+    theme.themeSimilarityScore !== null
+      ? `${theme.themeSimilarityScore.toString()}%`
+      : "0%";
+  const submittedAt = theme.createdAt.toISOString().slice(0, 10);
+
   return {
     id: theme.id.toString(),
     studentId: theme.studentId.toString(),
@@ -53,18 +82,97 @@ function serializeTheme(
     status: theme.status,
     moderationComment: theme.moderationComment ?? null,
     finalScore: theme.finalScore?.toString() ?? null,
+    themeSimilarityScore: theme.themeSimilarityScore?.toString() ?? null,
+    themeSimilarityLabel: theme.themeSimilarityLabel ?? null,
     createdAt: theme.createdAt.toISOString(),
     updatedAt: theme.updatedAt.toISOString(),
     student: theme.student
       ? {
           id: theme.student.id.toString(),
           name: theme.student.name,
+          firstName,
+          lastName,
           ine: theme.student.ine,
           email: theme.student.email,
+          department: theme.student.department,
           role: theme.student.role,
         }
       : undefined,
+    theme_id: theme.id.toString(),
+    theme_title: theme.title,
+    student_name: lastName || fullName,
+    student_firstname: firstName,
+    student_department: theme.student?.department ?? null,
+    similarity_score: similarityScoreValue,
+    submitted_at: submittedAt,
   };
+}
+
+function bigramSet(text: string) {
+  const normalized = normalizeThemeTitle(text).replace(/\s+/g, " ").trim();
+  const grams = new Set<string>();
+  if (normalized.length < 2) {
+    return grams;
+  }
+
+  for (let i = 0; i < normalized.length - 1; i += 1) {
+    grams.add(normalized.slice(i, i + 2));
+  }
+
+  return grams;
+}
+
+function titleSimilarityScore(a: string, b: string) {
+  const setA = bigramSet(a);
+  const setB = bigramSet(b);
+  if (setA.size === 0 || setB.size === 0) {
+    return 0;
+  }
+
+  let intersection = 0;
+  setA.forEach((gram) => {
+    if (setB.has(gram)) {
+      intersection += 1;
+    }
+  });
+
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+async function assertThemeSimilarityAccepted(title: string) {
+  const existingThemes = await prisma.theme.findMany({
+    select: {
+      id: true,
+      title: true,
+    },
+    take: 250,
+    orderBy: { createdAt: "desc" },
+  });
+
+  const matches = existingThemes
+    .map((theme) => {
+      const score = titleSimilarityScore(title, theme.title);
+      return {
+        id: theme.id.toString(),
+        title: theme.title,
+        score,
+      };
+    })
+    .filter((item) => item.score >= 0.7)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+
+  if (matches.length > 0) {
+    const details = matches
+      .map((match) => `"${match.title}" (${(match.score * 100).toFixed(1)}%)`)
+      .join(", ");
+    throw new ApiError(
+      `Theme rejected: high semantic similarity detected with ${details}`,
+      403,
+      "THEME_SIMILARITY_TOO_HIGH",
+    );
+  }
 }
 
 async function ensureThemeTitleAvailable(title: string) {
@@ -99,27 +207,61 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
   }
 
   await ensureThemeTitleAvailable(title);
+  await assertThemeSimilarityAccepted(title);
 
-  const created = await prisma.theme.create({
-    data: {
-      studentId,
-      title,
-      titleNormalized: normalizeThemeTitle(title),
-      description,
-      status: ThemeStatus.PENDING,
-    },
-    include: {
-      student: {
-        select: {
-          id: true,
-          name: true,
-          ine: true,
-          email: true,
-          role: true,
+  const candidateProfile = analyzeTheme({
+    name: `student-${studentId.toString()}-theme`,
+    content: `${title}. ${description}`,
+  });
+  const referenceProfiles = await listReferenceProfiles();
+  const comparisons = compareOneToMany(candidateProfile, referenceProfiles);
+  const topComparison = comparisons[0];
+  const similarityScore = topComparison
+    ? Number((topComparison.thematicSimilarity * 100).toFixed(2))
+    : null;
+  const similarityLabel = topComparison?.proximityLevel ?? null;
+
+  const serializableProfile = {
+    ...candidateProfile,
+    analyzedAt: candidateProfile.analyzedAt instanceof Date
+      ? candidateProfile.analyzedAt.toISOString()
+      : candidateProfile.analyzedAt,
+  };
+
+  let created;
+  try {
+    created = await prisma.theme.create({
+      data: {
+        studentId,
+        title,
+        titleNormalized: normalizeThemeTitle(title),
+        description,
+        status: ThemeStatus.PENDING_VALIDATION,
+        themeSignature: serializableProfile as unknown as Prisma.InputJsonValue,
+        themeSimilarityScore:
+          similarityScore !== null ? new Prisma.Decimal(similarityScore) : null,
+        themeSimilarityLabel: similarityLabel,
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            name: true,
+            ine: true,
+            email: true,
+            department: true,
+            role: true,
+          },
         },
       },
-    },
-  });
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new ApiError("Theme title already exists", 409, "THEME_TITLE_EXISTS");
+    }
+    logger.error("theme.create.failed", "prisma create error", { error: err instanceof Error ? err.message : String(err) });
+    throw err;
+  }
 
   logger.info("theme.created", {
     themeId: created.id.toString(),
@@ -131,7 +273,7 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
 
 export async function listPendingThemes() {
   const themes = await prisma.theme.findMany({
-    where: { status: ThemeStatus.PENDING },
+    where: { status: { in: [ThemeStatus.PENDING, ThemeStatus.PENDING_VALIDATION] } },
     orderBy: { createdAt: "asc" },
     include: {
       student: {
@@ -140,6 +282,7 @@ export async function listPendingThemes() {
           name: true,
           ine: true,
           email: true,
+          department: true,
           role: true,
         },
       },
@@ -159,6 +302,7 @@ async function loadTheme(themeId: bigint) {
           name: true,
           ine: true,
           email: true,
+          department: true,
           role: true,
         },
       },
@@ -189,7 +333,18 @@ export async function validateThemeCd(
   comment?: string | null,
 ) {
   const theme = await loadTheme(themeId);
-  assertRoleCanModerate(theme, ThemeStatus.PENDING);
+
+  if (theme.status !== ThemeStatus.PENDING && theme.status !== ThemeStatus.PENDING_VALIDATION) {
+    throw new ApiError(
+      `Theme must be PENDING or PENDING_VALIDATION before CD validation`,
+      409,
+      "THEME_STATUS_INVALID",
+    );
+  }
+
+  // Le Chef de Département est le seul validateur du thème.
+  // Approbation → VALIDATED directement (dépôt document débloqué).
+  const finalStatus = decision === "approved" ? ThemeStatus.VALIDATED : ThemeStatus.REJECTED;
 
   const updated = await prisma.theme.update({
     where: { id: themeId },
@@ -197,13 +352,12 @@ export async function validateThemeCd(
       moderatedBy: moderatorId,
       moderatedAt: new Date(),
       moderationComment: comment?.trim() || null,
-      status:
-        decision === "approved"
-          ? ThemeStatus.VALIDATED_CD
-          : ThemeStatus.REJECTED,
-      ...(decision === "approved"
-        ? { validatedCdBy: moderatorId, validatedCdAt: new Date() }
-        : {}),
+      status: finalStatus,
+      teacherApproval: decision === "approved",
+      teacherComment: comment?.trim() || null,
+      teacherValidatedAt: new Date(),
+      validatedCdBy: decision === "approved" ? moderatorId : null,
+      validatedCdAt: decision === "approved" ? new Date() : null,
     },
     include: {
       student: {
@@ -212,6 +366,7 @@ export async function validateThemeCd(
           name: true,
           ine: true,
           email: true,
+          department: true,
           role: true,
         },
       },
@@ -235,46 +390,59 @@ export async function validateThemeDa(
   comment?: string | null,
 ) {
   const theme = await loadTheme(themeId);
-  assertRoleCanModerate(theme, ThemeStatus.VALIDATED_CD);
 
-  if (decision === "approved") {
-    if (
-      finalScore === null ||
-      finalScore === undefined ||
-      Number.isNaN(finalScore)
-    ) {
-      throw new ApiError(
-        "Final score is required",
-        422,
-        "FINAL_SCORE_REQUIRED",
-      );
+  // Accepte VALIDATED_CD (v1) et PENDING_VALIDATION (v2 — DA peut voter sans attendre CD)
+  if (
+    theme.status !== ThemeStatus.VALIDATED_CD &&
+    theme.status !== ThemeStatus.PENDING_VALIDATION
+  ) {
+    throw new ApiError(
+      `Theme must be VALIDATED_CD or PENDING_VALIDATION before DA validation`,
+      409,
+      "THEME_STATUS_INVALID",
+    );
+  }
+
+  // En v2 (PENDING_VALIDATION), la note finale n'est plus requise à cette étape
+  const isV2 = theme.status === ThemeStatus.PENDING_VALIDATION;
+
+  if (!isV2 && decision === "approved") {
+    if (finalScore === null || finalScore === undefined || Number.isNaN(finalScore)) {
+      throw new ApiError("Final score is required", 422, "FINAL_SCORE_REQUIRED");
     }
-
     if (finalScore < 0 || finalScore > 20) {
-      throw new ApiError(
-        "Final score must be between 0 and 20",
-        422,
-        "FINAL_SCORE_INVALID",
-      );
+      throw new ApiError("Final score must be between 0 and 20", 422, "FINAL_SCORE_INVALID");
     }
   }
+
+  // En v2 : statut final = VALIDATED si les deux ont approuvé, sinon REJECTED
+  const teacherApproved = theme.teacherApproval === true || theme.validatedCdBy !== null;
+  const finalStatus = isV2
+    ? decision === "approved" && teacherApproved
+      ? ThemeStatus.VALIDATED
+      : ThemeStatus.REJECTED
+    : decision === "approved"
+      ? ThemeStatus.VALIDATED_DA
+      : ThemeStatus.REJECTED;
 
   const updated = await prisma.theme.update({
     where: { id: themeId },
     data: {
       validatedDaBy: validatorId,
       validatedDaAt: new Date(),
-      status:
-        decision === "approved"
-          ? ThemeStatus.VALIDATED_DA
-          : ThemeStatus.REJECTED,
+      status: finalStatus,
       moderationComment: comment?.trim() || null,
-      ...(decision === "approved"
+      daApproval: decision === "approved",
+      daComment: comment?.trim() || null,
+      daValidatedAt: new Date(),
+      ...(!isV2 && decision === "approved"
         ? {
             finalScore: new Prisma.Decimal(finalScore as number),
             finalScoreAssignedAt: new Date(),
           }
-        : { finalScore: null, finalScoreAssignedAt: null }),
+        : !isV2
+          ? { finalScore: null, finalScoreAssignedAt: null }
+          : {}),
     },
     include: {
       student: {
@@ -283,6 +451,7 @@ export async function validateThemeDa(
           name: true,
           ine: true,
           email: true,
+          department: true,
           role: true,
         },
       },

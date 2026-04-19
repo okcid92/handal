@@ -1,4 +1,4 @@
-# Roadmap full Next.js (Origina)
+# Roadmap full Next.js — Handal
 
 Objectif: livrer une application 100% Next.js (frontend + backend API) sur MySQL, en reprenant les regles metier d Origina sans dependre de Laravel.
 
@@ -180,6 +180,8 @@ Critere d acceptance:
 
 ## Phase 7 - Qualite, performance, securite (Semaines 6-7)
 
+Statut actuel: EN COURS (tests unitaires partiels presents, couverture e2e incomplète, hardening securite non valide)
+
 Livrables:
 
 - Tests unitaires services metier.
@@ -199,7 +201,7 @@ Critere d acceptance:
 
 ## Phase 8 - Go-live et decommission Laravel (Semaine 8)
 
-Statut actuel: COMPLETE (runbook go-live, rollback plan et documentation exploitation en place)
+Statut actuel: EN ATTENTE (runbook et rollback plan documentes, mais Phase 7 non completee — go-live bloque jusqu'a validation Phase 7)
 
 Livrables:
 
