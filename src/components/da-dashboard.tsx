@@ -88,7 +88,7 @@ export function DaDashboard() {
   return (
     <section className="grid gap-6 xl:grid-cols-2">
       <Card title="Profil connecté">
-        <div className="text-sm text-zinc-300">
+        <div className="text-sm text-[#62483f]">
           {overview?.user.name} · {overview?.user.role}
         </div>
       </Card>
@@ -101,14 +101,14 @@ export function DaDashboard() {
             onChange={setThemeId}
             placeholder="42"
           />
-          <label className="block text-sm text-zinc-300">
+          <label className="block text-sm text-[#4f372b]">
             Décision
             <select
               value={themeDecision}
               onChange={(event) =>
                 setThemeDecision(event.target.value as "approved" | "rejected")
               }
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white"
+              className="mt-2 w-full rounded-2xl border border-[#8e2236]/20 bg-white px-4 py-3 text-[#2d1a12]"
             >
               <option value="approved">approved</option>
               <option value="rejected">rejected</option>
@@ -126,7 +126,7 @@ export function DaDashboard() {
             onChange={setThemeComment}
             placeholder="Commentaire DA"
           />
-          <button className="w-full rounded-2xl bg-white px-4 py-3 font-semibold text-zinc-950">
+          <button className="w-full rounded-2xl bg-[#8e2236] px-4 py-3 font-semibold text-white">
             Valider le thème
           </button>
         </form>
@@ -140,7 +140,7 @@ export function DaDashboard() {
             onChange={setReportId}
             placeholder="11"
           />
-          <label className="block text-sm text-zinc-300">
+          <label className="block text-sm text-[#4f372b]">
             Décision
             <select
               value={deliberationDecision}
@@ -152,7 +152,7 @@ export function DaDashboard() {
                     | "rewrite_required",
                 )
               }
-              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white"
+              className="mt-2 w-full rounded-2xl border border-[#8e2236]/20 bg-white px-4 py-3 text-[#2d1a12]"
             >
               <option value="final_validation">final_validation</option>
               <option value="sanction">sanction</option>
@@ -171,7 +171,7 @@ export function DaDashboard() {
             onChange={setNotes}
             placeholder="Décision finale"
           />
-          <button className="w-full rounded-2xl bg-emerald-300 px-4 py-3 font-semibold text-zinc-950">
+          <button className="w-full rounded-2xl bg-[#d99239] px-4 py-3 font-semibold text-white">
             Enregistrer
           </button>
         </form>
@@ -181,7 +181,7 @@ export function DaDashboard() {
         {message ? (
           <Banner>{message}</Banner>
         ) : (
-          <div className="text-sm text-zinc-400">Aucune action récente.</div>
+          <div className="text-sm text-[#8f6a5a]">Aucune action récente.</div>
         )}
       </Card>
     </section>
@@ -196,8 +196,10 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-white/5 p-5 backdrop-blur">
-      <h2 className="mb-4 text-lg font-semibold">{title}</h2>
+    <section className="section-frame rounded-[1.75rem] p-5">
+      <h2 className="mb-4 text-lg font-semibold tracking-tight text-[#2d1a12]">
+        {title}
+      </h2>
       {children}
     </section>
   );
@@ -205,7 +207,7 @@ function Card({
 
 function Banner({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+    <div className="rounded-2xl border border-[#d99239]/40 bg-[#fff5e5] px-4 py-3 text-sm text-[#7a542a]">
       {children}
     </div>
   );
@@ -224,12 +226,12 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="text-sm text-zinc-300">{label}</div>
+      <div className="text-sm text-[#4f372b]">{label}</div>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition placeholder:text-zinc-500 focus:border-emerald-300"
+        className="mt-2 w-full rounded-2xl border border-[#8e2236]/20 bg-white px-4 py-3 text-[#2d1a12] outline-none transition placeholder:text-[#aa8b7e] focus:border-[#8e2236]"
       />
     </label>
   );

@@ -128,7 +128,7 @@ export function TeacherDashboard() {
       {message ? <Banner>{message}</Banner> : null}
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <Card title="Profil connecté">
-          <div className="text-sm text-zinc-300">
+          <div className="text-sm text-[#62483f]">
             {overview?.user.name} · {overview?.user.role}
           </div>
         </Card>
@@ -137,9 +137,9 @@ export function TeacherDashboard() {
             {reports.map((report) => (
               <div
                 key={report.id}
-                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300"
+                className="rounded-2xl border border-[#8e2236]/20 bg-white/85 p-4 text-sm text-[#62483f]"
               >
-                <div className="font-semibold text-white">
+                <div className="font-semibold text-[#2d1a12]">
                   Rapport #{report.id}
                 </div>
                 <div>Document {report.documentId}</div>
@@ -149,7 +149,7 @@ export function TeacherDashboard() {
               </div>
             ))}
             {!reports.length ? (
-              <div className="text-sm text-zinc-400">
+              <div className="text-sm text-[#8f6a5a]">
                 Aucun rapport disponible.
               </div>
             ) : null}
@@ -165,19 +165,21 @@ export function TeacherDashboard() {
                 key={theme.id}
                 type="button"
                 onClick={() => setThemeId(theme.id)}
-                className="w-full rounded-2xl border border-white/10 bg-black/20 p-4 text-left transition hover:border-emerald-300/40"
+                className="w-full rounded-2xl border border-[#8e2236]/20 bg-white/85 p-4 text-left transition hover:border-[#8e2236]/45"
               >
-                <div className="font-semibold text-white">{theme.title}</div>
-                <div className="text-xs uppercase tracking-[0.2em] text-zinc-400">
+                <div className="font-semibold text-[#2d1a12]">
+                  {theme.title}
+                </div>
+                <div className="text-xs uppercase tracking-[0.2em] text-[#8f6a5a]">
                   #{theme.id} · {theme.student.name}
                 </div>
-                <p className="mt-2 text-sm text-zinc-300 line-clamp-3">
+                <p className="mt-2 text-sm text-[#62483f] line-clamp-3">
                   {theme.description}
                 </p>
               </button>
             ))}
             {!themes.length ? (
-              <div className="text-sm text-zinc-400">
+              <div className="text-sm text-[#8f6a5a]">
                 Aucun thème en attente.
               </div>
             ) : null}
@@ -192,7 +194,7 @@ export function TeacherDashboard() {
               onChange={setThemeId}
               placeholder="42"
             />
-            <label className="block text-sm text-zinc-300">
+            <label className="block text-sm text-[#4f372b]">
               Décision
               <select
                 value={themeDecision}
@@ -201,7 +203,7 @@ export function TeacherDashboard() {
                     event.target.value as "approved" | "rejected",
                   )
                 }
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white"
+                className="mt-2 w-full rounded-2xl border border-[#8e2236]/20 bg-white px-4 py-3 text-[#2d1a12]"
               >
                 <option value="approved">approved</option>
                 <option value="rejected">rejected</option>
@@ -213,11 +215,11 @@ export function TeacherDashboard() {
               onChange={setThemeComment}
               placeholder="Commentaire de moderation"
             />
-            <button className="w-full rounded-2xl bg-white px-4 py-3 font-semibold text-zinc-950">
+            <button className="w-full rounded-2xl bg-[#8e2236] px-4 py-3 font-semibold text-white">
               Valider le thème
             </button>
           </form>
-          <div className="my-6 h-px bg-white/10" />
+          <div className="my-6 h-px bg-[#8e2236]/15" />
           <form className="space-y-4" onSubmit={analyzeDocument}>
             <Field
               label="Document ID"
@@ -225,13 +227,13 @@ export function TeacherDashboard() {
               onChange={setAnalysisDocumentId}
               placeholder="18"
             />
-            <button className="w-full rounded-2xl bg-emerald-300 px-4 py-3 font-semibold text-zinc-950">
+            <button className="w-full rounded-2xl bg-[#d99239] px-4 py-3 font-semibold text-white">
               Lancer l’analyse
             </button>
           </form>
           {analysisMessage ? <Banner>{analysisMessage}</Banner> : null}
           {analysisResult ? (
-            <pre className="mt-4 overflow-auto rounded-2xl bg-black/30 p-4 text-xs text-zinc-200">
+            <pre className="mt-4 overflow-auto rounded-2xl bg-[#f6ead4] p-4 text-xs text-[#4a2f23]">
               {JSON.stringify(analysisResult, null, 2)}
             </pre>
           ) : null}
@@ -249,8 +251,10 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-white/5 p-5 backdrop-blur">
-      <h2 className="mb-4 text-lg font-semibold">{title}</h2>
+    <section className="section-frame rounded-[1.75rem] p-5">
+      <h2 className="mb-4 text-lg font-semibold tracking-tight text-[#2d1a12]">
+        {title}
+      </h2>
       {children}
     </section>
   );
@@ -258,7 +262,7 @@ function Card({
 
 function Banner({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+    <div className="rounded-2xl border border-[#d99239]/40 bg-[#fff5e5] px-4 py-3 text-sm text-[#7a542a]">
       {children}
     </div>
   );
@@ -277,12 +281,12 @@ function Field({
 }) {
   return (
     <label className="block">
-      <div className="text-sm text-zinc-300">{label}</div>
+      <div className="text-sm text-[#4f372b]">{label}</div>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition placeholder:text-zinc-500 focus:border-emerald-300"
+        className="mt-2 w-full rounded-2xl border border-[#8e2236]/20 bg-white px-4 py-3 text-[#2d1a12] outline-none transition placeholder:text-[#aa8b7e] focus:border-[#8e2236]"
       />
     </label>
   );

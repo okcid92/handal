@@ -23,7 +23,7 @@ export function AdminDashboard() {
   return (
     <section className="grid gap-6 xl:grid-cols-2">
       <Card title="Supervision globale">
-        <div className="text-sm text-zinc-300">
+        <div className="text-sm text-[#62483f]">
           {overview?.user.name} · {overview?.user.role}
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -54,7 +54,7 @@ export function AdminDashboard() {
         {message ? (
           <Banner>{message}</Banner>
         ) : (
-          <div className="text-sm text-zinc-400">Console admin prête.</div>
+          <div className="text-sm text-[#8f6a5a]">Console admin prête.</div>
         )}
       </Card>
     </section>
@@ -69,8 +69,10 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-white/5 p-5 backdrop-blur">
-      <h2 className="mb-4 text-lg font-semibold">{title}</h2>
+    <section className="section-frame rounded-[1.75rem] p-5">
+      <h2 className="mb-4 text-lg font-semibold tracking-tight text-[#2d1a12]">
+        {title}
+      </h2>
       {children}
     </section>
   );
@@ -78,7 +80,7 @@ function Card({
 
 function Banner({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+    <div className="rounded-2xl border border-[#d99239]/40 bg-[#fff5e5] px-4 py-3 text-sm text-[#7a542a]">
       {children}
     </div>
   );
@@ -96,10 +98,10 @@ function Shortcut({
   return (
     <a
       href={href}
-      className="rounded-2xl border border-white/10 bg-black/20 p-4 transition hover:border-white/30 hover:bg-black/30"
+      className="rounded-2xl border border-[#8e2236]/20 bg-white/85 p-4 transition hover:-translate-y-0.5 hover:border-[#8e2236]/45 hover:bg-[#fff7eb]"
     >
-      <div className="font-semibold text-white">{title}</div>
-      <div className="mt-1 text-sm text-zinc-400">{description}</div>
+      <div className="font-semibold text-[#2d1a12]">{title}</div>
+      <div className="mt-1 text-sm text-[#8f6a5a]">{description}</div>
     </a>
   );
 }

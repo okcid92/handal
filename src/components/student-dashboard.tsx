@@ -153,30 +153,114 @@ export function StudentDashboard() {
   }
 
   return (
-    <>
+    <div className="space-y-8">
+      <header className="section-frame rounded-[1.75rem] p-6 md:p-8">
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="text-3xl font-black tracking-tight text-[#2d1a12] md:text-4xl">
+              My Submissions
+            </h2>
+            <p className="mt-2 text-base text-[#6d4f43]">
+              Upload and track your academic documents for analysis.
+            </p>
+          </div>
+
+          <div className="flex w-full items-center gap-3 rounded-xl border border-[#8e2236]/20 bg-white px-4 py-3 md:w-auto md:min-w-[300px]">
+            <span className="text-sm font-bold text-[#8e2236]">Search</span>
+            <input
+              type="text"
+              placeholder="Search by title or class..."
+              className="w-full border-none bg-transparent text-sm text-[#2d1a12] outline-none placeholder:text-[#ab8e82]"
+            />
+          </div>
+        </div>
+      </header>
+
       {pendingMessage ? (
-        <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+        <div className="rounded-2xl border border-[#d99239]/40 bg-[#fff4df] px-4 py-3 text-sm text-[#7a542a]">
           {pendingMessage}
         </div>
       ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <Panel title="Profil connecté" accent="emerald">
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <Info label="Nom" value={overview?.user.name ?? "—"} />
-            <Info label="Rôle" value={overview?.user.role ?? "—"} />
-            <Info label="INE" value={overview?.user.ine ?? "—"} />
-            <Info label="Identifiant" value={overview?.user.id ?? "—"} />
-          </dl>
-        </Panel>
+      <section className="grid gap-6 lg:grid-cols-12">
+        <div className="space-y-6 lg:col-span-5">
+          <div className="section-frame relative overflow-hidden rounded-[1.5rem] border-2 border-dashed border-[#8e2236]/30 p-7 text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#f3e1bf] text-[#8e2236]">
+              <span className="text-xl font-black">UP</span>
+            </div>
+            <h3 className="text-xl font-bold text-[#2d1a12]">Upload Thesis File</h3>
+            <p className="mx-auto mt-2 max-w-[260px] text-sm text-[#6d4f43]">
+              Drag and drop your document here, or use the dépôt form to register
+              your file metadata.
+            </p>
+            <p className="mt-5 text-xs uppercase tracking-[0.2em] text-[#9b7868]">
+              Supported: .pdf, .docx
+            </p>
+          </div>
 
-        <Panel title="Actions rapides" accent="cyan">
-          <ul className="space-y-3 text-sm text-zinc-300">
-            <li>Proposer un nouveau thème.</li>
-            <li>Enregistrer la métadonnée d’un dépôt final.</li>
-            <li>Lancer un auto-test sur un document.</li>
-          </ul>
-        </Panel>
+          <section className="section-frame rounded-[1.5rem] p-6">
+            <h2 className="text-lg font-bold tracking-tight text-[#2d1a12]">
+              Profil connecté
+            </h2>
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Info label="Nom" value={overview?.user.name ?? "—"} />
+              <Info label="Rôle" value={overview?.user.role ?? "—"} />
+              <Info label="INE" value={overview?.user.ine ?? "—"} />
+              <Info label="Identifiant" value={overview?.user.id ?? "—"} />
+            </dl>
+          </section>
+        </div>
+
+        <div className="space-y-6 lg:col-span-7">
+          <section className="section-frame rounded-[1.5rem] p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-bold tracking-tight text-[#2d1a12]">
+                Recent Documents
+              </h2>
+              <span className="rounded-full bg-[#f4e1bd] px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-[#8e2236]">
+                Live
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <SubmissionItem
+                title="Final_Thesis_v3_Draft.pdf"
+                course="Hist 401"
+                status="Analyzing"
+                statusTone="processing"
+                meta="Uploaded recently"
+                score="--"
+              />
+              <SubmissionItem
+                title="Lit_Review_Submission.docx"
+                course="Eng 205"
+                status="Ready"
+                statusTone="ready"
+                meta="Last ready result"
+                score="8%"
+              />
+              <SubmissionItem
+                title="Research_Methodology_Notes.pdf"
+                course="Sci 301"
+                status="Ready"
+                statusTone="ready"
+                meta="Historical result"
+                score="2%"
+              />
+            </div>
+          </section>
+
+          <section className="section-frame rounded-[1.5rem] p-6">
+            <h2 className="text-lg font-bold tracking-tight text-[#2d1a12]">
+              Actions rapides
+            </h2>
+            <ul className="mt-4 space-y-3 text-sm text-[#62483f]">
+              <li>Proposer un nouveau thème.</li>
+              <li>Enregistrer la métadonnée d’un dépôt final.</li>
+              <li>Lancer un auto-test sur un document.</li>
+            </ul>
+          </section>
+        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-3">
@@ -249,19 +333,57 @@ export function StudentDashboard() {
           </form>
           {autoTestMessage ? <Message value={autoTestMessage} /> : null}
           {autoTestResult ? (
-            <pre className="mt-4 overflow-auto rounded-2xl bg-black/30 p-4 text-xs text-zinc-200">
+            <pre className="mt-4 overflow-auto rounded-2xl bg-[#f6ead4] p-4 text-xs text-[#4a2f23]">
               {JSON.stringify(autoTestResult, null, 2)}
             </pre>
           ) : null}
         </Panel>
       </section>
-    </>
+    </div>
+  );
+}
+
+function SubmissionItem({
+  title,
+  course,
+  status,
+  statusTone,
+  meta,
+  score,
+}: {
+  title: string;
+  course: string;
+  status: string;
+  statusTone: "processing" | "ready";
+  meta: string;
+  score: string;
+}) {
+  const toneClass =
+    statusTone === "processing"
+      ? "bg-[#f6e1bf] text-[#8f5c22]"
+      : "bg-[#f0d7dc] text-[#8e2236]";
+
+  return (
+    <article className="rounded-xl border border-[#8e2236]/15 bg-white/80 p-4 shadow-[0_10px_24px_rgba(105,63,32,0.08)]">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-semibold text-[#2d1a12]">{title}</h3>
+          <p className="mt-1 text-sm text-[#8f6a5a]">
+            {course} · {meta}
+          </p>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${toneClass}`}>
+          {status}
+        </span>
+      </div>
+      <div className="mt-3 text-right text-sm font-bold text-[#8e2236]">{score}</div>
+    </article>
   );
 }
 
 function DashboardShellLoading({ label }: { label: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-zinc-300">
+    <div className="section-frame rounded-2xl p-6 text-sm text-[#62483f]">
       {label}
     </div>
   );
@@ -277,17 +399,19 @@ function Panel({
   children: React.ReactNode;
 }) {
   const accentClasses: Record<typeof accent, string> = {
-    emerald: "text-emerald-200 bg-emerald-500/10",
-    cyan: "text-cyan-200 bg-cyan-500/10",
-    amber: "text-amber-200 bg-amber-500/10",
-    violet: "text-violet-200 bg-violet-500/10",
-    rose: "text-rose-200 bg-rose-500/10",
+    emerald: "text-[#6f5035] bg-[#e8d2ab]/60",
+    cyan: "text-[#8e2236] bg-[#f0d7dc]/70",
+    amber: "text-[#7a542a] bg-[#f6e1bf]/70",
+    violet: "text-[#7b2b41] bg-[#efd5dd]/70",
+    rose: "text-[#9d3a4d] bg-[#f3d7dd]/70",
   };
 
   return (
-    <section className="rounded-[1.75rem] border border-white/10 bg-white/5 p-5 backdrop-blur">
+    <section className="section-frame rounded-[1.75rem] p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <h2 className="text-lg font-semibold tracking-tight text-[#2d1a12]">
+          {title}
+        </h2>
         <span
           className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] ${accentClasses[accent]}`}
         >
@@ -301,11 +425,11 @@ function Panel({
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-      <div className="text-xs uppercase tracking-[0.2em] text-zinc-400">
+    <div className="rounded-2xl border border-[#8e2236]/20 bg-white/80 p-4">
+      <div className="text-xs uppercase tracking-[0.2em] text-[#8f6a5a]">
         {label}
       </div>
-      <div className="mt-2 text-sm font-medium text-white">{value}</div>
+      <div className="mt-2 text-sm font-medium text-[#2d1a12]">{value}</div>
     </div>
   );
 }
@@ -325,13 +449,13 @@ function Input({
 }) {
   return (
     <label className="block">
-      <div className="text-sm text-zinc-300">{label}</div>
+      <div className="text-sm text-[#4f372b]">{label}</div>
       <input
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition placeholder:text-zinc-500 focus:border-emerald-300"
+        className="mt-2 w-full rounded-2xl border border-[#8e2236]/20 bg-white px-4 py-3 text-[#2d1a12] outline-none transition placeholder:text-[#aa8b7e] focus:border-[#8e2236]"
       />
     </label>
   );
@@ -350,13 +474,13 @@ function Textarea({
 }) {
   return (
     <label className="block">
-      <div className="text-sm text-zinc-300">{label}</div>
+      <div className="text-sm text-[#4f372b]">{label}</div>
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         rows={5}
-        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none transition placeholder:text-zinc-500 focus:border-emerald-300"
+        className="mt-2 w-full rounded-2xl border border-[#8e2236]/20 bg-white px-4 py-3 text-[#2d1a12] outline-none transition placeholder:text-[#aa8b7e] focus:border-[#8e2236]"
       />
     </label>
   );
@@ -366,7 +490,7 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
   return (
     <button
       type="submit"
-      className="inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 font-semibold text-zinc-950 transition hover:bg-zinc-200"
+      className="inline-flex w-full items-center justify-center rounded-2xl bg-[#8e2236] px-4 py-3 font-semibold text-white transition hover:bg-[#6a1728]"
     >
       {children}
     </button>
@@ -375,7 +499,7 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
 
 function Message({ value }: { value: string }) {
   return (
-    <div className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+    <div className="mt-4 rounded-2xl border border-[#d99239]/40 bg-[#fff5e5] px-4 py-3 text-sm text-[#7a542a]">
       {value}
     </div>
   );
