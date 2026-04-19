@@ -43,6 +43,7 @@ type DocumentWithRelations = Document & {
     finalScore: Prisma.Decimal | null;
   };
   student: { id: bigint; role: Role };
+  uploadAttempts: number;
 };
 
 type SimilarityReportWithRelations = SimilarityReport & {
@@ -138,6 +139,7 @@ function serializeDocument(document: DocumentWithRelations) {
     analysisCompletedAt: document.analysisCompletedAt?.toISOString() ?? null,
     analysisError: document.analysisError,
     isFinal: document.isFinal,
+    uploadAttempts: document.uploadAttempts,
     submittedAt: document.submittedAt.toISOString(),
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
@@ -183,6 +185,7 @@ function serializeReport(report: SimilarityReportWithRelations) {
         report.document.analysisCompletedAt?.toISOString() ?? null,
       analysisError: report.document.analysisError,
       isFinal: report.document.isFinal,
+      uploadAttempts: (report.document as unknown as { uploadAttempts: number }).uploadAttempts ?? 1,
       submittedAt: report.document.submittedAt.toISOString(),
     },
   };
@@ -201,7 +204,7 @@ async function loadDocument(documentId: bigint) {
     throw new ApiError("Document not found", 404, "DOCUMENT_NOT_FOUND");
   }
 
-  return document as DocumentWithRelations;
+  return document as unknown as DocumentWithRelations;
 }
 
 async function loadReport(reportId: bigint) {
@@ -217,6 +220,27 @@ async function loadReport(reportId: bigint) {
   }
 
   return report as SimilarityReportWithRelations;
+}
+
+export async function getValidatedThemeForStudent(studentId: bigint) {
+  const theme = await prisma.theme.findFirst({
+    where: {
+      studentId,
+      status: { in: [ThemeStatus.VALIDATED, ThemeStatus.VALIDATED_DA] },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, title: true, status: true },
+  });
+
+  if (!theme) {
+    throw new ApiError(
+      "Student has no validated theme",
+      403,
+      "THEME_NOT_VALIDATED",
+    );
+  }
+
+  return theme;
 }
 
 export async function createDocument(
@@ -276,6 +300,12 @@ export async function createDocument(
 
   const storagePath = `/storage/final/${themeId.toString()}/${Date.now()}-${payload.originalName}`;
 
+  // Compter les tentatives précédentes pour ce thème
+  const previousCount = await prisma.document.count({
+    where: { themeId, studentId },
+  });
+  const uploadAttempts = previousCount + 1;
+
   const created = await prisma.document.create({
     data: {
       themeId,
@@ -296,6 +326,14 @@ export async function createDocument(
       student: true,
     },
   });
+  // Mettre à jour uploadAttempts après création (migration peut ne pas être appliquée en dev)
+  try {
+    await (prisma.document as unknown as { update: Function }).update({
+      where: { id: created.id },
+      data: { uploadAttempts },
+    });
+  } catch { /* champ pas encore migré */ }
+  (created as unknown as { uploadAttempts: number }).uploadAttempts = uploadAttempts;
 
   logger.info("document.uploaded", {
     documentId: created.id.toString(),
@@ -303,7 +341,7 @@ export async function createDocument(
     studentId: created.studentId.toString(),
   });
 
-  return serializeDocument(created as DocumentWithRelations);
+  return serializeDocument(created as unknown as DocumentWithRelations);
 }
 
 export async function queueDocumentForAnalysis(documentId: bigint) {
@@ -322,7 +360,7 @@ export async function queueDocumentForAnalysis(documentId: bigint) {
     },
   });
 
-  return serializeDocument(updated as DocumentWithRelations);
+  return serializeDocument(updated as unknown as DocumentWithRelations);
 }
 
 export async function autoTestDocument(documentId: bigint, studentId: bigint) {
@@ -568,14 +606,15 @@ export async function getReport(reportId: bigint) {
  */
 export async function analyzeDocumentInline(documentId: bigint): Promise<{
   globalSimilarity: number;
-  aiScore: number;
   riskLevel: RiskLevel;
   reportId: string;
+  blocked: boolean;
+  uploadAttempts: number;
 }> {
   const document = await loadDocument(documentId);
 
   if (!document.extractedText) {
-    return { globalSimilarity: 0, aiScore: 0, riskLevel: RiskLevel.LOW, reportId: "" };
+    return { globalSimilarity: 0, riskLevel: RiskLevel.LOW, reportId: "", blocked: false, uploadAttempts: document.uploadAttempts };
   }
 
   await prisma.document.update({
@@ -605,7 +644,6 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
     );
 
     const globalSimilarity = Number((plagiarism.maxSimilarity * 100).toFixed(2));
-    const aiScore = Number((plagiarism.avgSimilarity * 100).toFixed(2));
     const riskLevel = deriveRiskLevel(globalSimilarity);
 
     const matchedSources = plagiarism.results.slice(0, 8).map((r) => ({
@@ -623,7 +661,6 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       data: {
         documentId: document.id,
         globalSimilarity: new Prisma.Decimal(globalSimilarity),
-        aiScore: new Prisma.Decimal(aiScore),
         riskLevel,
         matchedSources: matchedSources as unknown as Prisma.InputJsonValue,
         highlightedSegments: highlightedSegments as unknown as Prisma.InputJsonValue,
@@ -639,7 +676,13 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
 
     logger.info("document.analyzed.inline", { documentId: document.id.toString(), globalSimilarity, riskLevel });
 
-    return { globalSimilarity, aiScore, riskLevel, reportId: created.id.toString() };
+    return {
+      globalSimilarity,
+      riskLevel,
+      reportId: created.id.toString(),
+      blocked: globalSimilarity > 50,
+      uploadAttempts: document.uploadAttempts,
+    };
   } catch (error) {
     await prisma.document.update({
       where: { id: document.id },

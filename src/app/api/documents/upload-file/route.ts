@@ -4,12 +4,16 @@ import crypto from "crypto";
 import { errorResponse } from "@/lib/api-errors";
 import { guardStudent } from "@/lib/route-guards";
 import { assertSameOrigin } from "@/lib/security";
-import { createDocument, analyzeDocumentInline } from "@/server/documents";
+import { createDocument, analyzeDocumentInline, getValidatedThemeForStudent } from "@/server/documents";
 import {
   assertAllowedDocumentSize,
   assertAllowedDocumentType,
   extractTextFromUploadedContent,
+  extractFirstPageText,
+  firstPageTitleScore,
 } from "@/server/text-extraction";
+
+const TITLE_MATCH_THRESHOLD = 80;
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,10 +33,33 @@ export async function POST(request: NextRequest) {
     assertAllowedDocumentType(file.type);
     assertAllowedDocumentSize(file.size);
 
-    const buffer = await file.arrayBuffer();
-    const hash = crypto.createHash("sha256").update(Buffer.from(buffer)).digest("hex");
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const hash = crypto.createHash("sha256").update(buffer).digest("hex");
     const checksum = `sha256:${hash}`;
-    const rawContent = await file.text();
+
+    // Verification de la premiere page avant tout
+    const theme = await getValidatedThemeForStudent(BigInt(session.userId));
+    const firstPageText = await extractFirstPageText(buffer, file.type);
+    const titleScore = firstPageTitleScore(firstPageText, theme.title);
+
+    if (titleScore < TITLE_MATCH_THRESHOLD) {
+      return NextResponse.json(
+        {
+          ok: false,
+          titleMismatch: true,
+          titleScore,
+          validatedTitle: theme.title,
+          error: {
+            code: "TITLE_MISMATCH",
+            message:
+              "Erreur : Le titre detecte sur votre document ne correspond pas au theme valide par le Chef de departement.",
+          },
+        },
+        { status: 422 },
+      );
+    }
+
+    const rawContent = buffer.toString("utf-8").replace(/\u0000/g, " ");
     const extractedText = extractTextFromUploadedContent(file.name, file.type, rawContent);
 
     const document = await createDocument(
@@ -40,20 +67,22 @@ export async function POST(request: NextRequest) {
       BigInt(session.userId),
     );
 
-    // Analyse inline immédiate
-    let analysis: { globalSimilarity: number; aiScore: number; riskLevel: string; reportId: string } | null = null;
+    // Analyse inline immediate
+    let analysis: {
+      globalSimilarity: number;
+      riskLevel: string;
+      reportId: string;
+      blocked: boolean;
+      uploadAttempts: number;
+    } | null = null;
     try {
       analysis = await analyzeDocumentInline(BigInt(document.id));
     } catch {
-      // L'analyse a échoué mais le document est créé — on retourne quand même
+      // L'analyse a echoue mais le document est cree - on retourne quand meme
     }
 
     return NextResponse.json(
-      {
-        ok: true,
-        document,
-        analysis,
-      },
+      { ok: true, document, analysis, titleScore },
       { status: 201 },
     );
   } catch (error) {

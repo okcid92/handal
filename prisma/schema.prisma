@@ -157,6 +157,7 @@ model Document {
   analysisError       String?        @map("analysis_error") @db.Text
   documentStatus      DocumentStatus @default(SUBMITTED) @map("document_status")
   isFinal             Boolean        @default(true) @map("is_final")
+  uploadAttempts      Int            @default(1) @map("upload_attempts")
   submittedAt         DateTime       @map("submitted_at")
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")

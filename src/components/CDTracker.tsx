@@ -37,6 +37,7 @@ type ReportSummary = {
   globalSimilarity: string;
   riskLevel: string;
   analyzedAt: string;
+  uploadAttempts?: number;
 };
 
 // ── Atoms ──────────────────────────────────────────────────────
@@ -206,7 +207,14 @@ function ReportCard({ report }: { report: ReportSummary }) {
             </p>
           </div>
         </div>
-        <RiskBadge level={report.riskLevel} />
+        <div className="flex items-center gap-2">
+          <RiskBadge level={report.riskLevel} />
+          {(report.uploadAttempts ?? 1) > 1 && (
+            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${(report.uploadAttempts ?? 1) > 5 ? "border-red-300 bg-red-50 text-red-700" : "border-[#7b2438]/25 bg-[#f2d9e0] text-[#7b2438]"}`}>
+              {report.uploadAttempts} tentatives
+            </span>
+          )}
+        </div>
       </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

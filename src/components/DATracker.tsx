@@ -12,7 +12,6 @@ type ReportRow = {
   id: string;
   documentId: string;
   globalSimilarity: string;
-  aiScore: string | null;
   riskLevel: string;
   analyzedAt: string;
   student?: {
@@ -24,6 +23,7 @@ type ReportRow = {
   document?: {
     originalName: string;
   };
+  uploadAttempts?: number;
 };
 
 // ── Atoms ──────────────────────────────────────────────────────
@@ -206,21 +206,20 @@ export function DATracker({
               ) : (
                 <div className="rounded-2xl border-2 bg-white overflow-hidden" style={{ borderColor: "rgba(123,36,56,0.12)" }}>
                   {/* En-tête tableau */}
-                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 border-b px-5 py-3"
+                  <div className="grid grid-cols-[2fr_1fr_1fr_auto_auto] gap-4 border-b px-5 py-3"
                     style={{ borderColor: "rgba(123,36,56,0.10)", background: "rgba(123,36,56,0.04)" }}>
-                    {["Étudiant", "Filière", "Score Plagiat", "Score IA", ""].map((h) => (
+                    {["Étudiant", "Filière", "Score Plagiat", "Tentatives", ""].map((h) => (
                       <span key={h} className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>{h}</span>
                     ))}
                   </div>
                   {/* Lignes */}
                   {filtered.map((r, i) => {
                     const plagiat = parseFloat(r.globalSimilarity) || 0;
-                    const ia = parseFloat(r.aiScore ?? "0") || 0;
                     const isLast = i === filtered.length - 1;
                     return (
                       <div
                         key={r.id}
-                        className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] items-center gap-4 px-5 py-4 transition hover:bg-[rgba(123,36,56,0.03)] cursor-pointer"
+                        className="grid grid-cols-[2fr_1fr_1fr_auto_auto] items-center gap-4 px-5 py-4 transition hover:bg-[rgba(123,36,56,0.03)] cursor-pointer"
                         style={{ borderBottom: isLast ? "none" : "1px solid rgba(123,36,56,0.07)" }}
                         onClick={() => setSelectedReport(r)}
                       >
@@ -247,8 +246,14 @@ export function DATracker({
                           <TrendingUp className="h-3.5 w-3.5 shrink-0" style={{ color: plagiat >= 20 ? "#b91c1c" : "var(--text-soft)" }} />
                           <ScoreBar value={plagiat} />
                         </div>
-                        {/* Score IA */}
-                        <ScoreBar value={ia} />
+                        {/* Tentatives */}
+                        <div>
+                          {(r.uploadAttempts ?? 1) > 1 ? (
+                            <span className={`rounded-full border px-2 py-0.5 text-[10px] font-extrabold ${(r.uploadAttempts ?? 1) > 5 ? "border-red-300 bg-red-50 text-red-700" : "border-[#7b2438]/25 bg-[#f2d9e0] text-[#7b2438]"}`}>
+                              {r.uploadAttempts}×
+                            </span>
+                          ) : <span className="text-xs" style={{ color: "var(--text-soft)" }}>1×</span>}
+                        </div>
                         {/* Action */}
                         <ChevronRight className="h-4 w-4 shrink-0" style={{ color: "rgba(123,36,56,0.35)" }} />
                       </div>
@@ -276,10 +281,6 @@ export function DATracker({
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs font-semibold" style={{ color: "var(--text-soft)" }}>Plagiat :</span>
                           <ScoreBar value={parseFloat(selectedReport.globalSimilarity) || 0} />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-semibold" style={{ color: "var(--text-soft)" }}>IA :</span>
-                          <ScoreBar value={parseFloat(selectedReport.aiScore ?? "0") || 0} />
                         </div>
                         <RiskBadge level={selectedReport.riskLevel} />
                       </div>
@@ -359,7 +360,6 @@ export function DATracker({
 // ── ReportCard (dashboard) ─────────────────────────────────────
 function ReportCard({ report, onClick }: { report: ReportRow; onClick: () => void }) {
   const plagiat = parseFloat(report.globalSimilarity) || 0;
-  const ia = parseFloat(report.aiScore ?? "0") || 0;
   return (
     <button type="button" onClick={onClick}
       className="w-full rounded-2xl border-2 bg-white p-5 text-left transition hover:shadow-md"
@@ -385,10 +385,6 @@ function ReportCard({ report, onClick }: { report: ReportRow; onClick: () => voi
           <div className="text-right">
             <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--text-soft)" }}>Plagiat</p>
             <ScoreBar value={plagiat} />
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: "var(--text-soft)" }}>IA</p>
-            <ScoreBar value={ia} />
           </div>
           <ChevronRight className="h-4 w-4 shrink-0" style={{ color: "rgba(123,36,56,0.35)" }} />
         </div>
