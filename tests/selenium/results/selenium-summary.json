@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-04-18T18:42:15.727027+00:00",
-  "baseUrl": "http://localhost:3000",
+  "generatedAt": "2026-04-18T21:34:06.072407+00:00",
+  "baseUrl": "http://localhost:3001",
   "browser": "chrome",
-  "headless": "false",
-  "durationSeconds": 27.4,
+  "headless": "true",
+  "durationSeconds": 38.33,
   "total": 9,
   "failed": 0,
   "errors": 0,

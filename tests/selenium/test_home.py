@@ -152,7 +152,7 @@ class HomePageSeleniumTests(unittest.TestCase):
         self.driver.get(BASE_URL)
 
         title = self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "h1")))
-        self.assertRegex(title.text, r"Plateforme académique Next\.js")
+        self.assertRegex(title.text, r"Handal")
 
         submit_button = self.wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, 'button[type="submit"]'))

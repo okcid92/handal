@@ -4,7 +4,7 @@ test("home page exposes the login panel", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: /plateforme académique next.js/i }),
+    page.getByRole("heading", { name: /handal orchestre/i }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /se connecter/i }),

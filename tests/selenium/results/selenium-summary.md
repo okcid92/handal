@@ -1,10 +1,10 @@
 # Selenium Test Summary
 
-- Generated at: 2026-04-18T18:42:15.727027+00:00
-- Base URL: http://localhost:3000
+- Generated at: 2026-04-18T21:34:06.072407+00:00
+- Base URL: http://localhost:3001
 - Browser: chrome
-- Headless: false
-- Duration (s): 27.4
+- Headless: true
+- Duration (s): 38.33
 
 ## Totals
 

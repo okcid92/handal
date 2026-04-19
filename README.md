@@ -1,6 +1,6 @@
-# Origina Next.js
+# Handal
 
-Application full Next.js pour Origina, avec MySQL, Prisma, RBAC, tests unitaires et e2e, et documentation de go-live.
+Application full Next.js pour Handal, avec MySQL, Prisma, RBAC, tests unitaires et e2e, et documentation de go-live.
 
 ## Prerequisites
 

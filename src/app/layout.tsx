@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Origina Next",
-  description: "Plateforme académique full Next.js pour le suivi des mémoires.",
+  title: "Handal",
+  description:
+    "Plateforme académique Handal pour la validation, l'analyse et la délibération des mémoires.",
 };
 
 export default function RootLayout({

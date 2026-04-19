@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "background": "#101622",
+              "tertiary-fixed-dim": "#ffcc80",
+              "on-tertiary-fixed-variant": "#5c3d00",
+              "primary": "#1152d4",
+              "secondary-container": "#334155",
+              "on-secondary-fixed-variant": "#334155",
+              "outline-variant": "#1e293b",
+              "primary-fixed": "#dbe1ff",
+              "surface-container-low": "#101622",
+              "on-tertiary-container": "#ffedd5",
+              "on-error": "#ffffff",
+              "secondary-fixed-dim": "#cbd5e1",
+              "on-secondary-fixed": "#0f172a",
+              "surface-variant": "#1e293b",
+              "surface-bright": "#1a2130",
+              "surface-tint": "#1152d4",
+              "inverse-primary": "#b4c5ff",
+              "secondary-fixed": "#e2e8f0",
+              "error-container": "#450a0a",
+              "on-tertiary": "#000000",
+              "on-surface-variant": "#94a3b8",
+              "on-error-container": "#fecaca",
+              "on-primary": "#ffffff",
+              "tertiary-container": "#451a03",
+              "primary-fixed-dim": "#b4c5ff",
+              "tertiary-fixed": "#ffedca",
+              "primary-container": "#1e293b",
+              "surface-container": "#161e2d",
+              "surface": "#101622",
+              "on-secondary": "#ffffff",
+              "surface-container-lowest": "#0b0f16",
+              "on-background": "#f1f5f9",
+              "tertiary": "#f59e0b",
+              "on-tertiary-fixed": "#291800",
+              "error": "#ef4444",
+              "inverse-surface": "#f1f5f9",
+              "on-primary-fixed-variant": "#003da9",
+              "on-primary-fixed": "#00174c",
+              "on-primary-container": "#dbe1ff",
+              "on-surface": "#f1f5f9",
+              "surface-container-highest": "#232f46",
+              "surface-container-high": "#1c2639",
+              "inverse-on-surface": "#0f172a",
+              "surface-dim": "#0d111a",
+              "on-secondary-container": "#e2e8f0",
+              "secondary": "#475569",
+              "outline": "#334155"
+            },
+            fontFamily: {
+              "headline": ["Inter"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #101622;
+            color: #f1f5f9;
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased">
+<!-- Top Navigation Bar -->
+<nav class="sticky top-0 w-full z-50 bg-[#101622]/90 backdrop-blur-md border-b border-slate-800/30 shadow-sm">
+<div class="flex items-center justify-between px-8 py-4 max-w-7xl mx-auto font-inter antialiased tracking-tight">
+<div class="text-xl font-black tracking-tighter text-slate-100 dark:text-white">
+                PolyPlag
+            </div>
+<!-- Desktop Links -->
+<div class="hidden md:flex items-center space-gap-8 gap-8">
+<a class="text-slate-400 font-medium hover:text-slate-100 transition-colors" href="#">Solutions</a>
+<a class="text-slate-400 font-medium hover:text-slate-100 transition-colors" href="#">AI Detection</a>
+<a class="text-slate-400 font-medium hover:text-slate-100 transition-colors" href="#">Academic Tools</a>
+<a class="text-slate-400 font-medium hover:text-slate-100 transition-colors" href="#">Pricing</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-slate-400 font-medium hover:text-slate-100 transition-colors px-4 py-2 hover:bg-slate-800/50 rounded-lg active:scale-95 transform transition-transform">
+                    Login
+                </button>
+<button class="bg-primary text-on-primary px-6 py-2.5 rounded-lg font-bold hover:opacity-90 active:scale-95 transform transition-transform">
+                    Get Started
+                </button>
+</div>
+</div>
+</nav>
+<main>
+<!-- Hero Section -->
+<section class="relative overflow-hidden py-24 md:py-32">
+<div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
+<div class="max-w-7xl mx-auto px-8 relative z-10 grid md:grid-cols-2 gap-12 items-center">
+<div class="space-y-8">
+<div class="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold tracking-widest uppercase">
+                        Intégrité Académique 2.0
+                    </div>
+<h1 class="text-5xl md:text-7xl font-black tracking-tighter leading-none">
+                        Garantissez l'Intégrité <span class="text-primary">Académique</span> avec PolyPlag.
+                    </h1>
+<p class="text-xl text-on-surface-variant max-w-lg leading-relaxed">
+                        Une solution complète de détection de plagiat et de gestion académique pour les institutions d'enseignement supérieur.
+                    </p>
+<div class="flex flex-wrap gap-4 pt-4">
+<button class="bg-primary text-on-primary px-8 py-4 rounded-xl font-bold text-lg active:scale-95 transition-transform shadow-lg shadow-primary/20">
+                            Commencer l'Analyse
+                        </button>
+<button class="bg-surface-container-highest text-on-surface px-8 py-4 rounded-xl font-bold text-lg border border-outline-variant active:scale-95 transition-transform">
+                            Découvrir nos solutions
+                        </button>
+</div>
+</div>
+<div class="relative group">
+<div class="absolute -inset-4 bg-primary/20 blur-3xl rounded-full opacity-30 group-hover:opacity-50 transition-opacity"></div>
+<div class="relative bg-surface-container rounded-2xl border border-outline-variant overflow-hidden shadow-2xl">
+<img alt="Dashboard Preview" class="w-full h-auto opacity-90 group-hover:scale-105 transition-transform duration-700" data-alt="Modern analytics dashboard with data visualizations and academic report metrics" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJSQfleXFljVgfypuaVxDf8P_0Iq4FWUp-xtDmfdKPSkqzvEE-t7ikch0YUlCPtqIcQJySzySfjfGOl8e0HFjh-Ze2ynGIEqlnZjPPLALk82s8ND2Y0KSSZabvmFEz29WRdnTuWH2SgEWDW5YQoAcs8btSHfMK0JceQEVHCqedGKkoCFqTU92iF3raodzWr8RuNRSMTQXqDrG817LJH1fPTRGipOELxY5t7An-cMWaD8oSNX6qjCAG-I98sn880rdHbCcEu1xKzU7P"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Feature Bento Grid -->
+<section class="py-24 bg-surface-container-low">
+<div class="max-w-7xl mx-auto px-8">
+<div class="mb-16">
+<h2 class="text-3xl font-black tracking-tight mb-4 uppercase">Excellence Analytique</h2>
+<div class="h-1 w-24 bg-primary"></div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+<!-- Feature 1: Multi-Niveaux -->
+<div class="md:col-span-8 group p-8 rounded-2xl bg-surface-container border border-outline-variant hover:border-primary/50 transition-colors">
+<div class="flex flex-col h-full justify-between">
+<div class="mb-8">
+<div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary" data-icon="layers">layers</span>
+</div>
+<h3 class="text-2xl font-bold mb-4">Moteur Multi-Niveaux</h3>
+<p class="text-on-surface-variant text-lg leading-relaxed">Détection avancée couvrant le plagiat direct, la paraphrase complexe et la traduction automatique entre plus de 100 langues.</p>
+</div>
+<div class="flex gap-2">
+<span class="px-3 py-1 rounded bg-surface-container-highest text-xs font-semibold">Direct</span>
+<span class="px-3 py-1 rounded bg-surface-container-highest text-xs font-semibold">Paraphrase</span>
+<span class="px-3 py-1 rounded bg-surface-container-highest text-xs font-semibold">Traduction</span>
+</div>
+</div>
+</div>
+<!-- Feature 2: IA Detection -->
+<div class="md:col-span-4 group p-8 rounded-2xl bg-surface-container border border-outline-variant hover:border-primary/50 transition-colors">
+<div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary" data-icon="psychology">psychology</span>
+</div>
+<h3 class="text-2xl font-bold mb-4">Analyse Intelligente</h3>
+<p class="text-on-surface-variant leading-relaxed">Identification précise des contenus générés par IA (GPT-4, Claude, Gemini) et détection des méthodes de triche technique.</p>
+</div>
+<!-- Feature 3: Roles Management -->
+<div class="md:col-span-4 group p-8 rounded-2xl bg-surface-container border border-outline-variant hover:border-primary/50 transition-colors">
+<div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary" data-icon="groups">groups</span>
+</div>
+<h3 class="text-2xl font-bold mb-4">Gestion des Rôles</h3>
+<p class="text-on-surface-variant leading-relaxed">Espaces dédiés pour Étudiants, Enseignants et Administration avec flux de travail automatisés.</p>
+</div>
+<!-- Feature 4: Detailed Reports -->
+<div class="md:col-span-8 group p-8 rounded-2xl bg-surface-container border border-outline-variant hover:border-primary/50 transition-colors">
+<div class="grid md:grid-cols-2 gap-8 items-center h-full">
+<div>
+<div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary" data-icon="description">description</span>
+</div>
+<h3 class="text-2xl font-bold mb-4">Rapports Détaillés</h3>
+<p class="text-on-surface-variant leading-relaxed">Surlignage dynamique des correspondances et accès direct aux sources originales via notre index mondial.</p>
+</div>
+<div class="bg-surface-container-low rounded-xl p-4 border border-outline-variant">
+<div class="flex items-center justify-between mb-4">
+<span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Source Match</span>
+<span class="text-xs font-black text-error">84% Match</span>
+</div>
+<div class="space-y-2">
+<div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-error w-[84%]"></div>
+</div>
+<div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[12%]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Why PolyPlag Section -->
+<section class="py-24 relative">
+<div class="max-w-7xl mx-auto px-8 grid md:grid-cols-2 gap-16 items-center">
+<div class="order-2 md:order-1">
+<div class="relative rounded-3xl overflow-hidden border border-outline-variant shadow-2xl">
+<img alt="Academic Institution" class="w-full h-[500px] object-cover" data-alt="Prestigious academic building interior representing institutional excellence" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJcR0AtMJ8vQiXnvrps8EjMeEfw_ot08YRntoOknq4VISodMZYt3ZbOvTmTwfp0yrdJTrxrSEKM2-5D8mO9ovkb2GzxQP3ic8_PLMoiPEiC8nGh-zc5cQWbDd65Anps9fG_T3YJ2vmj7VRUZnxqsap_9YePYfhuOjfXfH44fBIUycU2Y-9gLL6-KYwI-H12dQSwXioM8xTg03zIY5NMMHH-9GRsw_38kzrtPgZlcY1XHANboe5SKydRDawGOqVPbNnytO2E9bdM25x"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+</div>
+</div>
+<div class="order-1 md:order-2 space-y-8">
+<h2 class="text-4xl font-black tracking-tighter leading-tight">Pourquoi PolyPlag pour IBAM/MIAGE ?</h2>
+<p class="text-lg text-on-surface-variant leading-relaxed">
+                        Conçu spécifiquement pour répondre aux exigences rigoureuses des standards IBAM et MIAGE, PolyPlag n'est pas qu'un simple détecteur. C'est un partenaire stratégique dans la certification des compétences.
+                    </p>
+<ul class="space-y-6">
+<li class="flex gap-4">
+<span class="material-symbols-outlined text-primary shrink-0" data-icon="verified">verified</span>
+<div>
+<h4 class="font-bold text-lg">Conformité MIAGE</h4>
+<p class="text-on-surface-variant text-sm">Alignement direct avec les méthodes d'évaluation des masters MIAGE.</p>
+</div>
+</li>
+<li class="flex gap-4">
+<span class="material-symbols-outlined text-primary shrink-0" data-icon="security">security</span>
+<div>
+<h4 class="font-bold text-lg">Sécurisation des Diplômes</h4>
+<p class="text-on-surface-variant text-sm">Protection de la réputation de l'institution IBAM par un contrôle strict.</p>
+</div>
+</li>
+<li class="flex gap-4">
+<span class="material-symbols-outlined text-primary shrink-0" data-icon="speed">speed</span>
+<div>
+<h4 class="font-bold text-lg">Intégration Flux Pédagogiques</h4>
+<p class="text-on-surface-variant text-sm">Automatisation des dépôts de travaux de fin d'études.</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="py-24 px-8">
+<div class="max-w-5xl mx-auto rounded-3xl bg-primary p-12 md:p-20 text-center relative overflow-hidden group">
+<div class="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-white/10 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700"></div>
+<h2 class="text-4xl md:text-5xl font-black tracking-tighter text-white mb-8 relative z-10">
+                    Prêt à élever vos standards académiques ?
+                </h2>
+<div class="flex flex-col md:flex-row gap-4 justify-center relative z-10">
+<button class="bg-white text-primary px-10 py-4 rounded-xl font-bold text-lg hover:bg-slate-100 transition-colors">
+                        Rejoindre le Réseau PolyPlag
+                    </button>
+<button class="bg-primary-fixed-variant border border-white/30 text-white px-10 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-colors">
+                        Demander une démo
+                    </button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#101622] border-t border-slate-800/50 w-full mt-auto">
+<div class="max-w-7xl mx-auto py-12 px-8 flex flex-col md:flex-row justify-between items-center gap-8 text-sm font-inter text-slate-400">
+<div class="flex flex-col items-center md:items-start gap-4">
+<div class="text-lg font-black text-slate-200 tracking-tighter">
+                    PolyPlag
+                </div>
+<p class="text-slate-500">© 2024 PolyPlag Strategic Systems. All rights reserved.</p>
+</div>
+<div class="flex flex-wrap justify-center gap-8">
+<a class="text-slate-500 hover:text-slate-300 transition-colors" href="#">Privacy Policy</a>
+<a class="text-slate-500 hover:text-slate-300 transition-colors" href="#">Terms of Service</a>
+<a class="text-slate-500 hover:text-slate-300 transition-colors" href="#">Security</a>
+<a class="text-slate-500 hover:text-slate-300 transition-colors" href="#">Contact Support</a>
+</div>
+<div class="flex gap-4">
+<a class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="language">language</span>
+</a>
+<a class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+</a>
+</div>
+</div>
+</footer>
+</body></html>
