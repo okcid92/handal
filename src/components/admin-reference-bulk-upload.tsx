@@ -29,7 +29,7 @@ interface UploadProgress {
   message?: string;
 }
 
-export function AdminReferenceBulkUpload() {
+export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () => void } = {}) {
   const [isUploading, setIsUploading] = useState(false);
   const [results, setResults] = useState<UploadResult[]>([]);
   const [errors, setErrors] = useState<UploadError[]>([]);
@@ -171,6 +171,7 @@ export function AdminReferenceBulkUpload() {
                 setErrors(payload.errors || []);
                 if ((payload.uploads || []).length > 0) {
                   setNotice(payload.message || null);
+                  onUploadDone?.();
                 }
                 setProgress(null);
               }

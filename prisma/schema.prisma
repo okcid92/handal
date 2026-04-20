@@ -42,6 +42,7 @@ enum DocumentStatus {
   CONDITIONAL_APPROVAL
   REQUESTED_REVIEW
   REJECTED
+  PENDING_ADMIN_REVIEW
 }
 
 enum AppreciationDecision {
@@ -160,6 +161,7 @@ model Document {
   isFinal             Boolean        @default(true) @map("is_final")
   isReference         Boolean        @default(false) @map("is_reference")
   uploadAttempts      Int            @default(1) @map("upload_attempts")
+  stagingMetadata     Json?          @map("staging_metadata")
   submittedAt         DateTime       @map("submitted_at")
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")

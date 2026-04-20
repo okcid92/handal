@@ -286,6 +286,23 @@ export async function POST(request: NextRequest) {
               continue;
             }
 
+            const filtered = filterInstitutionalContent(extractedText);
+            const profile = analyzeTheme({
+              name: file.name,
+              content: filtered.filteredContent,
+            });
+
+            const stagingMetadata = {
+              subjectLabel: profile.subjectLabel,
+              techStack: profile.techStack,
+              dominantTheme: profile.dominantTheme,
+              topKeywords: profile.keywords.slice(0, 8).map((k) => k.word),
+              excludedRatio: Math.round(filtered.excludedRatio * 100),
+              authorName: null as string | null,
+              department: null as string | null,
+              academicYear: null as string | null,
+            };
+
             const document = await prisma.document.create({
               data: {
                 themeId: null,
@@ -296,24 +313,17 @@ export async function POST(request: NextRequest) {
                 fileSize: BigInt(file.size),
                 checksum,
                 extractedText,
-                documentStatus: "APPROVED",
-                isReference: true,
+                documentStatus: "PENDING_ADMIN_REVIEW",
+                isReference: false,
+                stagingMetadata,
                 submittedAt: new Date(),
               },
             });
 
             console.log(
-              `[ADMIN-REF-UPLOAD] Document created for ${file.name}:`,
-              { documentId: document.id.toString() },
+              `[ADMIN-REF-UPLOAD] Staged ${file.name} for review:`,
+              { documentId: document.id.toString(), subjectLabel: profile.subjectLabel },
             );
-
-            // Indexation thématique uniquement — pas d'analyse de similarité
-            // Les documents de référence sont des sources de vérité, pas des sujets d'analyse.
-            const filtered = filterInstitutionalContent(extractedText);
-            const profile = analyzeTheme({
-              name: file.name,
-              content: filtered.filteredContent,
-            });
 
             const result = {
               fileName: file.name,
@@ -324,11 +334,6 @@ export async function POST(request: NextRequest) {
               topKeywords: profile.keywords.slice(0, 5).map((k) => k.word),
               excludedRatio: Math.round(filtered.excludedRatio * 100),
             };
-
-            console.log(
-              `[ADMIN-REF-UPLOAD] Indexed ${file.name}:`,
-              { dominantTheme: profile.dominantTheme, subjectLabel: profile.subjectLabel, techStack: profile.techStack },
-            );
 
             results.push(result);
             emit("file-complete", result);
@@ -356,8 +361,7 @@ export async function POST(request: NextRequest) {
             successful: results.length,
             failed: errors.length,
           },
-          message:
-            "Document ajouté à la bibliothèque de référence Handal avec succès.",
+          message: `${results.length} document(s) en attente de validation. Rendez-vous dans la Staging Area.`,
         });
       } catch (error) {
         console.error("[ADMIN-REF-UPLOAD] Unexpected error:", error);
