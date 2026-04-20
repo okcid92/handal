@@ -319,13 +319,15 @@ export async function POST(request: NextRequest) {
               fileName: file.name,
               documentId: document.id.toString(),
               dominantTheme: profile.dominantTheme,
+              subjectLabel: profile.subjectLabel,
+              techStack: profile.techStack,
               topKeywords: profile.keywords.slice(0, 5).map((k) => k.word),
               excludedRatio: Math.round(filtered.excludedRatio * 100),
             };
 
             console.log(
               `[ADMIN-REF-UPLOAD] Indexed ${file.name}:`,
-              { dominantTheme: profile.dominantTheme },
+              { dominantTheme: profile.dominantTheme, subjectLabel: profile.subjectLabel, techStack: profile.techStack },
             );
 
             results.push(result);

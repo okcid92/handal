@@ -7,6 +7,10 @@ export interface ThemeProfile {
   documentName: string;
   keywords: KeywordScore[];
   dominantTheme: string;
+  /** Sujet fonctionnel extrait (Bucket A) */
+  subjectLabel: string | null;
+  /** Stack technique détectée (Bucket B) */
+  techStack: string[];
   themeVector: Record<string, number>;
   stats: DocumentStats;
   analyzedAt: Date;
@@ -85,28 +89,41 @@ const ACADEMIC_STOP_WORDS = new Set([
   "rapport","stage","presentation","chapitre","figure","tableau",
   "page","annexe","section","partie","introduction","conclusion",
   "sommaire","resume","abstract","bibliographie","references",
-  // Termes académiques vides
-  "projet","systeme","gestion","analyse","developpement","mise",
-  "place","etude","travail","realisation","conception","implementation",
+  "soutenance","memoire","these",
+  // Termes académiques vides (mots seuls sans contexte)
+  "projet","systeme","analyse","developpement","etude","travail",
   "objectif","objectifs","problematique","contexte","cadre",
   "methodologie","approche","solution","resultat","resultats",
   "perspective","perspectives","recommandation","recommandations",
   "contribution","contributions","enjeux","besoin","besoins",
   "fonctionnalite","fonctionnalites","module","modules",
+  "mise","place","realisation","implementation",
   // Institutions et lieux
-  "ibam","miage","ujkz","burkina","faso","ouagadougou",
+  "ibam","ujkz","burkina","faso","ouagadougou",
   "universite","institut","ecole","departement","filiere",
   // Mots de liaison académique
   "permet","permettre","permettant","afin","notamment","ainsi",
-  "cependant","toutefois","neanmoins","egalement","notamment",
+  "cependant","toutefois","neanmoins","egalement",
   "differents","differentes","plusieurs","certains","certaines",
   "important","importante","importants","importantes",
   "general","generale","generaux","generales",
   "niveau","niveaux","type","types","forme","formes",
   "cas","exemple","exemples","point","points",
+  // ── Bucket C : Filières IBAM (à ignorer — déjà connues via profil) ──────
+  "miage","cca","agro","agriculture","comptabilite","controle","audit",
+  "informatique","genie","logiciel","reseaux","telecommunication",
+  "finance","marketing","management","commerce","economie",
+  // ── OS et environnements (bruit technique non discriminant) ─────────────
+  "windows","macos","android","ios","unix","wsl",
+  "ordinateur","serveur","machine","materiel","logiciel",
+  "installation","configuration","environnement","plateforme",
+  // Termes CRM/ERP génériques sans contexte
+  "utilisateur","utilisateurs","client","clients","admin",
+  "interface","application","applications","web","mobile",
+  "base","donnees","donnee","information","informations",
 ]);
 
-// ── Technologies et méthodes à booster (NER léger) ────────────────────────
+// ── Bucket B : Technologies discriminantes (à isoler, pas à mélanger au sujet)
 const TECH_KEYWORDS = new Set([
   // Langages
   "java","python","javascript","typescript","php","kotlin","swift",
@@ -117,24 +134,51 @@ const TECH_KEYWORDS = new Set([
   // Bases de données
   "mysql","postgresql","mongodb","redis","sqlite","oracle",
   "mariadb","cassandra","elasticsearch","firebase",
-  // DevOps / Infrastructure
+  // DevOps / Infrastructure (Linux retiré — trop générique)
   "docker","kubernetes","jenkins","gitlab","github","ansible",
-  "terraform","nginx","apache","linux","ubuntu","debian",
+  "terraform","nginx","apache","ubuntu","debian",
   // Sécurité / Auth
   "keycloak","oauth","jwt","ldap","ssl","tls","https","saml",
   // Méthodes / Modélisation
   "merise","uml","agile","scrum","kanban","devops","cicd",
   "mvc","api","rest","graphql","microservices","erp","crm",
-  // Domaines métier
-  "comptabilite","facturation","paie","rh","stock","inventaire",
-  "medical","sante","logistique","ecommerce","banque","finance",
-  "reseau","securite","authentification","autorisation",
+  // Outils métier nommés
+  "dolibarr","odoo","sap","salesforce","jira","trello",
+  "powerbi","tableau","excel","word","powerpoint",
 ]);
 
-// Boost multiplicateur pour les termes techniques
-const TECH_BOOST = 2.5;
-// Boost pour les mots commençant par une majuscule en milieu de phrase (NER)
-const CAPITALIZED_BOOST = 1.6;
+// ── Bucket A : Verbes d'action fonctionnels (boostent les n-grammes qui les contiennent)
+const ACTION_VERBS = new Set([
+  "conception","realisation","optimisation","modernisation",
+  "automatisation","numerisation","digitalisation","securisation",
+  "integration","deploiement","migration","refonte",
+  "suivi","traçabilite","tracabilite","gestion","pilotage",
+]);
+
+// ── Domaines métier fonctionnels (Bucket A — sujets discriminants) ─────────
+const FUNCTIONAL_DOMAINS = new Set([
+  "facturation","paie","stock","inventaire","commande","commandes",
+  "livraison","approvisionnement","achat","achats","vente","ventes",
+  "medical","sante","patient","patients","consultation","consultations",
+  "rendez","rdv","prescription","pharmacie",
+  "rh","recrutement","conge","conges","salaire","salaires",
+  "logistique","transport","livraison","expedition",
+  "comptabilite","tresorerie","budget","depense","depenses",
+  "securite","authentification","autorisation","acces",
+  "reseau","infrastructure","surveillance","monitoring",
+  "ecommerce","boutique","catalogue","panier",
+  "formation","apprentissage","evaluation","note","notes",
+  "bibliotheque","document","documents","archivage",
+  "election","vote","scrutin","candidat",
+  "agriculture","elevage","recolte","culture",
+  "energie","eau","electricite","solaire",
+]);
+
+// Boost multiplicateur
+const TECH_BOOST = 2.2;        // Bucket B
+const ACTION_BOOST = 2.8;      // Verbes d'action fonctionnels
+const FUNCTIONAL_BOOST = 2.0;  // Domaines métier
+const CAPITALIZED_BOOST = 1.5; // NER léger
 
 function stripHTML(text: string): string {
   return text
@@ -216,6 +260,55 @@ function extractNgrams(
     .filter(([, c]) => c >= 2)
     .map(([phrase, count]) => ({ phrase, count }))
     .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Tente d'extraire le sujet déclaré sur la page de garde.
+ * Cherche les patterns : THÈME :, SUJET :, TITRE :, INTITULÉ :
+ */
+function extractCoverPageSubject(text: string): string | null {
+  const normalized = text
+    .replace(/\r/g, " ")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const patterns = [
+    /(?:TH[EÈ]ME|SUJET|TITRE|INTITUL[EÉ])\s*[:\-]\s*(.+?)(?=\s{3,}|\b(?:PR[EÉ]SENT[EÉ]|ENCADR|DIRECTEUR|ANN[EÉ]E|JURY|SOUTENU)\b|$)/i,
+    /(?:th[eè]me|sujet|titre)\s*[:\-]\s*(.+?)(?=[.\n]|$)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = normalized.match(pattern);
+    if (match?.[1]) {
+      const candidate = match[1]
+        .replace(/["'«»]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (candidate.length >= 10 && candidate.length <= 300) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+}
+
+/** Classe un token dans son bucket */
+function classifyToken(norm: string): "tech" | "action" | "functional" | "generic" {
+  if (TECH_KEYWORDS.has(norm)) return "tech";
+  if (ACTION_VERBS.has(norm)) return "action";
+  if (FUNCTIONAL_DOMAINS.has(norm)) return "functional";
+  return "generic";
+}
+
+/** Vérifie si un n-gramme contient au moins un token d'action ou fonctionnel */
+function ngramHasSubjectSignal(words: string[]): boolean {
+  return words.some((w) => ACTION_VERBS.has(w) || FUNCTIONAL_DOMAINS.has(w));
+}
+
+/** Vérifie si un n-gramme contient au moins un token tech */
+function ngramHasTechSignal(words: string[]): boolean {
+  return words.some((w) => TECH_KEYWORDS.has(w));
 }
 
 function splitSentences(text: string): string[] {
@@ -307,21 +400,27 @@ function computeStats(text: string): DocumentStats {
 }
 
 export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
+  // ── Étape 0 : détection page de garde ─────────────────────────────────────
+  const coverSubject = extractCoverPageSubject(doc.content);
+
   const rawTokens = tokenizeWithRaw(doc.content);
   const tokens = rawTokens.map((t) => t.norm);
   const sentences = splitSentences(doc.content);
 
-  if (tokens.length === 0) {
-    return {
-      documentName: doc.name,
-      keywords: [],
-      dominantTheme: "indéterminé",
-      themeVector: {},
-      stats: computeStats(doc.content),
-      analyzedAt: new Date(),
-    };
-  }
+  const emptyProfile = (): ThemeProfile => ({
+    documentName: doc.name,
+    keywords: [],
+    dominantTheme: "indéterminé",
+    subjectLabel: coverSubject,
+    techStack: [],
+    themeVector: {},
+    stats: computeStats(doc.content),
+    analyzedAt: new Date(),
+  });
 
+  if (tokens.length === 0) return emptyProfile();
+
+  // ── Étape 1 : scoring TF-IDF + co-occurrence ────────────────────────────
   const tfidfMap = computeInternalTFIDF(tokens, sentences);
   const coocMap = computeCooccurrenceScore(tokens);
 
@@ -329,85 +428,113 @@ export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
   tokens.forEach((w) => { freqMap[w] = (freqMap[w] ?? 0) + 1; });
 
   const maxTFIDF = Math.max(...Object.values(tfidfMap), 1);
-  const allWords = new Set([...Object.keys(tfidfMap), ...Object.keys(coocMap)]);
-  const scored: KeywordScore[] = [];
 
-  // Construire un set des mots capitalisés en milieu de phrase
   const capitalizedMidSentence = new Set<string>();
   rawTokens.forEach(({ norm, raw, pos }) => {
-    if (isCapitalizedMidSentence(raw, pos)) {
-      capitalizedMidSentence.add(norm);
-    }
+    if (isCapitalizedMidSentence(raw, pos)) capitalizedMidSentence.add(norm);
   });
+
+  const allWords = new Set([...Object.keys(tfidfMap), ...Object.keys(coocMap)]);
+  const scored: KeywordScore[] = [];
 
   allWords.forEach((word) => {
     const tfidf = (tfidfMap[word] ?? 0) / maxTFIDF;
     const cooc = coocMap[word] ?? 0;
     let score = tfidf * 0.6 + cooc * 0.4;
 
-    // Boost NER : technologie connue
-    if (TECH_KEYWORDS.has(word)) score *= TECH_BOOST;
-    // Boost NER : capitalisé en milieu de phrase (entité nommée probable)
+    const bucket = classifyToken(word);
+    if (bucket === "tech") score *= TECH_BOOST;
+    else if (bucket === "action") score *= ACTION_BOOST;
+    else if (bucket === "functional") score *= FUNCTIONAL_BOOST;
     else if (capitalizedMidSentence.has(word)) score *= CAPITALIZED_BOOST;
 
-    scored.push({
-      word,
-      tfidf,
-      cooccurrence: cooc,
-      score,
-      frequency: freqMap[word] ?? 0,
-    });
+    scored.push({ word, tfidf, cooccurrence: cooc, score, frequency: freqMap[word] ?? 0 });
   });
 
   scored.sort((a, b) => b.score - a.score);
   const keywords = scored.slice(0, topK);
 
-  // ── Extraction des n-grammes pour le dominantTheme ────────────────────────
+  // ── Étape 2 : extraction n-grammes ───────────────────────────────────────
   const trigrams = extractNgrams(tokens, 3);
   const bigrams = extractNgrams(tokens, 2);
 
-  // Préférer les trigrammes, puis bigrammes, puis mots seuls
-  const topLabels: string[] = [];
-
-  // 1. Trigrammes contenant au moins un terme technique
+  // ── Étape 3 : Bucket B — stack technique ────────────────────────────────
+  const techStack: string[] = [];
+  // Trigrammes tech
   for (const { phrase } of trigrams) {
-    if (topLabels.length >= 3) break;
-    const words = phrase.split(" ");
-    if (words.some((w) => TECH_KEYWORDS.has(w))) {
-      topLabels.push(phrase);
+    if (techStack.length >= 4) break;
+    if (ngramHasTechSignal(phrase.split(" ")) && !ngramHasSubjectSignal(phrase.split(" "))) {
+      techStack.push(phrase);
     }
   }
-
-  // 2. Bigrammes contenant au moins un terme technique
+  // Bigrammes tech
   for (const { phrase } of bigrams) {
-    if (topLabels.length >= 3) break;
-    const words = phrase.split(" ");
-    if (words.some((w) => TECH_KEYWORDS.has(w)) && !topLabels.includes(phrase)) {
-      topLabels.push(phrase);
+    if (techStack.length >= 4) break;
+    if (ngramHasTechSignal(phrase.split(" ")) && !ngramHasSubjectSignal(phrase.split(" "))) {
+      techStack.push(phrase);
     }
   }
-
-  // 3. Trigrammes fréquents (sans contrainte tech)
-  for (const { phrase } of trigrams) {
-    if (topLabels.length >= 3) break;
-    if (!topLabels.includes(phrase)) topLabels.push(phrase);
-  }
-
-  // 4. Bigrammes fréquents
-  for (const { phrase } of bigrams) {
-    if (topLabels.length >= 3) break;
-    if (!topLabels.includes(phrase)) topLabels.push(phrase);
-  }
-
-  // 5. Mots seuls boosted (fallback)
+  // Mots tech seuls (fallback)
   for (const kw of keywords) {
-    if (topLabels.length >= 3) break;
-    if (!topLabels.some((l) => l.includes(kw.word))) {
-      topLabels.push(kw.word);
+    if (techStack.length >= 4) break;
+    if (classifyToken(kw.word) === "tech" && !techStack.some((t) => t.includes(kw.word))) {
+      techStack.push(kw.word);
     }
   }
 
-  const dominantTheme = topLabels.slice(0, 3).join(" | ") || "indéterminé";
+  // ── Étape 4 : Bucket A — sujet fonctionnel ──────────────────────────────
+  const subjectCandidates: string[] = [];
+
+  // Priorité 1 : page de garde
+  if (coverSubject) subjectCandidates.push(coverSubject);
+
+  // Priorité 2 : trigrammes avec signal action ou fonctionnel
+  for (const { phrase } of trigrams) {
+    if (subjectCandidates.length >= 3) break;
+    const words = phrase.split(" ");
+    if (ngramHasSubjectSignal(words) && !subjectCandidates.includes(phrase)) {
+      subjectCandidates.push(phrase);
+    }
+  }
+
+  // Priorité 3 : bigrammes avec signal action ou fonctionnel
+  for (const { phrase } of bigrams) {
+    if (subjectCandidates.length >= 3) break;
+    const words = phrase.split(" ");
+    if (ngramHasSubjectSignal(words) && !subjectCandidates.includes(phrase)) {
+      subjectCandidates.push(phrase);
+    }
+  }
+
+  // Priorité 4 : trigrammes fréquents sans tech (sujet générique)
+  for (const { phrase } of trigrams) {
+    if (subjectCandidates.length >= 3) break;
+    if (!ngramHasTechSignal(phrase.split(" ")) && !subjectCandidates.includes(phrase)) {
+      subjectCandidates.push(phrase);
+    }
+  }
+
+  // Priorité 5 : bigrammes fréquents sans tech
+  for (const { phrase } of bigrams) {
+    if (subjectCandidates.length >= 3) break;
+    if (!ngramHasTechSignal(phrase.split(" ")) && !subjectCandidates.includes(phrase)) {
+      subjectCandidates.push(phrase);
+    }
+  }
+
+  const subjectLabel = subjectCandidates[0] ?? null;
+
+  // ── Étape 5 : dominantTheme = sujet + tech (lisible) ──────────────────────
+  const labelParts: string[] = [];
+  if (subjectCandidates[0]) labelParts.push(subjectCandidates[0]);
+  if (subjectCandidates[1] && subjectCandidates[1] !== subjectCandidates[0]) {
+    labelParts.push(subjectCandidates[1]);
+  }
+  if (techStack[0] && !labelParts.some((l) => l.includes(techStack[0]))) {
+    labelParts.push(techStack[0]);
+  }
+
+  const dominantTheme = labelParts.join(" | ") || "indéterminé";
 
   const themeVector: Record<string, number> = {};
   keywords.forEach((kw) => { themeVector[kw.word] = kw.score; });
@@ -416,6 +543,8 @@ export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
     documentName: doc.name,
     keywords,
     dominantTheme,
+    subjectLabel,
+    techStack,
     themeVector,
     stats: computeStats(doc.content),
     analyzedAt: new Date(),

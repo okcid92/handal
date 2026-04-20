@@ -7,6 +7,8 @@ interface UploadResult {
   fileName: string;
   documentId: string;
   dominantTheme?: string;
+  subjectLabel?: string | null;
+  techStack?: string[];
   topKeywords?: string[];
   excludedRatio?: number;
   warning?: string;
@@ -357,14 +359,26 @@ export function AdminReferenceBulkUpload() {
                   <p className="mt-1 text-xs font-semibold text-green-700">
                     ✓ Indexé comme référence Handal
                   </p>
-                  {result.dominantTheme && result.dominantTheme !== "indéterminé" && (
+                  {result.subjectLabel && (
+                    <p className="mt-1 text-xs text-gray-700">
+                      <span className="font-semibold text-[#7b2438]">Sujet :</span>{" "}
+                      {result.subjectLabel}
+                    </p>
+                  )}
+                  {result.techStack && result.techStack.length > 0 && (
+                    <p className="mt-0.5 text-xs text-gray-600">
+                      <span className="font-semibold">Stack :</span>{" "}
+                      {result.techStack.slice(0, 3).join(" · ")}
+                    </p>
+                  )}
+                  {!result.subjectLabel && result.dominantTheme && result.dominantTheme !== "indéterminé" && (
                     <p className="mt-0.5 text-xs text-gray-600">
                       <span className="font-semibold">Thème :</span>{" "}
                       {result.dominantTheme}
                     </p>
                   )}
                   {result.topKeywords && result.topKeywords.length > 0 && (
-                    <p className="mt-0.5 text-xs text-gray-500">
+                    <p className="mt-0.5 text-xs text-gray-400">
                       {result.topKeywords.join(" · ")}
                     </p>
                   )}
