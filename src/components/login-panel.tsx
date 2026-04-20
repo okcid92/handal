@@ -12,11 +12,13 @@ type LoginResponse = {
   };
 };
 
+const DEMO_PASSWORD = "mon926732";
+
 const demoAccounts = {
-  student: { label: "Etudiant", login: "N01331820231", password: "" },
-  teacher: { label: "Enseignant", login: "teacher@handal.local", password: "" },
-  da: { label: "DA", login: "da@handal.local", password: "" },
-  admin: { label: "Admin", login: "admin@handal.local", password: "" },
+  student: { label: "Etudiant", login: "N01331820231", password: DEMO_PASSWORD },
+  teacher: { label: "Enseignant", login: "teacher@handal.local", password: DEMO_PASSWORD },
+  da: { label: "DA", login: "da@handal.local", password: DEMO_PASSWORD },
+  admin: { label: "Admin", login: "admin@handal.local", password: DEMO_PASSWORD },
 } as const;
 
 type ApiErrorWithCode = Error & { code?: string; status?: number };
@@ -46,7 +48,7 @@ function mapAuthError(error: unknown): string {
 export function LoginPanel() {
   const [mode, setMode] = useState<LoginMode>("student");
   const [login, setLogin] = useState<string>(demoAccounts.student.login);
-  const [password, setPassword] = useState<string>("");
+  const [password, setPassword] = useState<string>(DEMO_PASSWORD);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
