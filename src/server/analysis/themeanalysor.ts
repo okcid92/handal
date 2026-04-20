@@ -49,196 +49,92 @@ export type ProximityLevel =
   | "sans rapport";
 
 const STOP_WORDS = new Set([
-  "le",
-  "la",
-  "les",
-  "un",
-  "une",
-  "des",
-  "du",
-  "de",
-  "da",
-  "au",
-  "aux",
-  "et",
-  "ou",
-  "ni",
-  "mais",
-  "donc",
-  "or",
-  "car",
-  "si",
-  "que",
-  "qui",
-  "quoi",
-  "dont",
-  "où",
-  "quand",
-  "comment",
-  "pourquoi",
-  "quel",
-  "quelle",
-  "quels",
-  "quelles",
-  "ce",
-  "cet",
-  "cette",
-  "ces",
-  "mon",
-  "ton",
-  "son",
-  "ma",
-  "ta",
-  "sa",
-  "notre",
-  "votre",
-  "leur",
-  "mes",
-  "tes",
-  "ses",
-  "nos",
-  "vos",
-  "leurs",
-  "je",
-  "tu",
-  "il",
-  "elle",
-  "nous",
-  "vous",
-  "ils",
-  "elles",
-  "me",
-  "te",
-  "se",
-  "lui",
-  "y",
-  "en",
-  "on",
-  "ne",
-  "pas",
-  "plus",
-  "très",
-  "bien",
-  "aussi",
-  "même",
-  "tout",
-  "tous",
-  "toute",
-  "toutes",
-  "autre",
-  "autres",
-  "comme",
-  "avec",
-  "sans",
-  "sous",
-  "sur",
-  "dans",
-  "par",
-  "pour",
-  "vers",
-  "chez",
-  "entre",
-  "après",
-  "avant",
-  "pendant",
-  "depuis",
-  "jusqu",
-  "est",
-  "sont",
-  "être",
-  "avoir",
-  "fait",
-  "faire",
-  "peut",
-  "peuvent",
-  "doit",
-  "doivent",
-  "va",
-  "vont",
-  "été",
-  "avait",
-  "avaient",
-  "était",
-  "étaient",
-  "sera",
-  "seront",
-  "the",
-  "a",
-  "an",
-  "and",
-  "or",
-  "but",
-  "if",
-  "in",
-  "on",
-  "at",
-  "to",
-  "for",
-  "of",
-  "with",
-  "by",
-  "from",
-  "this",
-  "that",
-  "these",
-  "those",
-  "is",
-  "are",
-  "was",
-  "were",
-  "be",
-  "been",
-  "have",
-  "has",
-  "had",
-  "do",
-  "does",
-  "did",
-  "will",
-  "would",
-  "could",
-  "should",
-  "may",
-  "might",
-  "it",
-  "its",
-  "he",
-  "she",
-  "they",
-  "we",
-  "you",
-  "i",
-  "my",
-  "your",
-  "his",
-  "her",
-  "our",
-  "their",
-  "not",
-  "no",
-  "so",
-  "as",
-  "about",
-  "into",
-  "than",
-  "then",
-  "there",
-  "when",
-  "where",
-  "which",
-  "who",
-  "what",
-  "how",
-  "all",
-  "each",
-  "both",
-  "few",
-  "more",
-  "most",
-  "other",
-  "some",
-  "such",
+  // Articles et déterminants
+  "le","la","les","un","une","des","du","de","da","au","aux",
+  // Conjonctions et prépositions
+  "et","ou","ni","mais","donc","or","car","si","que","qui","quoi","dont",
+  "où","quand","comment","pourquoi","quel","quelle","quels","quelles",
+  "ce","cet","cette","ces","mon","ton","son","ma","ta","sa","notre",
+  "votre","leur","mes","tes","ses","nos","vos","leurs",
+  // Pronoms
+  "je","tu","il","elle","nous","vous","ils","elles","me","te","se",
+  "lui","y","en","on","ne","pas","plus","très","bien","aussi","même",
+  "tout","tous","toute","toutes","autre","autres","comme","avec","sans",
+  "sous","sur","dans","par","pour","vers","chez","entre","après","avant",
+  "pendant","depuis","jusqu",
+  // Verbes auxiliaires
+  "est","sont","être","avoir","fait","faire","peut","peuvent","doit",
+  "doivent","va","vont","été","avait","avaient","était","étaient",
+  "sera","seront","ainsi","afin","lors","dont","cela","celui","celle",
+  "ceux","celles","ici","là","alors","puis","donc","enfin","notamment",
+  "notamment","soit","selon","via","dès","dès","lorsque","lorsqu",
+  // Anglais
+  "the","a","an","and","or","but","if","in","on","at","to","for",
+  "of","with","by","from","this","that","these","those","is","are",
+  "was","were","be","been","have","has","had","do","does","did",
+  "will","would","could","should","may","might","it","its","he",
+  "she","they","we","you","i","my","your","his","her","our","their",
+  "not","no","so","as","about","into","than","then","there","when",
+  "where","which","who","what","how","all","each","both","few",
+  "more","most","other","some","such",
 ]);
+
+// ── Stop-words académiques IBAM (termes trop génériques pour discriminer) ──
+const ACADEMIC_STOP_WORDS = new Set([
+  // Structure de rapport
+  "rapport","stage","presentation","chapitre","figure","tableau",
+  "page","annexe","section","partie","introduction","conclusion",
+  "sommaire","resume","abstract","bibliographie","references",
+  // Termes académiques vides
+  "projet","systeme","gestion","analyse","developpement","mise",
+  "place","etude","travail","realisation","conception","implementation",
+  "objectif","objectifs","problematique","contexte","cadre",
+  "methodologie","approche","solution","resultat","resultats",
+  "perspective","perspectives","recommandation","recommandations",
+  "contribution","contributions","enjeux","besoin","besoins",
+  "fonctionnalite","fonctionnalites","module","modules",
+  // Institutions et lieux
+  "ibam","miage","ujkz","burkina","faso","ouagadougou",
+  "universite","institut","ecole","departement","filiere",
+  // Mots de liaison académique
+  "permet","permettre","permettant","afin","notamment","ainsi",
+  "cependant","toutefois","neanmoins","egalement","notamment",
+  "differents","differentes","plusieurs","certains","certaines",
+  "important","importante","importants","importantes",
+  "general","generale","generaux","generales",
+  "niveau","niveaux","type","types","forme","formes",
+  "cas","exemple","exemples","point","points",
+]);
+
+// ── Technologies et méthodes à booster (NER léger) ────────────────────────
+const TECH_KEYWORDS = new Set([
+  // Langages
+  "java","python","javascript","typescript","php","kotlin","swift",
+  "csharp","cpp","ruby","golang","rust","scala","dart","flutter",
+  // Frameworks web
+  "react","angular","vuejs","nextjs","nodejs","express","django",
+  "laravel","symfony","spring","springboot","fastapi","nestjs",
+  // Bases de données
+  "mysql","postgresql","mongodb","redis","sqlite","oracle",
+  "mariadb","cassandra","elasticsearch","firebase",
+  // DevOps / Infrastructure
+  "docker","kubernetes","jenkins","gitlab","github","ansible",
+  "terraform","nginx","apache","linux","ubuntu","debian",
+  // Sécurité / Auth
+  "keycloak","oauth","jwt","ldap","ssl","tls","https","saml",
+  // Méthodes / Modélisation
+  "merise","uml","agile","scrum","kanban","devops","cicd",
+  "mvc","api","rest","graphql","microservices","erp","crm",
+  // Domaines métier
+  "comptabilite","facturation","paie","rh","stock","inventaire",
+  "medical","sante","logistique","ecommerce","banque","finance",
+  "reseau","securite","authentification","autorisation",
+]);
+
+// Boost multiplicateur pour les termes techniques
+const TECH_BOOST = 2.5;
+// Boost pour les mots commençant par une majuscule en milieu de phrase (NER)
+const CAPITALIZED_BOOST = 1.6;
 
 function stripHTML(text: string): string {
   return text
@@ -247,18 +143,79 @@ function stripHTML(text: string): string {
     .trim();
 }
 
+function normalizeWord(word: string): string {
+  return word
+    .toLowerCase()
+    .replace(/[\u00e0\u00e2\u00e4]/g, "a")
+    .replace(/[\u00e9\u00e8\u00ea\u00eb]/g, "e")
+    .replace(/[\u00ee\u00ef]/g, "i")
+    .replace(/[\u00f4\u00f6]/g, "o")
+    .replace(/[\u00f9\u00fb\u00fc]/g, "u")
+    .replace(/\u00e7/g, "c")
+    .replace(/[^a-z0-9]/g, "");
+}
+
 function normalize(text: string): string {
   return stripHTML(text)
     .toLowerCase()
-    .replace(/[^\w\sàâéèêëîïôùûüç]/g, " ")
+    .replace(/[^\w\s\u00e0\u00e2\u00e9\u00e8\u00ea\u00eb\u00ee\u00ef\u00f4\u00f9\u00fb\u00fc\u00e7]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Détecte si un mot commence par une majuscule en milieu de phrase (NER léger) */
+function isCapitalizedMidSentence(rawWord: string, position: number): boolean {
+  if (position === 0) return false;
+  return rawWord.length > 2 && rawWord[0] === rawWord[0].toUpperCase() && rawWord[0] !== rawWord[0].toLowerCase();
+}
+
+function isValidToken(normalized: string): boolean {
+  return (
+    normalized.length > 2 &&
+    !STOP_WORDS.has(normalized) &&
+    !ACADEMIC_STOP_WORDS.has(normalized) &&
+    !/^\d+$/.test(normalized) // exclure les nombres purs
+  );
 }
 
 function tokenize(text: string): string[] {
   return normalize(text)
     .split(/\s+/)
-    .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+    .map(normalizeWord)
+    .filter(isValidToken);
+}
+
+/** Tokenize en conservant les mots bruts pour la détection NER */
+function tokenizeWithRaw(text: string): Array<{ norm: string; raw: string; pos: number }> {
+  const raw = stripHTML(text).split(/\s+/);
+  const result: Array<{ norm: string; raw: string; pos: number }> = [];
+  raw.forEach((word, pos) => {
+    const norm = normalizeWord(word);
+    if (isValidToken(norm)) {
+      result.push({ norm, raw: word, pos });
+    }
+  });
+  return result;
+}
+
+/** Extrait les bigrammes et trigrammes significatifs */
+function extractNgrams(
+  tokens: string[],
+  n: 2 | 3,
+): Array<{ phrase: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (let i = 0; i <= tokens.length - n; i++) {
+    // Ne pas former de n-gramme si l'un des tokens est trop court
+    const slice = tokens.slice(i, i + n);
+    if (slice.some((t) => t.length < 3)) continue;
+    const phrase = slice.join(" ");
+    counts.set(phrase, (counts.get(phrase) ?? 0) + 1);
+  }
+  // Garder uniquement les n-grammes qui apparaissent au moins 2 fois
+  return [...counts.entries()]
+    .filter(([, c]) => c >= 2)
+    .map(([phrase, count]) => ({ phrase, count }))
+    .sort((a, b) => b.count - a.count);
 }
 
 function splitSentences(text: string): string[] {
@@ -350,7 +307,8 @@ function computeStats(text: string): DocumentStats {
 }
 
 export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
-  const tokens = tokenize(doc.content);
+  const rawTokens = tokenizeWithRaw(doc.content);
+  const tokens = rawTokens.map((t) => t.norm);
   const sentences = splitSentences(doc.content);
 
   if (tokens.length === 0) {
@@ -368,18 +326,29 @@ export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
   const coocMap = computeCooccurrenceScore(tokens);
 
   const freqMap: Record<string, number> = {};
-  tokens.forEach((w) => {
-    freqMap[w] = (freqMap[w] ?? 0) + 1;
-  });
+  tokens.forEach((w) => { freqMap[w] = (freqMap[w] ?? 0) + 1; });
 
   const maxTFIDF = Math.max(...Object.values(tfidfMap), 1);
   const allWords = new Set([...Object.keys(tfidfMap), ...Object.keys(coocMap)]);
   const scored: KeywordScore[] = [];
 
+  // Construire un set des mots capitalisés en milieu de phrase
+  const capitalizedMidSentence = new Set<string>();
+  rawTokens.forEach(({ norm, raw, pos }) => {
+    if (isCapitalizedMidSentence(raw, pos)) {
+      capitalizedMidSentence.add(norm);
+    }
+  });
+
   allWords.forEach((word) => {
     const tfidf = (tfidfMap[word] ?? 0) / maxTFIDF;
     const cooc = coocMap[word] ?? 0;
-    const score = tfidf * 0.6 + cooc * 0.4;
+    let score = tfidf * 0.6 + cooc * 0.4;
+
+    // Boost NER : technologie connue
+    if (TECH_KEYWORDS.has(word)) score *= TECH_BOOST;
+    // Boost NER : capitalisé en milieu de phrase (entité nommée probable)
+    else if (capitalizedMidSentence.has(word)) score *= CAPITALIZED_BOOST;
 
     scored.push({
       word,
@@ -393,15 +362,55 @@ export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
   scored.sort((a, b) => b.score - a.score);
   const keywords = scored.slice(0, topK);
 
-  const themeVector: Record<string, number> = {};
-  keywords.forEach((kw) => {
-    themeVector[kw.word] = kw.score;
-  });
+  // ── Extraction des n-grammes pour le dominantTheme ────────────────────────
+  const trigrams = extractNgrams(tokens, 3);
+  const bigrams = extractNgrams(tokens, 2);
 
-  const dominantTheme = keywords
-    .slice(0, 5)
-    .map((kw) => kw.word)
-    .join(", ");
+  // Préférer les trigrammes, puis bigrammes, puis mots seuls
+  const topLabels: string[] = [];
+
+  // 1. Trigrammes contenant au moins un terme technique
+  for (const { phrase } of trigrams) {
+    if (topLabels.length >= 3) break;
+    const words = phrase.split(" ");
+    if (words.some((w) => TECH_KEYWORDS.has(w))) {
+      topLabels.push(phrase);
+    }
+  }
+
+  // 2. Bigrammes contenant au moins un terme technique
+  for (const { phrase } of bigrams) {
+    if (topLabels.length >= 3) break;
+    const words = phrase.split(" ");
+    if (words.some((w) => TECH_KEYWORDS.has(w)) && !topLabels.includes(phrase)) {
+      topLabels.push(phrase);
+    }
+  }
+
+  // 3. Trigrammes fréquents (sans contrainte tech)
+  for (const { phrase } of trigrams) {
+    if (topLabels.length >= 3) break;
+    if (!topLabels.includes(phrase)) topLabels.push(phrase);
+  }
+
+  // 4. Bigrammes fréquents
+  for (const { phrase } of bigrams) {
+    if (topLabels.length >= 3) break;
+    if (!topLabels.includes(phrase)) topLabels.push(phrase);
+  }
+
+  // 5. Mots seuls boosted (fallback)
+  for (const kw of keywords) {
+    if (topLabels.length >= 3) break;
+    if (!topLabels.some((l) => l.includes(kw.word))) {
+      topLabels.push(kw.word);
+    }
+  }
+
+  const dominantTheme = topLabels.slice(0, 3).join(" | ") || "indéterminé";
+
+  const themeVector: Record<string, number> = {};
+  keywords.forEach((kw) => { themeVector[kw.word] = kw.score; });
 
   return {
     documentName: doc.name,
