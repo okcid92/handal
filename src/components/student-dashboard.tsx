@@ -319,25 +319,59 @@ export function StudentDashboard() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/documents/upload-file", {
-        method: "POST",
-        body: fd,
-      });
+      let res: Response;
+      try {
+        res = await fetch("/api/documents/upload-file", {
+          method: "POST",
+          body: fd,
+        });
+      } catch {
+        // Erreur réseau (fetch abandonné, timeout navigateur, connexion perdue)
+        setDocumentMessage(
+          "Le serveur Handal met du temps à répondre. Votre analyse continue en arrière-plan, vérifiez l\u2019historique dans un instant.",
+        );
+        // Rafraîchir l'historique après un délai pour laisser le serveur terminer
+        setTimeout(() => {
+          apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
+            "/api/me/analysis-history",
+          )
+            .then((r) => setAnalysisHistory(r.history ?? []))
+            .catch(() => {});
+        }, 8000);
+        return;
+      }
+      const cloned = res.clone();
       if (!res.ok) {
-        const err = await res.json();
+        const err = await cloned.json().catch(() => ({})) as { error?: { message?: string } };
         throw new Error(err.error?.message || "Erreur upload");
       }
-      const data = await res.json();
+      const data = await cloned.json() as {
+        titleMismatch?: boolean;
+        titleScore?: number;
+        validatedTitle?: string;
+        analysis?: {
+          globalSimilarity: number;
+          riskLevel: string;
+          blocked: boolean;
+          uploadAttempts: number;
+          topReferenceSource?: {
+            sourceId: string | null;
+            sourceLabel: string | null;
+            sourceSimilarity: number | null;
+          };
+        };
+        document?: { id: string };
+      };
       if (data.titleMismatch) {
         setTitleMismatch({
-          titleScore: data.titleScore,
-          validatedTitle: data.validatedTitle,
+          titleScore: data.titleScore!,
+          validatedTitle: data.validatedTitle!,
         });
       } else if (data.analysis) {
         setAnalysisResult(data.analysis);
         setDocumentMessage(null);
       } else {
-        setDocumentMessage(`✓ Document déposé : ${data.document.id}`);
+        setDocumentMessage(`✓ Document déposé : ${data.document?.id}`);
       }
       // Rafraichir l'historique
       apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
@@ -346,7 +380,26 @@ export function StudentDashboard() {
         .then((r) => setAnalysisHistory(r.history ?? []))
         .catch(() => {});
     } catch (err) {
-      setDocumentMessage(err instanceof Error ? err.message : "Erreur upload");
+      const msg = err instanceof Error ? err.message : "Erreur upload";
+      // Distinguer erreur réseau d'une erreur métier
+      const isNetworkError =
+        msg.toLowerCase().includes("failed to fetch") ||
+        msg.toLowerCase().includes("network") ||
+        msg.toLowerCase().includes("load failed");
+      setDocumentMessage(
+        isNetworkError
+          ? "Le serveur Handal met du temps à répondre. Votre analyse continue en arrière-plan, vérifiez l\u2019historique dans un instant."
+          : msg,
+      );
+      if (isNetworkError) {
+        setTimeout(() => {
+          apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
+            "/api/me/analysis-history",
+          )
+            .then((r) => setAnalysisHistory(r.history ?? []))
+            .catch(() => {});
+        }, 8000);
+      }
     } finally {
       setUploading(false);
       setUploadStatusMessage(null);
@@ -915,7 +968,9 @@ export function StudentDashboard() {
               className={`mt-4 rounded-xl border-2 px-5 py-3 text-sm font-semibold ${
                 documentMessage.startsWith("✓")
                   ? "border-green-400/50 bg-green-50 text-green-800"
-                  : "border-red-400/50 bg-red-50 text-red-800"
+                  : documentMessage.includes("arrière-plan")
+                    ? "border-[#c98a2f]/50 bg-[#fff6e6] text-[#755028]"
+                    : "border-red-400/50 bg-red-50 text-red-800"
               }`}
             >
               {documentMessage}
