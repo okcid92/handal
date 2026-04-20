@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { CdView } from "./CDLayout";
 import { apiFetch } from "@/lib/frontend-api";
+import { ThemeCatalogue } from "./theme-catalogue";
 
 type ThemeSummary = {
   id: string;
@@ -594,6 +595,7 @@ export function CDTracker({
           >
             {view === "dashboard" && "Tableau de Bord"}
             {view === "themes" && "Thèmes à Valider"}
+            {view === "catalogue" && "Catalogue des Thèmes"}
             {view === "reports" && "Rapports d'Analyse"}
             {view === "archives" && "Archives"}
           </h1>
@@ -1025,6 +1027,11 @@ export function CDTracker({
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Catalogue des Thèmes ── */}
+          {view === "catalogue" && (
+            <ThemeCatalogue />
           )}
 
           {/* ── Archives ── */}

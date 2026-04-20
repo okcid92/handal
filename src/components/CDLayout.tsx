@@ -8,14 +8,16 @@ import {
   LogOut,
   GraduationCap,
   BookOpen,
+  Library,
 } from "lucide-react";
 import { HandalLogo } from "./HandalLogo";
 
-export type CdView = "dashboard" | "themes" | "reports" | "archives";
+export type CdView = "dashboard" | "themes" | "reports" | "archives" | "catalogue";
 
 const NAV: { id: CdView; label: string; icon: React.ElementType }[] = [
   { id: "dashboard", label: "Tableau de Bord", icon: LayoutDashboard },
   { id: "themes", label: "Thèmes à Valider", icon: ShieldCheck },
+  { id: "catalogue", label: "Catalogue des Thèmes", icon: Library },
   { id: "reports", label: "Rapports d'Analyse", icon: FileSearch },
   { id: "archives", label: "Archives", icon: Archive },
 ];
