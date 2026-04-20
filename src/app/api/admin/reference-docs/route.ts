@@ -294,8 +294,9 @@ export async function POST(request: NextRequest) {
             });
             const cover = extractCoverMetadata(extractedText);
 
+            // Priorité : ancre page de garde > NLP
             const stagingMetadata = {
-              subjectLabel: profile.subjectLabel ?? null,
+              subjectLabel: cover.subjectLabel ?? profile.subjectLabel ?? null,
               techStack: profile.techStack ?? [],
               dominantTheme: profile.dominantTheme,
               topKeywords: profile.keywords.slice(0, 8).map((k) => k.word),

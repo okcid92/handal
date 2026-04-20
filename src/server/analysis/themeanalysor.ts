@@ -267,28 +267,21 @@ function extractNgrams(
  * Cherche les patterns : THÈME :, SUJET :, TITRE :, INTITULÉ :
  */
 function extractCoverPageSubject(text: string): string | null {
-  const normalized = text
-    .replace(/\r/g, " ")
-    .replace(/\n+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const patterns = [
-    /(?:TH[EÈ]ME|SUJET|TITRE|INTITUL[EÉ])\s*[:\-]\s*(.+?)(?=\s{3,}|\b(?:PR[EÉ]SENT[EÉ]|ENCADR|DIRECTEUR|ANN[EÉ]E|JURY|SOUTENU)\b|$)/i,
-    /(?:th[eè]me|sujet|titre)\s*[:\-]\s*(.+?)(?=[.\n]|$)/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = normalized.match(pattern);
-    if (match?.[1]) {
-      const candidate = match[1]
-        .replace(/["'«»]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-      if (candidate.length >= 10 && candidate.length <= 300) {
-        return candidate;
-      }
+  const flat = text.replace(/\r/g, " ").replace(/\n+/g, " ").replace(/\s+/g, " ").trim();
+  const lower = flat.toLowerCase();
+  const themeAnchors = ["theme :", "thème :", "theme:", "thème:", "sujet :", "sujet:", "intitulé :", "titre :"];
+  const endAnchors = ["présenté par", "presente par", "réalisé par", "encadreur", "directeur", "jury", "année acad"];
+  for (const anchor of themeAnchors) {
+    const idx = lower.indexOf(anchor);
+    if (idx === -1) continue;
+    const start = idx + anchor.length;
+    let end = flat.length;
+    for (const ea of endAnchors) {
+      const ei = lower.indexOf(ea, start);
+      if (ei !== -1 && ei < end) end = ei;
     }
+    const candidate = flat.slice(start, end).replace(/[^\w\s\u00c0-\u024f'"():,.-]/g, " ").replace(/\s+/g, " ").trim();
+    if (candidate.length >= 10 && candidate.length <= 300) return candidate;
   }
   return null;
 }
