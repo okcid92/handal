@@ -140,6 +140,32 @@ export async function createDeliberation(
   };
 }
 
+export async function validateReportByChefDept(
+  reportId: bigint,
+  decidedBy: bigint,
+  payload: DeliberationPayload,
+) {
+  const result = await createDeliberation(reportId, decidedBy, payload);
+
+  if (payload.decision === "final_validation") {
+    await prisma.document.update({
+      where: { id: BigInt(result.report.documentId) },
+      data: {
+        documentStatus: "APPROVED",
+        isReference: true,
+      },
+    });
+
+    logger.info("report.document_promoted_reference", {
+      reportId: result.report.id,
+      documentId: result.report.documentId,
+      decidedBy: decidedBy.toString(),
+    });
+  }
+
+  return result;
+}
+
 export async function getReportDeliberations(reportId: bigint) {
   const report = await loadReport(reportId);
 

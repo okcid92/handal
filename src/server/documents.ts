@@ -28,6 +28,16 @@ type ReportSource = {
   url: string;
   similarity: number;
   type: "web" | "repository" | "journal" | "ai";
+  sourceId?: string | null;
+  sourceLabel?: string | null;
+};
+
+type OfficialComparisonSource = {
+  name: string;
+  content: string;
+  sourceId: string;
+  sourceLabel: string;
+  sourceKind: "admin_reference" | "validated_document";
 };
 
 type HighlightedSegment = {
@@ -125,6 +135,102 @@ function generateHighlightedSegments(seed: number): HighlightedSegment[] {
   ];
 }
 
+function extractReferenceSourceInfo(sourceName: string) {
+  const match = sourceName.match(/^(reference|validated):(\d+):/);
+  if (!match) {
+    return {
+      sourceId: null,
+      sourceLabel: null,
+    };
+  }
+
+  return {
+    sourceId: match[2],
+    sourceLabel: `document de référence #${match[2]}`,
+  };
+}
+
+function buildOfficialComparisonSource(
+  doc: {
+    id: bigint;
+    originalName: string;
+    extractedText: string | null;
+  },
+  sourceKind: OfficialComparisonSource["sourceKind"],
+): OfficialComparisonSource {
+  return {
+    name: `${sourceKind === "admin_reference" ? "reference" : "validated"}:${doc.id.toString()}:${doc.originalName}`,
+    content: doc.extractedText ?? "",
+    sourceId: doc.id.toString(),
+    sourceLabel: `document de référence #${doc.id.toString()}`,
+    sourceKind,
+  };
+}
+
+async function loadOfficialComparisonCorpus(excludeDocumentId?: bigint) {
+  const [referenceDocs, validatedDocs] = await Promise.all([
+    prisma.referenceDocument.findMany({
+      select: { id: true, originalName: true, extractedText: true },
+    }),
+    prisma.document.findMany({
+      where: {
+        isReference: true,
+        extractedText: { not: null },
+        ...(excludeDocumentId ? { id: { not: excludeDocumentId } } : {}),
+      },
+      select: { id: true, originalName: true, extractedText: true },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  return [
+    ...referenceDocs.map((doc) =>
+      buildOfficialComparisonSource(doc, "admin_reference"),
+    ),
+    ...validatedDocs.map((doc) =>
+      buildOfficialComparisonSource(doc, "validated_document"),
+    ),
+  ];
+}
+
+function enrichMatchedSources(results: SimilarityResult[]) {
+  return results.slice(0, 8).map((result) => {
+    const sourceInfo = extractReferenceSourceInfo(result.name);
+    return {
+      name: result.name,
+      url: "",
+      similarity: Number((result.combined * 100).toFixed(2)),
+      type:
+        result.name.startsWith("reference:") ||
+        result.name.startsWith("validated:")
+          ? "repository"
+          : "journal",
+      sourceId: sourceInfo.sourceId,
+      sourceLabel: sourceInfo.sourceLabel,
+    };
+  });
+}
+
+function getTopReferenceSource(matchedSources: ReportSource[]) {
+  const topSource = matchedSources.find(
+    (source) => source.sourceLabel || source.sourceId,
+  );
+
+  if (!topSource) {
+    return {
+      sourceId: null,
+      sourceLabel: null,
+      sourceSimilarity: null,
+    };
+  }
+
+  return {
+    sourceId: topSource.sourceId ?? null,
+    sourceLabel: topSource.sourceLabel ?? null,
+    sourceSimilarity: topSource.similarity,
+  };
+}
+
 function serializeDocument(document: DocumentWithRelations) {
   return {
     id: document.id.toString(),
@@ -196,6 +302,7 @@ function serializeReport(report: SimilarityReportWithRelations) {
           .uploadAttempts ?? 1,
       submittedAt: report.document.submittedAt.toISOString(),
     },
+    isReference: (report.document as unknown as { isReference?: boolean }).isReference ?? false,
   };
 }
 
@@ -521,6 +628,40 @@ export async function listAnalysisHistory(studentId: bigint) {
       orderBy: { analyzedAt: "desc" },
       take: 50,
     });
+
+    const reportIds = rows
+      .map((row) => row.reportId)
+      .filter((reportId): reportId is bigint => reportId !== null);
+
+    const reports = reportIds.length
+      ? await prisma.similarityReport.findMany({
+          where: { id: { in: reportIds } },
+          select: {
+            id: true,
+            matchedSources: true,
+          },
+        })
+      : [];
+
+    const sourceByReportId = new Map<
+      string,
+      {
+        sourceId: string | null;
+        sourceLabel: string | null;
+        sourceSimilarity: number | null;
+      }
+    >();
+
+    reports.forEach((report) => {
+      const matchedSources = Array.isArray(report.matchedSources)
+        ? (report.matchedSources as ReportSource[])
+        : [];
+      sourceByReportId.set(
+        report.id.toString(),
+        getTopReferenceSource(matchedSources),
+      );
+    });
+
     return rows.map((r) => ({
       id: r.id.toString(),
       documentId: r.documentId?.toString() ?? null,
@@ -535,6 +676,16 @@ export async function listAnalysisHistory(studentId: bigint) {
       titleMismatch: r.titleMismatch,
       attemptNumber: r.attemptNumber,
       analyzedAt: r.analyzedAt.toISOString(),
+      sourceReference: r.reportId
+        ? (sourceByReportId.get(r.reportId.toString())?.sourceLabel ?? null)
+        : null,
+      sourceReferenceId: r.reportId
+        ? (sourceByReportId.get(r.reportId.toString())?.sourceId ?? null)
+        : null,
+      sourceReferenceSimilarity: r.reportId
+        ? (sourceByReportId.get(r.reportId.toString())?.sourceSimilarity ??
+          null)
+        : null,
     }));
   } catch {
     return [];
@@ -765,41 +916,7 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
       },
     });
 
-    const referenceDocs = await prisma.referenceDocument.findMany({
-      select: {
-        id: true,
-        originalName: true,
-        extractedText: true,
-      },
-    });
-
-    const peerDocs = await prisma.document.findMany({
-      where: {
-        id: { not: document.id },
-        isReference: false, // Only compare against student submissions, not reference docs
-        extractedText: { not: null },
-      },
-      select: {
-        id: true,
-        originalName: true,
-        extractedText: true,
-      },
-      take: 50,
-      orderBy: { createdAt: "desc" },
-    });
-
-    const comparisonCorpus = [
-      ...referenceDocs.map((doc) => ({
-        name: `reference:${doc.id.toString()}:${doc.originalName}`,
-        content: doc.extractedText,
-      })),
-      ...peerDocs
-        .filter((doc) => Boolean(doc.extractedText))
-        .map((doc) => ({
-          name: `student:${doc.id.toString()}:${doc.originalName}`,
-          content: doc.extractedText as string,
-        })),
-    ];
+    const comparisonCorpus = await loadOfficialComparisonCorpus(document.id);
 
     const plagiarism = analyzePlagiarism(
       {
@@ -814,12 +931,8 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
     const aiScore = Number(aiScoreRaw.toFixed(2));
     const globalSimilarity = Number(globalSimilarityRaw.toFixed(2));
     const riskLevel = deriveRiskLevel(globalSimilarity);
-    const matchedSources = plagiarism.results.slice(0, 8).map((result) => ({
-      name: result.name,
-      url: "",
-      similarity: Number((result.combined * 100).toFixed(2)),
-      type: result.name.startsWith("reference:") ? "repository" : "journal",
-    }));
+    const matchedSources = enrichMatchedSources(plagiarism.results);
+    const topReferenceSource = getTopReferenceSource(matchedSources);
     const highlightedSegments = plagiarism.results
       .flatMap((result) =>
         result.commonPhrases.map((phrase, index) => ({
@@ -875,6 +988,7 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
         riskLevel,
         matchedSources,
         highlightedSegments,
+        topReferenceSource,
       },
     };
   } catch (error) {
@@ -950,6 +1064,11 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
   reportId: string;
   blocked: boolean;
   uploadAttempts: number;
+  topReferenceSource: {
+    sourceId: string | null;
+    sourceLabel: string | null;
+    sourceSimilarity: number | null;
+  };
 }> {
   const document = await loadDocument(documentId);
 
@@ -960,6 +1079,11 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       reportId: "",
       blocked: false,
       uploadAttempts: document.uploadAttempts,
+      topReferenceSource: {
+        sourceId: null,
+        sourceLabel: null,
+        sourceSimilarity: null,
+      },
     };
   }
 
@@ -973,30 +1097,7 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
   });
 
   try {
-    const [referenceDocs, peerDocs] = await Promise.all([
-      prisma.referenceDocument.findMany({
-        select: { id: true, originalName: true, extractedText: true },
-      }),
-      prisma.document.findMany({
-        where: { id: { not: document.id }, extractedText: { not: null } },
-        select: { id: true, originalName: true, extractedText: true },
-        take: 50,
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
-
-    const corpus = [
-      ...referenceDocs.map((d) => ({
-        name: `reference:${d.id}:${d.originalName}`,
-        content: d.extractedText,
-      })),
-      ...peerDocs
-        .filter((d) => d.extractedText)
-        .map((d) => ({
-          name: `student:${d.id}:${d.originalName}`,
-          content: d.extractedText as string,
-        })),
-    ];
+    const corpus = await loadOfficialComparisonCorpus(document.id);
 
     const plagiarism = analyzePlagiarism(
       { name: document.originalName, content: document.extractedText },
@@ -1008,12 +1109,8 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
     );
     const riskLevel = deriveRiskLevel(globalSimilarity);
 
-    const matchedSources = plagiarism.results.slice(0, 8).map((r) => ({
-      name: r.name,
-      url: "",
-      similarity: Number((r.combined * 100).toFixed(2)),
-      type: r.name.startsWith("reference:") ? "repository" : "journal",
-    }));
+    const matchedSources = enrichMatchedSources(plagiarism.results);
+    const topReferenceSource = getTopReferenceSource(matchedSources);
 
     const highlightedSegments = plagiarism.results
       .flatMap((r) =>
@@ -1070,6 +1167,7 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       reportId: created.id.toString(),
       blocked: globalSimilarity > 50,
       uploadAttempts: document.uploadAttempts,
+      topReferenceSource,
     };
   } catch (error) {
     await prisma.document.update({

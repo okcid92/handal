@@ -4,7 +4,10 @@ import { z } from "zod";
 import { errorResponse } from "@/lib/api-errors";
 import { guardRole } from "@/lib/route-guards";
 import { assertSameOrigin } from "@/lib/security";
-import { createDeliberation } from "@/server/deliberations";
+import {
+  createDeliberation,
+  validateReportByChefDept,
+} from "@/server/deliberations";
 
 const payloadSchema = z.object({
   decision: z.enum(["final_validation", "sanction", "rewrite_required"]),
@@ -22,11 +25,18 @@ export async function POST(
     const { report } = await params;
     const payload = payloadSchema.parse(await request.json());
 
-    const result = await createDeliberation(
-      BigInt(report),
-      BigInt(session.userId),
-      payload,
-    );
+    const result =
+      payload.decision === "final_validation"
+        ? await validateReportByChefDept(
+            BigInt(report),
+            BigInt(session.userId),
+            payload,
+          )
+        : await createDeliberation(
+            BigInt(report),
+            BigInt(session.userId),
+            payload,
+          );
 
     return NextResponse.json({
       ok: true,

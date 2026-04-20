@@ -40,6 +40,7 @@ type ReportSummary = {
   riskLevel: string;
   analyzedAt: string;
   uploadAttempts?: number;
+  isReference?: boolean;
   document: {
     id: string;
     title: string;
@@ -290,10 +291,14 @@ function ReportCard({
   report,
   onOpen,
   isOpening,
+  onValidate,
+  isValidating,
 }: {
   report: ReportSummary;
   onOpen: (report: ReportSummary) => void;
   isOpening: boolean;
+  onValidate: (report: ReportSummary) => void;
+  isValidating: boolean;
 }) {
   const sim = parseFloat(report.globalSimilarity) || 0;
   return (
@@ -347,6 +352,28 @@ function ReportCard({
             </>
           )}
         </button>
+        {!report.isReference && (
+          <button
+            type="button"
+            onClick={() => onValidate(report)}
+            disabled={isValidating}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              borderColor: "rgba(22,163,74,0.35)",
+              color: "#15803d",
+              background: "rgba(22,163,74,0.07)",
+            }}
+          >
+            {isValidating ? "Validation..." : (
+              <><CheckCircle className="h-3.5 w-3.5" /> Valider Mémoire Final</>
+            )}
+          </button>
+        )}
+        {report.isReference && (
+          <span className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold" style={{ borderColor: "rgba(22,163,74,0.35)", color: "#15803d", background: "rgba(22,163,74,0.07)" }}>
+            <CheckCircle className="h-3.5 w-3.5" /> Référence
+          </span>
+        )}
       </div>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -416,6 +443,7 @@ export function CDTracker({
   const [loadingDocumentId, setLoadingDocumentId] = useState<string | null>(
     null,
   );
+  const [validatingReportId, setValidatingReportId] = useState<string | null>(null);
 
   // Validation
   const [decision, setDecision] = useState<"approved" | "rejected">("approved");
@@ -489,6 +517,24 @@ export function CDTracker({
       onReportsRefresh(refreshed.reports);
     } catch (err) {
       setAnalysisMsg(err instanceof Error ? err.message : "Erreur analyse");
+    }
+  }
+
+  async function validateFinalReport(report: ReportSummary) {
+    if (validatingReportId) return;
+    setValidatingReportId(report.id);
+    try {
+      await apiFetch(`/api/reports/${report.id}/deliberate`, {
+        method: "POST",
+        body: JSON.stringify({ decision: "final_validation", notes: "Mémoire validé — promu en référence" }),
+      });
+      onNotify(`Mémoire #${report.id} validé et promu en référence.`);
+      const refreshed = await apiFetch<{ reports: ReportSummary[] }>("/api/reports");
+      onReportsRefresh(refreshed.reports);
+    } catch (err) {
+      onNotify(err instanceof Error ? err.message : "Erreur validation", false);
+    } finally {
+      setValidatingReportId(null);
     }
   }
 
@@ -663,6 +709,8 @@ export function CDTracker({
                         report={r}
                         onOpen={openDocument}
                         isOpening={loadingDocumentId === r.id}
+                        onValidate={validateFinalReport}
+                        isValidating={validatingReportId === r.id}
                       />
                     ))}
                   </div>
@@ -970,6 +1018,8 @@ export function CDTracker({
                       report={r}
                       onOpen={openDocument}
                       isOpening={loadingDocumentId === r.id}
+                      onValidate={validateFinalReport}
+                      isValidating={validatingReportId === r.id}
                     />
                   ))}
                 </div>

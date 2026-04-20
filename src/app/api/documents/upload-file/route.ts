@@ -274,6 +274,11 @@ export async function POST(request: NextRequest) {
       reportId: string;
       blocked: boolean;
       uploadAttempts: number;
+      topReferenceSource: {
+        sourceId: string | null;
+        sourceLabel: string | null;
+        sourceSimilarity: number | null;
+      };
     } | null = null;
 
     try {
