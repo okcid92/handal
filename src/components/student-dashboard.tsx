@@ -11,6 +11,8 @@ import {
   Lock,
   XCircle,
   Send,
+  History,
+  FileText,
 } from "lucide-react";
 import { apiFetch } from "@/lib/frontend-api";
 
@@ -34,6 +36,20 @@ type OverviewResponse = {
 };
 
 type ValidationStatus = "pending" | "approved" | "rejected";
+
+type AnalysisEntry = {
+  id: string;
+  documentId: string | null;
+  reportId: string | null;
+  fileName: string;
+  detectedTitle: string | null;
+  titleScore: number;
+  similarityScore: number | null;
+  blocked: boolean;
+  titleMismatch: boolean;
+  attemptNumber: number;
+  analyzedAt: string;
+};
 
 const STEPS = [
   { id: 1, label: "Proposition de thème" },
@@ -133,13 +149,17 @@ export function StudentDashboard() {
   const [documentMessage, setDocumentMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [titleMismatch, setTitleMismatch] = useState<{ titleScore: number; validatedTitle: string } | null>(null);
+  const [titleMismatch, setTitleMismatch] = useState<{
+    titleScore: number;
+    validatedTitle: string;
+  } | null>(null);
   const [analysisResult, setAnalysisResult] = useState<{
     globalSimilarity: number;
     riskLevel: string;
     blocked: boolean;
     uploadAttempts: number;
   } | null>(null);
+  const [analysisHistory, setAnalysisHistory] = useState<AnalysisEntry[]>([]);
 
   // Statuts validés si le thème est VALIDATED, VALIDATED_DA, ou les deux votes v2 approuvés
   const VALIDATED_STATUSES = [
@@ -156,6 +176,13 @@ export function StudentDashboard() {
 
   useEffect(() => {
     let mounted = true;
+    apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
+      "/api/me/analysis-history",
+    )
+      .then((r) => {
+        if (mounted) setAnalysisHistory(r.history ?? []);
+      })
+      .catch(() => {});
     apiFetch<OverviewResponse>("/api/me/overview")
       .then((r) => {
         if (!mounted) return;
@@ -256,13 +283,22 @@ export function StudentDashboard() {
       }
       const data = await res.json();
       if (data.titleMismatch) {
-        setTitleMismatch({ titleScore: data.titleScore, validatedTitle: data.validatedTitle });
+        setTitleMismatch({
+          titleScore: data.titleScore,
+          validatedTitle: data.validatedTitle,
+        });
       } else if (data.analysis) {
         setAnalysisResult(data.analysis);
         setDocumentMessage(null);
       } else {
         setDocumentMessage(`✓ Document déposé : ${data.document.id}`);
       }
+      // Rafraichir l'historique
+      apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
+        "/api/me/analysis-history",
+      )
+        .then((r) => setAnalysisHistory(r.history ?? []))
+        .catch(() => {});
     } catch (err) {
       setDocumentMessage(err instanceof Error ? err.message : "Erreur upload");
     } finally {
@@ -424,6 +460,24 @@ export function StudentDashboard() {
             </div>
           )}
 
+          {uploading && (
+            <div className="mt-4 rounded-xl border-2 border-[#7b2438]/20 bg-[#f2d9e0]/35 px-5 py-4">
+              <p className="text-sm font-bold text-[#7b2438]">
+                Analyse profonde du contenu en cours...
+              </p>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#7b2438]/10">
+                <div
+                  className="h-full w-2/3 rounded-full bg-[#7b2438]"
+                  style={{ animation: "pulse 1.4s ease-in-out infinite" }}
+                />
+              </div>
+              <p className="mt-2 text-xs font-medium text-[#6c5448]">
+                Extraction du texte, vérification du titre et analyse de
+                similarité.
+              </p>
+            </div>
+          )}
+
           {themeMessage && (
             <div
               className={`mt-4 rounded-xl border-2 px-5 py-3 text-sm font-semibold ${
@@ -531,9 +585,59 @@ export function StudentDashboard() {
                 </label>
               )}
 
+              {/* Erreur titre premiere page */}
+              {titleMismatch && (
+                <div className="mt-4 flex items-start gap-3 rounded-xl border-2 border-[#7b2438]/60 bg-[#f2d9e0] px-5 py-4">
+                  <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7b2438]" />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-[#7b2438]">
+                      Erreur : Le titre détecté sur votre document ne correspond
+                      pas au thème validé par le Chef de département.
+                    </p>
+                    <p className="mt-1 text-xs font-medium text-[#5f1a29]">
+                      Titre attendu :{" "}
+                      <span className="font-bold">
+                        {titleMismatch.validatedTitle}
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-xs font-medium text-[#5f1a29]">
+                      Correspondance :{" "}
+                      <span className="font-bold">
+                        {titleMismatch.titleScore}%
+                      </span>{" "}
+                      (seuil requis : 80%)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setTitleMismatch(null)}
+                      className="mt-2 text-xs font-semibold text-[#7b2438] underline"
+                    >
+                      Réessayer
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Barre de progression pendant l'analyse */}
               {uploading && (
                 <div className="mt-4 space-y-3">
+                  {" "}
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <Image
+                      src="/brand/handal-lamp.png"
+                      alt="Handal"
+                      width={24}
+                      height={24}
+                      className="h-6 w-auto object-contain"
+                      style={{ height: "auto" }}
+                    />
+                    <span className="text-xs font-black uppercase tracking-widest text-[#7b2438]">
+                      HANDAL
+                    </span>
+                    <span className="text-[10px] font-semibold text-[#6c5448]">
+                      — Analyse en cours
+                    </span>
+                  </div>{" "}
                   <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#7b2438]/10">
                     <div
                       className="h-full rounded-full bg-[#7b2438] animate-[progress_2s_ease-in-out_infinite]"
@@ -554,20 +658,54 @@ export function StudentDashboard() {
               {analysisResult && (
                 <div className="mt-4 space-y-4">
                   <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-[#7b2438]/15 bg-white p-6">
-                    {/* Logo Origina officiel */}
+                    {/* Logo Handal officiel */}
                     <div className="flex items-center gap-2 border-b border-[#7b2438]/10 pb-3 w-full justify-center">
-                      <Image src="/brand/origina-logo-sm.png" alt="Origina" width={24} height={16} className="h-6 w-auto object-contain" />
-                      <span className="text-xs font-black uppercase tracking-widest" style={{ color: "var(--primary)" }}>ORIGINA</span>
-                      <span className="text-[10px] font-semibold" style={{ color: "var(--text-soft)" }}>— Analyse officielle</span>
+                      <Image
+                        src="/brand/handal-lamp.png"
+                        alt="Handal"
+                        width={24}
+                        height={24}
+                        className="h-6 w-auto object-contain"
+                        style={{ height: "auto" }}
+                      />
+                      <span
+                        className="text-xs font-black uppercase tracking-widest"
+                        style={{ color: "var(--primary)" }}
+                      >
+                        HANDAL
+                      </span>
+                      <span
+                        className="text-[10px] font-semibold"
+                        style={{ color: "var(--text-soft)" }}
+                      >
+                        — Analyse officielle
+                      </span>
                     </div>
                     {/* Jauge circulaire SVG */}
                     <div className="relative flex items-center justify-center">
                       <svg width="120" height="120" viewBox="0 0 120 120">
-                        <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(123,36,56,0.10)" strokeWidth="10" />
                         <circle
-                          cx="60" cy="60" r="50" fill="none"
-                          stroke={analysisResult.blocked ? "#7b2438" : analysisResult.globalSimilarity < 20 ? "#16a34a" : "#c98a2f"}
-                          strokeWidth="10" strokeLinecap="round"
+                          cx="60"
+                          cy="60"
+                          r="50"
+                          fill="none"
+                          stroke="rgba(123,36,56,0.10)"
+                          strokeWidth="10"
+                        />
+                        <circle
+                          cx="60"
+                          cy="60"
+                          r="50"
+                          fill="none"
+                          stroke={
+                            analysisResult.blocked
+                              ? "#7b2438"
+                              : analysisResult.globalSimilarity < 20
+                                ? "#16a34a"
+                                : "#c98a2f"
+                          }
+                          strokeWidth="10"
+                          strokeLinecap="round"
                           strokeDasharray={`${2 * Math.PI * 50}`}
                           strokeDashoffset={`${2 * Math.PI * 50 * (1 - Math.min(analysisResult.globalSimilarity, 100) / 100)}`}
                           transform="rotate(-90 60 60)"
@@ -575,22 +713,53 @@ export function StudentDashboard() {
                         />
                       </svg>
                       <div className="absolute flex flex-col items-center">
-                        <span className="text-2xl font-extrabold" style={{ color: analysisResult.blocked ? "#7b2438" : analysisResult.globalSimilarity < 20 ? "#16a34a" : "#c98a2f" }}>
+                        <span
+                          className="text-2xl font-extrabold"
+                          style={{
+                            color: analysisResult.blocked
+                              ? "#7b2438"
+                              : analysisResult.globalSimilarity < 20
+                                ? "#16a34a"
+                                : "#c98a2f",
+                          }}
+                        >
                           {analysisResult.globalSimilarity.toFixed(1)}%
                         </span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6c5448]">Similarité</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#6c5448]">
+                          Similarité
+                        </span>
                       </div>
                     </div>
                     <div className="flex gap-6 text-center">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">Niveau de risque</p>
-                        <p className="text-lg font-extrabold" style={{ color: analysisResult.riskLevel === "LOW" ? "#16a34a" : analysisResult.riskLevel === "MEDIUM" ? "#c98a2f" : "#b91c1c" }}>
-                          {analysisResult.riskLevel === "LOW" ? "Faible" : analysisResult.riskLevel === "MEDIUM" ? "Moyen" : "Élevé"}
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
+                          Niveau de risque
+                        </p>
+                        <p
+                          className="text-lg font-extrabold"
+                          style={{
+                            color:
+                              analysisResult.riskLevel === "LOW"
+                                ? "#16a34a"
+                                : analysisResult.riskLevel === "MEDIUM"
+                                  ? "#c98a2f"
+                                  : "#b91c1c",
+                          }}
+                        >
+                          {analysisResult.riskLevel === "LOW"
+                            ? "Faible"
+                            : analysisResult.riskLevel === "MEDIUM"
+                              ? "Moyen"
+                              : "Élevé"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">Tentative</p>
-                        <p className="text-lg font-extrabold text-[#2b1d16]">#{analysisResult.uploadAttempts}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
+                          Tentative
+                        </p>
+                        <p className="text-lg font-extrabold text-[#2b1d16]">
+                          #{analysisResult.uploadAttempts}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -600,24 +769,39 @@ export function StudentDashboard() {
                     <div className="flex items-start gap-3 rounded-xl border-2 border-[#7b2438]/60 bg-[#f2d9e0] px-5 py-4">
                       <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7b2438]" />
                       <div>
-                        <p className="text-sm font-bold text-[#7b2438]">Taux de plagiat trop élevé (50%+)</p>
-                        <p className="text-xs font-medium text-[#5f1a29]">Vous devez corriger votre document et le soumettre à nouveau.</p>
+                        <p className="text-sm font-bold text-[#7b2438]">
+                          Taux de plagiat trop élevé (50%+)
+                        </p>
+                        <p className="text-xs font-medium text-[#5f1a29]">
+                          Vous devez corriger votre document et le soumettre à
+                          nouveau.
+                        </p>
                       </div>
                     </div>
                   ) : analysisResult.globalSimilarity < 20 ? (
                     <div className="flex items-start gap-3 rounded-xl border-2 border-green-400/50 bg-green-50 px-5 py-4">
                       <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
                       <div>
-                        <p className="text-sm font-bold text-green-800">Document conforme aux standards</p>
-                        <p className="text-xs font-medium text-green-700">Le taux de similarité est inférieur au seuil de 20%. Votre mémoire est éligible à la délibération.</p>
+                        <p className="text-sm font-bold text-green-800">
+                          Document conforme aux standards
+                        </p>
+                        <p className="text-xs font-medium text-green-700">
+                          Le taux de similarité est inférieur au seuil de 20%.
+                          Votre mémoire est éligible à la délibération.
+                        </p>
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-start gap-3 rounded-xl border-2 border-[#c98a2f]/50 bg-[#fff6e6] px-5 py-4">
                       <Clock className="mt-0.5 h-5 w-5 shrink-0 text-[#c98a2f]" />
                       <div>
-                        <p className="text-sm font-bold text-[#5f3a10]">Seuil de similarité élevé</p>
-                        <p className="text-xs font-medium text-[#755028]">Le taux dépasse 20%. Votre document sera examiné avant délibération.</p>
+                        <p className="text-sm font-bold text-[#5f3a10]">
+                          Seuil de similarité élevé
+                        </p>
+                        <p className="text-xs font-medium text-[#755028]">
+                          Le taux dépasse 20%. Votre document sera examiné avant
+                          délibération.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -653,6 +837,151 @@ export function StudentDashboard() {
               }`}
             >
               {documentMessage}
+            </div>
+          )}
+        </section>
+
+        {/* ── Historique des analyses ── */}
+        <section className="section-frame rounded-2xl p-8">
+          <div className="mb-6 flex items-center gap-3 border-b border-[#7b2438]/10 pb-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f2d9e0]">
+              <History className="h-5 w-5 text-[#7b2438]" />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-[#2b1d16]">
+                Historique de vos tentatives
+              </h3>
+              <p className="text-xs font-medium text-[#6c5448]">
+                Toutes vos analyses sont conservées comme preuve de correction
+              </p>
+            </div>
+          </div>
+
+          {analysisHistory.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-[#7b2438]/15 bg-white py-12 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f2d9e0]">
+                <FileText className="h-7 w-7 text-[#7b2438]/50" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-[#2b1d16]">
+                  Aucune analyse effectuée pour le moment
+                </p>
+                <p className="mt-1 text-xs font-medium text-[#6c5448]">
+                  Déposez votre document pour commencer.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {analysisHistory.map((entry, idx) => {
+                const isLatest = idx === 0;
+                const date = new Date(entry.analyzedAt);
+                const dateStr = date.toLocaleDateString("fr-FR", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                });
+                const timeStr = date.toLocaleTimeString("fr-FR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+                return (
+                  <div
+                    key={entry.id}
+                    className="rounded-xl border bg-white px-5 py-4"
+                    style={{
+                      borderColor: isLatest
+                        ? "rgba(123,36,56,0.30)"
+                        : "rgba(203,213,225,0.8)",
+                      boxShadow: isLatest
+                        ? "0 0 0 1px rgba(123,36,56,0.08)"
+                        : undefined,
+                    }}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      {/* Infos gauche */}
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-semibold text-[#6c5448]">
+                            {dateStr} à {timeStr}
+                          </span>
+                          {isLatest && (
+                            <span className="rounded-full bg-[#7b2438] px-2 py-0.5 text-[10px] font-bold text-white">
+                              Dernière
+                            </span>
+                          )}
+                          <span className="text-[10px] font-medium text-[#6c5448]">
+                            Tentative #{entry.attemptNumber}
+                          </span>
+                        </div>
+
+                        {/* Titre détecté */}
+                        {entry.detectedTitle && (
+                          <p className="text-xs text-[#6c5448] truncate max-w-xs">
+                            <span className="font-semibold">
+                              Titre détecté :
+                            </span>{" "}
+                            {entry.detectedTitle.slice(0, 80)}
+                            {entry.detectedTitle.length > 80 ? "…" : ""}
+                          </p>
+                        )}
+
+                        {/* Fichier */}
+                        <p className="text-[10px] text-[#6c5448]/70 truncate max-w-xs">
+                          {entry.fileName}
+                        </p>
+                      </div>
+
+                      {/* Score + statut droite */}
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        {entry.titleMismatch ? (
+                          <span className="rounded-full border border-[#7b2438]/40 bg-[#f2d9e0] px-3 py-1 text-[11px] font-bold text-[#7b2438]">
+                            Titre non conforme
+                          </span>
+                        ) : entry.similarityScore != null ? (
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="text-lg font-extrabold"
+                              style={{
+                                color: isLatest
+                                  ? "#7b2438"
+                                  : entry.blocked
+                                    ? "#b91c1c"
+                                    : entry.similarityScore < 20
+                                      ? "#16a34a"
+                                      : "#c98a2f",
+                              }}
+                            >
+                              {entry.similarityScore.toFixed(1)}%
+                            </span>
+                            {entry.blocked ? (
+                              <span className="rounded-full border border-[#7b2438]/50 bg-[#f2d9e0] px-2.5 py-0.5 text-[11px] font-bold text-[#7b2438]">
+                                Rejeté (&gt;50%)
+                              </span>
+                            ) : (
+                              <span className="rounded-full border border-green-300 bg-green-50 px-2.5 py-0.5 text-[11px] font-bold text-green-700">
+                                Validé pour examen
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-[#6c5448]">—</span>
+                        )}
+
+                        {/* Bouton Voir le rapport */}
+                        {entry.reportId && (
+                          <button
+                            type="button"
+                            className="rounded-lg border border-[#7b2438]/30 px-3 py-1 text-[11px] font-bold text-[#7b2438] transition hover:bg-[#f2d9e0]"
+                          >
+                            Voir le rapport
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>

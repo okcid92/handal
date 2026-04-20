@@ -17,7 +17,11 @@ export function requireSession(request: NextRequest) {
 export function requireRole(request: NextRequest, allowedRoles: AppRole[]) {
   const session = requireSession(request);
   if (!allowedRoles.includes(session.role)) {
-    throw new ApiError("Forbidden", 403, "FORBIDDEN");
+    throw new ApiError(
+      `Access denied for role ${session.role}. Allowed roles: ${allowedRoles.join(", ")}`,
+      403,
+      "FORBIDDEN",
+    );
   }
 
   return session;

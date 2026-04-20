@@ -28,7 +28,16 @@ export function AdminDashboard() {
           {overview?.user.name} · {overview?.user.role}
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Shortcut href="/student" title="Student" description="Voir le flux étudiant" />
+          <Shortcut
+            href="/admin/reference-docs"
+            title="Upload de documents"
+            description="Accéder à la page d'envoi des documents"
+          />
+          <Shortcut
+            href="/student"
+            title="Student"
+            description="Voir le flux étudiant"
+          />
           <Shortcut
             href="/teacher"
             title="Teacher"

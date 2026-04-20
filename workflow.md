@@ -556,7 +556,7 @@ Soutenance autorisée         Révision ou fin
 
 **Comptes de démo:**
 
-- Email: `teacher@origina.local`
+- Email: `teacher@handal.local`
 - Mot de passe: `mon926732`
 
 **Permissions:**
@@ -884,7 +884,7 @@ Thème VALIDATED                             Thème REJECTED
 
 **Comptes de démo:**
 
-- Email: `da@origina.local`
+- Email: `da@handal.local`
 - Mot de passe: `mon926732`
 
 **Permissions:**
@@ -1058,7 +1058,7 @@ Thème VALIDATED                             Thème REJECTED
 
 **Comptes de démo:**
 
-- Email: `admin@origina.local`
+- Email: `admin@handal.local`
 - Mot de passe: `mon926732`
 
 **Permissions:**
@@ -1124,7 +1124,7 @@ Le dashboard admin affiche:
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. AUTHENTIFICATION ADMIN                                       │
-│    ├─ Email: admin@origina.local + mot de passe                 │
+│    ├─ Email: admin@handal.local + mot de passe                 │
 │    └─ Redirection → /admin (dashboard central)                  │
 └─────────────────────────────────────────────────────────────────┘
                               ↓

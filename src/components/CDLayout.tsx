@@ -7,16 +7,17 @@ import {
   Archive,
   LogOut,
   GraduationCap,
+  BookOpen,
 } from "lucide-react";
 import { HandalLogo } from "./OriginaLogo";
 
 export type CdView = "dashboard" | "themes" | "reports" | "archives";
 
 const NAV: { id: CdView; label: string; icon: React.ElementType }[] = [
-  { id: "dashboard", label: "Tableau de Bord",    icon: LayoutDashboard },
-  { id: "themes",    label: "Thèmes à Valider",   icon: ShieldCheck },
-  { id: "reports",   label: "Rapports d'Analyse", icon: FileSearch },
-  { id: "archives",  label: "Archives",            icon: Archive },
+  { id: "dashboard", label: "Tableau de Bord", icon: LayoutDashboard },
+  { id: "themes", label: "Thèmes à Valider", icon: ShieldCheck },
+  { id: "reports", label: "Rapports d'Analyse", icon: FileSearch },
+  { id: "archives", label: "Archives", icon: Archive },
 ];
 
 type Props = {
@@ -32,39 +33,62 @@ type Props = {
 };
 
 export function CDLayout({
-  view, onViewChange, userName, department,
-  pendingCount, reportsCount, onLogout, logoutLoading, children,
+  view,
+  onViewChange,
+  userName,
+  department,
+  pendingCount,
+  reportsCount,
+  onLogout,
+  logoutLoading,
+  children,
 }: Props) {
   return (
     <div className="flex min-h-screen">
-
       {/* ══ SIDEBAR ══════════════════════════════════════════════ */}
       <aside
         className="sticky top-0 flex h-screen w-64 shrink-0 flex-col overflow-y-auto"
         style={{
-          background: "linear-gradient(180deg, var(--surface-1) 0%, var(--surface-2) 100%)",
+          background:
+            "linear-gradient(180deg, var(--surface-1) 0%, var(--surface-2) 100%)",
           borderRight: "1.5px solid var(--line)",
         }}
       >
         {/* ── Logo Handal ── */}
         <div style={{ borderBottom: "1px solid var(--line)" }}>
-          <HandalLogo subtitle="Chef de Département" href="/teacher" variant="dark" />
+          <HandalLogo
+            subtitle="Chef de Département"
+            href="/teacher"
+            variant="dark"
+          />
         </div>
 
         {/* ── Identité enseignant ── */}
-        <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--line)" }}>
+        <div
+          className="px-6 py-4"
+          style={{ borderBottom: "1px solid var(--line)" }}
+        >
           <div className="flex items-center gap-3 mb-3">
             <div
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
               style={{ background: "rgba(123,36,56,0.10)" }}
             >
-              <GraduationCap className="h-4 w-4" style={{ color: "var(--primary)" }} />
+              <GraduationCap
+                className="h-4 w-4"
+                style={{ color: "var(--primary)" }}
+              />
             </div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-extrabold" style={{ color: "var(--foreground)" }}>
+              <p
+                className="truncate text-sm font-extrabold"
+                style={{ color: "var(--foreground)" }}
+              >
                 {userName}
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--primary)" }}>
+              <p
+                className="text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: "var(--primary)" }}
+              >
                 Chef de Département
               </p>
             </div>
@@ -123,10 +147,14 @@ export function CDLayout({
                     : { color: "var(--foreground)", background: "transparent" }
                 }
                 onMouseEnter={(e) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(123,36,56,0.07)";
+                  if (!active)
+                    (e.currentTarget as HTMLElement).style.background =
+                      "rgba(123,36,56,0.07)";
                 }}
                 onMouseLeave={(e) => {
-                  if (!active) (e.currentTarget as HTMLElement).style.background = "transparent";
+                  if (!active)
+                    (e.currentTarget as HTMLElement).style.background =
+                      "transparent";
                 }}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -155,8 +183,43 @@ export function CDLayout({
           })}
         </nav>
 
-        {/* ── Statistiques rapides ── */}
-        <div className="px-4 py-4" style={{ borderTop: "1px solid var(--line)" }}>
+        {/* ── Ressources ── */}
+        <nav
+          className="px-3 py-3"
+          style={{
+            borderTop: "1px solid var(--line)",
+            borderBottom: "1px solid var(--line)",
+          }}
+        >
+          <p
+            className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest"
+            style={{ color: "var(--text-soft)" }}
+          >
+            Ressources
+          </p>
+          <a
+            href="/teacher/reference-library"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all"
+            style={{
+              color: "var(--foreground)",
+              background: "transparent",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background =
+                "rgba(123,36,56,0.07)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "transparent";
+            }}
+          >
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className="flex-1 text-left">Base de Référence</span>
+          </a>
+        </nav>
+        <div
+          className="px-4 py-4"
+          style={{ borderTop: "1px solid var(--line)" }}
+        >
           <p
             className="mb-3 px-1 text-[10px] font-bold uppercase tracking-widest"
             style={{ color: "var(--text-soft)" }}
@@ -184,13 +247,18 @@ export function CDLayout({
                   background: "rgba(255,255,255,0.65)",
                 }}
               >
-                <span className="text-xs font-semibold" style={{ color: "var(--text-soft)" }}>
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: "var(--text-soft)" }}
+                >
                   {label}
                 </span>
                 <span
                   className="rounded-full px-2.5 py-0.5 text-xs font-extrabold"
                   style={{
-                    background: urgent ? "rgba(123,36,56,0.10)" : "rgba(0,0,0,0.05)",
+                    background: urgent
+                      ? "rgba(123,36,56,0.10)"
+                      : "rgba(0,0,0,0.05)",
                     color: urgent ? "var(--primary)" : "var(--text-soft)",
                   }}
                 >
@@ -203,9 +271,7 @@ export function CDLayout({
       </aside>
 
       {/* ══ MAIN CONTENT ═════════════════════════════════════════ */}
-      <main className="app-shell flex-1 overflow-y-auto">
-        {children}
-      </main>
+      <main className="app-shell flex-1 overflow-y-auto">{children}</main>
     </div>
   );
 }

@@ -93,6 +93,7 @@ model User {
   deliberations      Deliberation[]
   appreciationsAsTeacher FinalAppreciation[] @relation("AppreciationTeacher")
   appreciationsAsDa      FinalAppreciation[] @relation("AppreciationDa")
+  analysisHistory        AnalysisHistory[]
 
   @@map("users")
 }
@@ -142,7 +143,7 @@ model Theme {
 
 model Document {
   id                  BigInt         @id @default(autoincrement())
-  themeId             BigInt         @map("theme_id")
+  themeId             BigInt?        @map("theme_id")
   studentId           BigInt         @map("student_id")
   originalName        String         @map("original_name")
   storagePath         String         @map("storage_path")
@@ -157,18 +158,20 @@ model Document {
   analysisError       String?        @map("analysis_error") @db.Text
   documentStatus      DocumentStatus @default(SUBMITTED) @map("document_status")
   isFinal             Boolean        @default(true) @map("is_final")
+  isReference         Boolean        @default(false) @map("is_reference")
   uploadAttempts      Int            @default(1) @map("upload_attempts")
   submittedAt         DateTime       @map("submitted_at")
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")
 
-  theme        Theme              @relation(fields: [themeId], references: [id], map: "documents_theme_id_fkey")
+  theme        Theme?             @relation(fields: [themeId], references: [id], map: "documents_theme_id_fkey")
   student      User               @relation("DocumentStudent", fields: [studentId], references: [id], map: "documents_student_id_fkey")
   reports      SimilarityReport[]
   appreciation FinalAppreciation?
 
   @@index([themeId], map: "documents_theme_id_idx")
   @@index([studentId], map: "documents_student_id_idx")
+  @@index([isReference], map: "documents_is_reference_idx")
   @@map("documents")
 }
 
@@ -261,4 +264,24 @@ model Deliberation {
   @@index([similarityReportId], map: "deliberations_similarity_report_id_idx")
   @@index([decidedBy], map: "deliberations_decided_by_idx")
   @@map("deliberations")
+}
+
+model AnalysisHistory {
+  id               BigInt   @id @default(autoincrement())
+  studentId        BigInt   @map("student_id")
+  documentId       BigInt?  @map("document_id")
+  reportId         BigInt?  @map("report_id")
+  fileName         String   @map("file_name") @db.VarChar(512)
+  detectedTitle    String?  @map("detected_title") @db.VarChar(512)
+  titleScore       Int      @default(0) @map("title_score")
+  similarityScore  Decimal? @map("similarity_score") @db.Decimal(5, 2)
+  blocked          Boolean  @default(false)
+  titleMismatch    Boolean  @default(false) @map("title_mismatch")
+  attemptNumber    Int      @default(1) @map("attempt_number")
+  analyzedAt       DateTime @default(now()) @map("analyzed_at")
+
+  student User @relation(fields: [studentId], references: [id], map: "analysis_history_student_id_fkey")
+
+  @@index([studentId], map: "analysis_history_student_id_idx")
+  @@map("analysis_history")
 }

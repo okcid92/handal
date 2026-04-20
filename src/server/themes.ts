@@ -1,4 +1,10 @@
-import { Prisma, ThemeStatus, DocumentStatus, type Role, type Theme } from "@prisma/client";
+import {
+  Prisma,
+  ThemeStatus,
+  DocumentStatus,
+  type Role,
+  type Theme,
+} from "@prisma/client";
 
 import { ApiError } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
@@ -8,6 +14,8 @@ import {
   compareOneToMany,
 } from "@/server/analysis/themeanalysor";
 import { listReferenceProfiles } from "@/server/reference-documents";
+
+const THEME_REFERENCE_SIMILARITY_BLOCK_THRESHOLD = 0.65;
 
 export type ThemeDecision = "approved" | "rejected";
 
@@ -168,8 +176,8 @@ async function assertThemeSimilarityAccepted(title: string) {
       .map((match) => `"${match.title}" (${(match.score * 100).toFixed(1)}%)`)
       .join(", ");
     throw new ApiError(
-      `Theme rejected: high semantic similarity detected with ${details}`,
-      403,
+      `Ce theme est trop similaire a un theme deja existant. Themes proches detectes: ${details}`,
+      422,
       "THEME_SIMILARITY_TOO_HIGH",
     );
   }
@@ -216,6 +224,20 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
   const referenceProfiles = await listReferenceProfiles();
   const comparisons = compareOneToMany(candidateProfile, referenceProfiles);
   const topComparison = comparisons[0];
+
+  if (
+    topComparison &&
+    topComparison.thematicSimilarity >=
+      THEME_REFERENCE_SIMILARITY_BLOCK_THRESHOLD
+  ) {
+    const similarityPct = (topComparison.thematicSimilarity * 100).toFixed(2);
+    throw new ApiError(
+      `Soumission refusee: similarite de ${similarityPct}% avec un document de reference (${topComparison.documentB}). Merci de proposer un theme plus distinct.`,
+      422,
+      "THEME_REFERENCE_SIMILARITY_TOO_HIGH",
+    );
+  }
+
   const similarityScore = topComparison
     ? Number((topComparison.thematicSimilarity * 100).toFixed(2))
     : null;
@@ -223,9 +245,10 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
 
   const serializableProfile = {
     ...candidateProfile,
-    analyzedAt: candidateProfile.analyzedAt instanceof Date
-      ? candidateProfile.analyzedAt.toISOString()
-      : candidateProfile.analyzedAt,
+    analyzedAt:
+      candidateProfile.analyzedAt instanceof Date
+        ? candidateProfile.analyzedAt.toISOString()
+        : candidateProfile.analyzedAt,
   };
 
   let created;
@@ -256,10 +279,19 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
       },
     });
   } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      throw new ApiError("Theme title already exists", 409, "THEME_TITLE_EXISTS");
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      throw new ApiError(
+        "Theme title already exists",
+        409,
+        "THEME_TITLE_EXISTS",
+      );
     }
-    logger.error("theme.create.failed", "prisma create error", { error: err instanceof Error ? err.message : String(err) });
+    logger.error("theme.create.failed", "prisma create error", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     throw err;
   }
 
@@ -273,7 +305,9 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
 
 export async function listPendingThemes() {
   const themes = await prisma.theme.findMany({
-    where: { status: { in: [ThemeStatus.PENDING, ThemeStatus.PENDING_VALIDATION] } },
+    where: {
+      status: { in: [ThemeStatus.PENDING, ThemeStatus.PENDING_VALIDATION] },
+    },
     orderBy: { createdAt: "asc" },
     include: {
       student: {
@@ -334,7 +368,10 @@ export async function validateThemeCd(
 ) {
   const theme = await loadTheme(themeId);
 
-  if (theme.status !== ThemeStatus.PENDING && theme.status !== ThemeStatus.PENDING_VALIDATION) {
+  if (
+    theme.status !== ThemeStatus.PENDING &&
+    theme.status !== ThemeStatus.PENDING_VALIDATION
+  ) {
     throw new ApiError(
       `Theme must be PENDING or PENDING_VALIDATION before CD validation`,
       409,
@@ -344,7 +381,8 @@ export async function validateThemeCd(
 
   // Le Chef de Département est le seul validateur du thème.
   // Approbation → VALIDATED directement (dépôt document débloqué).
-  const finalStatus = decision === "approved" ? ThemeStatus.VALIDATED : ThemeStatus.REJECTED;
+  const finalStatus =
+    decision === "approved" ? ThemeStatus.VALIDATED : ThemeStatus.REJECTED;
 
   const updated = await prisma.theme.update({
     where: { id: themeId },
@@ -407,16 +445,29 @@ export async function validateThemeDa(
   const isV2 = theme.status === ThemeStatus.PENDING_VALIDATION;
 
   if (!isV2 && decision === "approved") {
-    if (finalScore === null || finalScore === undefined || Number.isNaN(finalScore)) {
-      throw new ApiError("Final score is required", 422, "FINAL_SCORE_REQUIRED");
+    if (
+      finalScore === null ||
+      finalScore === undefined ||
+      Number.isNaN(finalScore)
+    ) {
+      throw new ApiError(
+        "Final score is required",
+        422,
+        "FINAL_SCORE_REQUIRED",
+      );
     }
     if (finalScore < 0 || finalScore > 20) {
-      throw new ApiError("Final score must be between 0 and 20", 422, "FINAL_SCORE_INVALID");
+      throw new ApiError(
+        "Final score must be between 0 and 20",
+        422,
+        "FINAL_SCORE_INVALID",
+      );
     }
   }
 
   // En v2 : statut final = VALIDATED si les deux ont approuvé, sinon REJECTED
-  const teacherApproved = theme.teacherApproval === true || theme.validatedCdBy !== null;
+  const teacherApproved =
+    theme.teacherApproval === true || theme.validatedCdBy !== null;
   const finalStatus = isV2
     ? decision === "approved" && teacherApproved
       ? ThemeStatus.VALIDATED

@@ -79,6 +79,8 @@ export default function Home() {
                   alt="Handal"
                   width={40}
                   height={40}
+                  className="h-10 w-auto object-contain"
+                  style={{ height: "auto" }}
                 />
               </div>
               <div>

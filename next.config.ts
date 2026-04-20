@@ -17,6 +17,16 @@ const nextConfig: NextConfig = {
           { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
         ],
       },
+      // Augmenter les limites pour les routes de upload
+      {
+        source: "/api/documents/upload-file",
+        headers: [
+          {
+            key: "Content-Length",
+            value: "52428800", // 50MB
+          },
+        ],
+      },
     ];
   },
 };

@@ -16,11 +16,12 @@ export function HandalLogo({ subtitle, href, variant = "dark" }: Props) {
       style={{ textDecoration: "none" }}
     >
       <Image
-        src="/brand/origina-logo-sm.png"
+        src="/brand/handal-lamp.png"
         alt="Handal"
         width={40}
-        height={27}
+        height={40}
         className="h-10 w-auto object-contain"
+        style={{ height: "auto" }}
         priority
       />
       <div>
@@ -28,11 +29,16 @@ export function HandalLogo({ subtitle, href, variant = "dark" }: Props) {
           className="text-xl font-black uppercase tracking-widest leading-none"
           style={{ color: variant === "dark" ? "var(--primary)" : "#fff" }}
         >
-          ORIGINA
+          HANDAL
         </p>
         <p
           className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider leading-none"
-          style={{ color: variant === "dark" ? "var(--text-soft)" : "rgba(255,255,255,0.65)" }}
+          style={{
+            color:
+              variant === "dark"
+                ? "var(--text-soft)"
+                : "rgba(255,255,255,0.65)",
+          }}
         >
           {subtitle}
         </p>

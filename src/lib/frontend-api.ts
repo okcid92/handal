@@ -24,6 +24,7 @@ export async function apiFetch<T>(
 ): Promise<ApiSuccess<T>> {
   const response = await fetch(input, {
     ...init,
+    cache: init?.cache ?? "no-store",
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),

@@ -55,16 +55,29 @@ export async function createReferenceDocument(
 }
 
 export async function listReferenceProfiles(): Promise<ThemeProfile[]> {
-  const docs = await prisma.referenceDocument.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      themeProfile: true,
-    },
-  });
+  const [legacyDocs, uploadedDocs] = await Promise.all([
+    prisma.referenceDocument.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        themeProfile: true,
+      },
+    }),
+    prisma.document.findMany({
+      where: { extractedText: { not: null } },
+      orderBy: { createdAt: "desc" },
+      take: 250,
+      select: {
+        id: true,
+        isReference: true,
+        originalName: true,
+        extractedText: true,
+      },
+    }),
+  ]);
 
   const profiles: ThemeProfile[] = [];
 
-  for (const doc of docs) {
+  for (const doc of legacyDocs) {
     const profile = doc.themeProfile;
     if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
       continue;
@@ -79,6 +92,19 @@ export async function listReferenceProfiles(): Promise<ThemeProfile[]> {
     ) {
       profiles.push(candidate as ThemeProfile);
     }
+  }
+
+  for (const doc of uploadedDocs) {
+    if (!doc.extractedText || !doc.extractedText.trim()) {
+      continue;
+    }
+
+    profiles.push(
+      analyzeTheme({
+        name: `${doc.isReference ? "reference" : "uploaded"}:${doc.id.toString()}:${doc.originalName}`,
+        content: doc.extractedText,
+      }),
+    );
   }
 
   return profiles;

@@ -18,7 +18,7 @@ const accounts = [
   {
     name: "Teacher Demo",
     ine: null,
-    email: "teacher@origina.local",
+    email: "teacher@handal.local",
     password: passwordHash,
     role: "TEACHER",
     department: "Informatique",
@@ -26,7 +26,7 @@ const accounts = [
   {
     name: "DA Demo",
     ine: null,
-    email: "da@origina.local",
+    email: "da@handal.local",
     password: passwordHash,
     role: "DA",
     department: "Direction Academique",
@@ -34,7 +34,7 @@ const accounts = [
   {
     name: "Admin Demo",
     ine: null,
-    email: "admin@origina.local",
+    email: "admin@handal.local",
     password: passwordHash,
     role: "ADMIN",
     department: "IT",

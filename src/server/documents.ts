@@ -12,6 +12,7 @@ import { ApiError } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { analyzePlagiarism } from "@/server/analysis/plagiadetectoralgo";
+import { analyzeTheme } from "@/server/analysis/themeanalysor";
 
 type DocumentPayload = {
   themeId?: string;
@@ -35,13 +36,14 @@ type HighlightedSegment = {
   matchedWith: string;
 };
 
-type DocumentWithRelations = Document & {
+type DocumentWithRelations = Omit<Document, "themeId"> & {
+  themeId: bigint | null;
   theme: {
     id: bigint;
     studentId: bigint;
     status: ThemeStatus;
     finalScore: Prisma.Decimal | null;
-  };
+  } | null;
   student: { id: bigint; role: Role };
   uploadAttempts: number;
 };
@@ -49,7 +51,7 @@ type DocumentWithRelations = Document & {
 type SimilarityReportWithRelations = SimilarityReport & {
   document: {
     id: bigint;
-    themeId: bigint;
+    themeId: bigint | null;
     studentId: bigint;
     originalName: string;
     storagePath: string;
@@ -125,7 +127,7 @@ function generateHighlightedSegments(seed: number): HighlightedSegment[] {
 function serializeDocument(document: DocumentWithRelations) {
   return {
     id: document.id.toString(),
-    themeId: document.themeId.toString(),
+    themeId: document.themeId?.toString() ?? null,
     studentId: document.studentId.toString(),
     originalName: document.originalName,
     storagePath: document.storagePath,
@@ -143,12 +145,14 @@ function serializeDocument(document: DocumentWithRelations) {
     submittedAt: document.submittedAt.toISOString(),
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),
-    theme: {
-      id: document.theme.id.toString(),
-      studentId: document.theme.studentId.toString(),
-      status: document.theme.status,
-      finalScore: document.theme.finalScore?.toString() ?? null,
-    },
+    theme: document.theme
+      ? {
+          id: document.theme.id.toString(),
+          studentId: document.theme.studentId.toString(),
+          status: document.theme.status,
+          finalScore: document.theme.finalScore?.toString() ?? null,
+        }
+      : null,
     student: {
       id: document.student.id.toString(),
       role: document.student.role,
@@ -169,7 +173,7 @@ function serializeReport(report: SimilarityReportWithRelations) {
     generatedBy: report.generatedBy?.toString() ?? null,
     document: {
       id: report.document.id.toString(),
-      themeId: report.document.themeId.toString(),
+      themeId: report.document.themeId?.toString() ?? null,
       studentId: report.document.studentId.toString(),
       originalName: report.document.originalName,
       storagePath: report.document.storagePath,
@@ -185,10 +189,222 @@ function serializeReport(report: SimilarityReportWithRelations) {
         report.document.analysisCompletedAt?.toISOString() ?? null,
       analysisError: report.document.analysisError,
       isFinal: report.document.isFinal,
-      uploadAttempts: (report.document as unknown as { uploadAttempts: number }).uploadAttempts ?? 1,
+      uploadAttempts:
+        (report.document as unknown as { uploadAttempts: number })
+          .uploadAttempts ?? 1,
       submittedAt: report.document.submittedAt.toISOString(),
     },
   };
+}
+
+function normalizeThemeTitle(title: string) {
+  return title.trim().toLowerCase();
+}
+
+function toDisplayThemeTitle(raw: string) {
+  return raw
+    .trim()
+    .split(/\s+/)
+    .map((word) =>
+      word.length > 1
+        ? `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`
+        : word.toUpperCase(),
+    )
+    .join(" ");
+}
+
+function collectTopKeywords(
+  keywords: Array<{ word: string; score: number }>,
+  limit = 6,
+) {
+  const seen = new Set<string>();
+  const top: string[] = [];
+
+  for (const item of [...keywords].sort((a, b) => b.score - a.score)) {
+    const normalized = item.word.trim().toLowerCase();
+    if (normalized.length < 3 || seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    top.push(normalized);
+    if (top.length >= limit) {
+      break;
+    }
+  }
+
+  return top;
+}
+
+function extractDeclaredThemeTitle(extractedText: string) {
+  const normalized = extractedText
+    .replace(/\r/g, "\n")
+    .replace(/[\t ]+/g, " ")
+    .replace(/\n+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  const markerMatch = normalized.match(
+    /(?:^|\b)(?:th[èe]me|theme)\s*[:\-]\s*(.+)$/i,
+  );
+  if (!markerMatch) {
+    return null;
+  }
+
+  const tail = markerMatch[1].trim();
+  const stopRegex =
+    /\b(?:pr[ée]sent[ée]?\s+par|ma[iî]tre\s+de\s+stage|directeur(?:\s+de\s+rapport)?|encadrant|ann[ée]e\s+acad[ée]mique|p[ée]riode\s+de\s+stage)\b/i;
+  const stopIndex = tail.search(stopRegex);
+
+  const candidate = (stopIndex >= 0 ? tail.slice(0, stopIndex) : tail)
+    .replace(/\s+/g, " ")
+    .replace(/^[\s'"«»]+|[\s'"«»]+$/g, "")
+    .trim();
+
+  if (candidate.length < 8 || candidate.length > 240) {
+    return null;
+  }
+
+  return candidate;
+}
+
+function buildExtractedThemeTitle(
+  dominantTheme: string,
+  originalName: string,
+  extractedText: string,
+  keywords: Array<{ word: string; score: number }>,
+) {
+  const declaredTheme = extractDeclaredThemeTitle(extractedText);
+  if (declaredTheme) {
+    return declaredTheme;
+  }
+
+  const normalizedDominant = dominantTheme.trim();
+  if (normalizedDominant.length >= 8) {
+    return toDisplayThemeTitle(normalizedDominant);
+  }
+
+  const topKeywords = collectTopKeywords(keywords, 3);
+  if (topKeywords.length >= 2) {
+    return toDisplayThemeTitle(
+      `etude de ${topKeywords[0]} et ${topKeywords[1]}`,
+    );
+  }
+
+  const fromFileName = originalName
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+  if (fromFileName.length >= 8) {
+    return toDisplayThemeTitle(fromFileName);
+  }
+
+  return null;
+}
+
+function buildExtractedThemeDescription(
+  documentName: string,
+  dominantTheme: string,
+  keywords: string[],
+) {
+  const keywordsPart =
+    keywords.length > 0 ? keywords.join(", ") : "non disponibles";
+  const dominantPart =
+    dominantTheme.trim().length > 0 ? dominantTheme.trim() : "non defini";
+  return [
+    `Theme extrait automatiquement depuis le document ${documentName}.`,
+    `Theme dominant: ${dominantPart}.`,
+    `Mots-cles principaux: ${keywordsPart}.`,
+  ].join(" ");
+}
+
+async function persistExtractedThemeFromAnalyzedDocument(
+  document: DocumentWithRelations,
+) {
+  if (!document.extractedText || document.themeId !== null) {
+    return;
+  }
+
+  const profile = analyzeTheme({
+    name: document.originalName,
+    content: document.extractedText,
+  });
+
+  const title = buildExtractedThemeTitle(
+    profile.dominantTheme,
+    document.originalName,
+    document.extractedText,
+    profile.keywords.map((k) => ({ word: k.word, score: k.score })),
+  );
+  if (!title) {
+    logger.warn(
+      "theme.extracted.skipped",
+      "skipping theme insertion due to weak profile",
+      {
+        documentId: document.id.toString(),
+        reason: "weak_theme_profile",
+      },
+    );
+    return;
+  }
+
+  const topKeywords = collectTopKeywords(
+    profile.keywords.map((k) => ({ word: k.word, score: k.score })),
+  );
+  const titleNormalized = normalizeThemeTitle(title);
+
+  const existing = await prisma.theme.findUnique({
+    where: { titleNormalized },
+    select: { id: true },
+  });
+
+  if (existing) {
+    return;
+  }
+
+  const description = buildExtractedThemeDescription(
+    document.originalName,
+    profile.dominantTheme,
+    topKeywords,
+  );
+
+  try {
+    const created = await prisma.theme.create({
+      data: {
+        studentId: document.studentId,
+        title,
+        titleNormalized,
+        description,
+        status: ThemeStatus.VALIDATED,
+        themeSignature: {
+          documentName: profile.documentName,
+          dominantTheme: profile.dominantTheme,
+          keywords: profile.keywords,
+          themeVector: profile.themeVector,
+          stats: profile.stats,
+          analyzedAt: profile.analyzedAt.toISOString(),
+        } as unknown as Prisma.InputJsonValue,
+      },
+      select: { id: true },
+    });
+
+    logger.info("theme.extracted.inserted", {
+      themeId: created.id.toString(),
+      documentId: document.id.toString(),
+      source: document.isReference ? "reference_document" : "uploaded_document",
+    });
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return;
+    }
+    throw error;
+  }
 }
 
 async function loadDocument(documentId: bigint) {
@@ -220,6 +436,99 @@ async function loadReport(reportId: bigint) {
   }
 
   return report as SimilarityReportWithRelations;
+}
+
+export async function createAnalysisHistory(data: {
+  studentId: bigint;
+  documentId?: bigint | null;
+  reportId?: bigint | null;
+  fileName: string;
+  detectedTitle?: string | null;
+  titleScore: number;
+  similarityScore?: number | null;
+  blocked: boolean;
+  titleMismatch: boolean;
+  attemptNumber: number;
+}) {
+  try {
+    const entry = await (
+      prisma as unknown as {
+        analysisHistory: {
+          create: (args: {
+            data: Record<string, unknown>;
+          }) => Promise<{ id: bigint; analyzedAt: Date }>;
+        };
+      }
+    ).analysisHistory.create({
+      data: {
+        studentId: data.studentId,
+        documentId: data.documentId ?? null,
+        reportId: data.reportId ?? null,
+        fileName: data.fileName,
+        detectedTitle: data.detectedTitle ?? null,
+        titleScore: data.titleScore,
+        similarityScore:
+          data.similarityScore != null
+            ? new Prisma.Decimal(data.similarityScore)
+            : null,
+        blocked: data.blocked,
+        titleMismatch: data.titleMismatch,
+        attemptNumber: data.attemptNumber,
+        analyzedAt: new Date(),
+      },
+    });
+    return entry;
+  } catch {
+    // Table pas encore migrée — ne pas bloquer le flux
+    return null;
+  }
+}
+
+export async function listAnalysisHistory(studentId: bigint) {
+  try {
+    const rows = await (
+      prisma as unknown as {
+        analysisHistory: {
+          findMany: (args: Record<string, unknown>) => Promise<
+            Array<{
+              id: bigint;
+              documentId: bigint | null;
+              reportId: bigint | null;
+              fileName: string;
+              detectedTitle: string | null;
+              titleScore: number;
+              similarityScore: { toString(): string } | null;
+              blocked: boolean;
+              titleMismatch: boolean;
+              attemptNumber: number;
+              analyzedAt: Date;
+            }>
+          >;
+        };
+      }
+    ).analysisHistory.findMany({
+      where: { studentId },
+      orderBy: { analyzedAt: "desc" },
+      take: 50,
+    });
+    return rows.map((r) => ({
+      id: r.id.toString(),
+      documentId: r.documentId?.toString() ?? null,
+      reportId: r.reportId?.toString() ?? null,
+      fileName: r.fileName,
+      detectedTitle: r.detectedTitle,
+      titleScore: r.titleScore,
+      similarityScore: r.similarityScore
+        ? parseFloat(r.similarityScore.toString())
+        : null,
+      blocked: r.blocked,
+      titleMismatch: r.titleMismatch,
+      attemptNumber: r.attemptNumber,
+      analyzedAt: r.analyzedAt.toISOString(),
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export async function getValidatedThemeForStudent(studentId: bigint) {
@@ -290,7 +599,10 @@ export async function createDocument(
     );
   }
 
-  if (theme.status !== ThemeStatus.VALIDATED && theme.status !== ThemeStatus.VALIDATED_DA) {
+  if (
+    theme.status !== ThemeStatus.VALIDATED &&
+    theme.status !== ThemeStatus.VALIDATED_DA
+  ) {
     throw new ApiError(
       "Theme must be validated before final upload",
       409,
@@ -332,12 +644,15 @@ export async function createDocument(
       where: { id: created.id },
       data: { uploadAttempts },
     });
-  } catch { /* champ pas encore migré */ }
-  (created as unknown as { uploadAttempts: number }).uploadAttempts = uploadAttempts;
+  } catch {
+    /* champ pas encore migré */
+  }
+  (created as unknown as { uploadAttempts: number }).uploadAttempts =
+    uploadAttempts;
 
   logger.info("document.uploaded", {
     documentId: created.id.toString(),
-    themeId: created.themeId.toString(),
+    themeId: created.themeId?.toString() ?? null,
     studentId: created.studentId.toString(),
   });
 
@@ -410,6 +725,10 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
     throw new ApiError("Document must be final", 409, "DOCUMENT_NOT_FINAL");
   }
 
+  if (!document.theme) {
+    throw new ApiError("Document has no theme", 409, "DOCUMENT_THEME_MISSING");
+  }
+
   if (document.theme.status !== ThemeStatus.VALIDATED_DA) {
     throw new ApiError(
       "Theme must be VALIDATED_DA for official analysis",
@@ -447,6 +766,7 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
     const peerDocs = await prisma.document.findMany({
       where: {
         id: { not: document.id },
+        isReference: false, // Only compare against student submissions, not reference docs
         extractedText: { not: null },
       },
       select: {
@@ -614,17 +934,29 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
   const document = await loadDocument(documentId);
 
   if (!document.extractedText) {
-    return { globalSimilarity: 0, riskLevel: RiskLevel.LOW, reportId: "", blocked: false, uploadAttempts: document.uploadAttempts };
+    return {
+      globalSimilarity: 0,
+      riskLevel: RiskLevel.LOW,
+      reportId: "",
+      blocked: false,
+      uploadAttempts: document.uploadAttempts,
+    };
   }
 
   await prisma.document.update({
     where: { id: document.id },
-    data: { analysisStatus: AnalysisStatus.PROCESSING, analysisStartedAt: new Date(), analysisError: null },
+    data: {
+      analysisStatus: AnalysisStatus.PROCESSING,
+      analysisStartedAt: new Date(),
+      analysisError: null,
+    },
   });
 
   try {
     const [referenceDocs, peerDocs] = await Promise.all([
-      prisma.referenceDocument.findMany({ select: { id: true, originalName: true, extractedText: true } }),
+      prisma.referenceDocument.findMany({
+        select: { id: true, originalName: true, extractedText: true },
+      }),
       prisma.document.findMany({
         where: { id: { not: document.id }, extractedText: { not: null } },
         select: { id: true, originalName: true, extractedText: true },
@@ -634,8 +966,16 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
     ]);
 
     const corpus = [
-      ...referenceDocs.map((d) => ({ name: `reference:${d.id}:${d.originalName}`, content: d.extractedText })),
-      ...peerDocs.filter((d) => d.extractedText).map((d) => ({ name: `student:${d.id}:${d.originalName}`, content: d.extractedText as string })),
+      ...referenceDocs.map((d) => ({
+        name: `reference:${d.id}:${d.originalName}`,
+        content: d.extractedText,
+      })),
+      ...peerDocs
+        .filter((d) => d.extractedText)
+        .map((d) => ({
+          name: `student:${d.id}:${d.originalName}`,
+          content: d.extractedText as string,
+        })),
     ];
 
     const plagiarism = analyzePlagiarism(
@@ -643,7 +983,9 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       corpus,
     );
 
-    const globalSimilarity = Number((plagiarism.maxSimilarity * 100).toFixed(2));
+    const globalSimilarity = Number(
+      (plagiarism.maxSimilarity * 100).toFixed(2),
+    );
     const riskLevel = deriveRiskLevel(globalSimilarity);
 
     const matchedSources = plagiarism.results.slice(0, 8).map((r) => ({
@@ -654,7 +996,13 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
     }));
 
     const highlightedSegments = plagiarism.results
-      .flatMap((r) => r.commonPhrases.map((phrase, i) => ({ start: i * 20, end: i * 20 + phrase.length, matchedWith: r.name })))
+      .flatMap((r) =>
+        r.commonPhrases.map((phrase, i) => ({
+          start: i * 20,
+          end: i * 20 + phrase.length,
+          matchedWith: r.name,
+        })),
+      )
       .slice(0, 25);
 
     const created = await prisma.similarityReport.create({
@@ -663,7 +1011,8 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
         globalSimilarity: new Prisma.Decimal(globalSimilarity),
         riskLevel,
         matchedSources: matchedSources as unknown as Prisma.InputJsonValue,
-        highlightedSegments: highlightedSegments as unknown as Prisma.InputJsonValue,
+        highlightedSegments:
+          highlightedSegments as unknown as Prisma.InputJsonValue,
         analyzedAt: new Date(),
       },
       select: { id: true },
@@ -671,10 +1020,19 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
 
     await prisma.document.update({
       where: { id: document.id },
-      data: { analysisStatus: AnalysisStatus.COMPLETED, analysisCompletedAt: new Date() },
+      data: {
+        analysisStatus: AnalysisStatus.COMPLETED,
+        analysisCompletedAt: new Date(),
+      },
     });
 
-    logger.info("document.analyzed.inline", { documentId: document.id.toString(), globalSimilarity, riskLevel });
+    await persistExtractedThemeFromAnalyzedDocument(document);
+
+    logger.info("document.analyzed.inline", {
+      documentId: document.id.toString(),
+      globalSimilarity,
+      riskLevel,
+    });
 
     return {
       globalSimilarity,
@@ -689,7 +1047,10 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       data: {
         analysisStatus: AnalysisStatus.FAILED,
         analysisCompletedAt: new Date(),
-        analysisError: error instanceof Error ? error.message.slice(0, 1900) : "Unknown error",
+        analysisError:
+          error instanceof Error
+            ? error.message.slice(0, 1900)
+            : "Unknown error",
       },
     });
     throw error;
