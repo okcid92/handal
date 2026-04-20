@@ -60,7 +60,6 @@ type ReportDetail = {
   id: string;
   documentId: string;
   globalSimilarity: string;
-  aiScore: string | null;
   riskLevel: string;
   matchedSources: Array<{
     name: string;
@@ -68,6 +67,7 @@ type ReportDetail = {
     type: string;
     sourceId: string | null;
     sourceLabel: string | null;
+    sourceDocumentId: string | null;
   }>;
   analyzedAt: string;
   document: {
@@ -896,9 +896,9 @@ export function StudentDashboard() {
                         </p>
                         {analysisResult.topReferenceSource?.sourceId && (
                           <p className="mt-0.5 text-xs font-semibold text-[#5f1a29]">
-                            Similitude détectée avec le{" "}
-                            <span className="font-bold">
-                              document de référence #{analysisResult.topReferenceSource.sourceId}
+                            Similitude détectée avec :{" "}
+                            <span className="font-extrabold">
+                              {analysisResult.topReferenceSource.sourceLabel ?? `Document #${analysisResult.topReferenceSource.sourceId}`}
                             </span>
                             {analysisResult.topReferenceSource.sourceSimilarity != null && (
                               <> ({analysisResult.topReferenceSource.sourceSimilarity.toFixed(1)}%)</>
@@ -1104,9 +1104,9 @@ export function StudentDashboard() {
                             </div>
                             {entry.sourceReferenceId && (
                               <p className="text-[10px] font-semibold text-[#7b2438] text-right">
-                                Similitude détectée avec le{" "}
-                                <span className="font-bold">
-                                  document de référence #{entry.sourceReferenceId}
+                                Similitude détectée avec :{" "}
+                                <span className="font-extrabold">
+                                  {entry.sourceReference ?? `Document #${entry.sourceReferenceId}`}
                                 </span>
                                 {entry.sourceReferenceSimilarity != null && (
                                   <> ({entry.sourceReferenceSimilarity.toFixed(1)}%)</>
@@ -1202,7 +1202,7 @@ export function StudentDashboard() {
                   </div>
 
                   {/* Scores */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {[
                       {
                         label: "Similarité globale",
@@ -1213,13 +1213,6 @@ export function StudentDashboard() {
                             : parseFloat(reportModal.globalSimilarity) >= 20
                               ? "#c98a2f"
                               : "#16a34a",
-                      },
-                      {
-                        label: "Score IA",
-                        value: reportModal.aiScore
-                          ? `${parseFloat(reportModal.aiScore).toFixed(1)}%`
-                          : "—",
-                        color: "#2b1d16",
                       },
                       {
                         label: "Niveau de risque",
@@ -1258,9 +1251,22 @@ export function StudentDashboard() {
                             className="flex items-center justify-between rounded-lg border border-[#7b2438]/10 bg-white px-3 py-2"
                           >
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs font-semibold text-[#2b1d16]">
-                                {src.sourceLabel ?? src.name}
-                              </p>
+                              {src.sourceDocumentId ? (
+                                <a
+                                  href={`/api/documents/${src.sourceDocumentId}/view`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 truncate text-xs font-bold text-[#7b2438] underline decoration-dotted hover:decoration-solid"
+                                  title="Ouvrir le document source"
+                                >
+                                  <ExternalLink className="h-3 w-3 shrink-0" />
+                                  {src.sourceLabel ?? src.name}
+                                </a>
+                              ) : (
+                                <p className="truncate text-xs font-semibold text-[#2b1d16]">
+                                  {src.sourceLabel ?? src.name}
+                                </p>
+                              )}
                               <p className="text-[10px] text-[#6c5448]/70 capitalize">{src.type}</p>
                             </div>
                             <span

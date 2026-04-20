@@ -136,17 +136,13 @@ function generateHighlightedSegments(seed: number): HighlightedSegment[] {
 }
 
 function extractReferenceSourceInfo(sourceName: string) {
-  const match = sourceName.match(/^(reference|validated):(\d+):/);
+  const match = sourceName.match(/^(reference|validated):(\d+):(.+)$/);
   if (!match) {
-    return {
-      sourceId: null,
-      sourceLabel: null,
-    };
+    return { sourceId: null, sourceLabel: null };
   }
-
   return {
     sourceId: match[2],
-    sourceLabel: `document de référence #${match[2]}`,
+    sourceLabel: match[3].trim() || `Document #${match[2]}`,
   };
 }
 
@@ -155,14 +151,16 @@ function buildOfficialComparisonSource(
     id: bigint;
     originalName: string;
     extractedText: string | null;
+    title?: string | null;
   },
   sourceKind: OfficialComparisonSource["sourceKind"],
 ): OfficialComparisonSource {
+  const displayTitle = doc.title?.trim() || doc.originalName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
   return {
-    name: `${sourceKind === "admin_reference" ? "reference" : "validated"}:${doc.id.toString()}:${doc.originalName}`,
+    name: `${sourceKind === "admin_reference" ? "reference" : "validated"}:${doc.id.toString()}:${displayTitle}`,
     content: doc.extractedText ?? "",
     sourceId: doc.id.toString(),
-    sourceLabel: `document de référence #${doc.id.toString()}`,
+    sourceLabel: displayTitle,
     sourceKind,
   };
 }
@@ -178,7 +176,12 @@ async function loadOfficialComparisonCorpus(excludeDocumentId?: bigint) {
         extractedText: { not: null },
         ...(excludeDocumentId ? { id: { not: excludeDocumentId } } : {}),
       },
-      select: { id: true, originalName: true, extractedText: true },
+      select: {
+        id: true,
+        originalName: true,
+        extractedText: true,
+        theme: { select: { title: true } },
+      },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -188,7 +191,10 @@ async function loadOfficialComparisonCorpus(excludeDocumentId?: bigint) {
       buildOfficialComparisonSource(doc, "admin_reference"),
     ),
     ...validatedDocs.map((doc) =>
-      buildOfficialComparisonSource(doc, "validated_document"),
+      buildOfficialComparisonSource(
+        { ...doc, title: doc.theme?.title ?? null },
+        "validated_document",
+      ),
     ),
   ];
 }
@@ -652,14 +658,53 @@ export async function listAnalysisHistory(studentId: bigint) {
       }
     >();
 
+    // Collecter tous les sourceIds référencés dans les rapports
+    const allSourceIds = new Set<string>();
     reports.forEach((report) => {
       const matchedSources = Array.isArray(report.matchedSources)
         ? (report.matchedSources as ReportSource[])
         : [];
-      sourceByReportId.set(
-        report.id.toString(),
-        getTopReferenceSource(matchedSources),
-      );
+      matchedSources.forEach((s) => { if (s.sourceId) allSourceIds.add(s.sourceId); });
+    });
+
+    // Résoudre les vrais titres depuis la DB en une seule requête
+    const resolvedTitles = new Map<string, string>();
+    if (allSourceIds.size > 0) {
+      const ids = [...allSourceIds].map((id) => BigInt(id));
+      const [refDocs, valDocs] = await Promise.all([
+        prisma.referenceDocument.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, originalName: true },
+        }),
+        prisma.document.findMany({
+          where: { id: { in: ids } },
+          select: { id: true, originalName: true, theme: { select: { title: true } } },
+        }),
+      ]);
+      refDocs.forEach((d) => {
+        resolvedTitles.set(
+          d.id.toString(),
+          d.originalName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim(),
+        );
+      });
+      valDocs.forEach((d) => {
+        resolvedTitles.set(
+          d.id.toString(),
+          d.theme?.title ?? d.originalName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim(),
+        );
+      });
+    }
+
+    reports.forEach((report) => {
+      const matchedSources = Array.isArray(report.matchedSources)
+        ? (report.matchedSources as ReportSource[])
+        : [];
+      const top = getTopReferenceSource(matchedSources);
+      // Remplacer le label par le vrai titre si disponible
+      if (top.sourceId && resolvedTitles.has(top.sourceId)) {
+        top.sourceLabel = resolvedTitles.get(top.sourceId)!;
+      }
+      sourceByReportId.set(report.id.toString(), top);
     });
 
     return rows.map((r) => ({

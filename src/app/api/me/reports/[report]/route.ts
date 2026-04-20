@@ -4,6 +4,63 @@ import { guardStudent } from "@/lib/route-guards";
 import { assertSameOrigin } from "@/lib/security";
 import { prisma } from "@/lib/prisma";
 
+type RawSource = {
+  name: string;
+  similarity: number;
+  type: string;
+  sourceId: string | null;
+  sourceLabel: string | null;
+};
+
+async function resolveSourceTitles(sources: RawSource[]) {
+  const ids = sources
+    .map((s) => s.sourceId)
+    .filter((id): id is string => id !== null);
+
+  if (ids.length === 0) return sources;
+
+  const bigIds = ids.map((id) => BigInt(id));
+  const [refDocs, valDocs] = await Promise.all([
+    prisma.referenceDocument.findMany({
+      where: { id: { in: bigIds } },
+      select: { id: true, originalName: true },
+    }),
+    prisma.document.findMany({
+      where: { id: { in: bigIds } },
+      select: {
+        id: true,
+        originalName: true,
+        theme: { select: { title: true } },
+      },
+    }),
+  ]);
+
+  const titleMap = new Map<string, string>();
+  refDocs.forEach((d) => {
+    titleMap.set(
+      d.id.toString(),
+      d.originalName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim(),
+    );
+  });
+  valDocs.forEach((d) => {
+    titleMap.set(
+      d.id.toString(),
+      d.theme?.title ??
+        d.originalName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim(),
+    );
+  });
+
+  return sources.map((s) => ({
+    ...s,
+    sourceLabel:
+      s.sourceId && titleMap.has(s.sourceId)
+        ? titleMap.get(s.sourceId)!
+        : s.sourceLabel,
+    // sourceDocumentId pour construire le lien /api/documents/[id]/view
+    sourceDocumentId: s.sourceId ?? null,
+  }));
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ report: string }> },
@@ -37,16 +94,21 @@ export async function GET(
       throw new ApiError("Forbidden", 403, "FORBIDDEN");
     }
 
+    const rawSources = Array.isArray(row.matchedSources)
+      ? (row.matchedSources as RawSource[])
+      : [];
+
+    const enrichedSources = await resolveSourceTitles(rawSources);
+
     return NextResponse.json({
       ok: true,
       report: {
         id: row.id.toString(),
         documentId: row.documentId.toString(),
         globalSimilarity: row.globalSimilarity.toString(),
-        aiScore: row.aiScore?.toString() ?? null,
+        // aiScore intentionnellement omis — Handal se concentre sur la similarité
         riskLevel: row.riskLevel,
-        matchedSources: row.matchedSources,
-        highlightedSegments: row.highlightedSegments,
+        matchedSources: enrichedSources,
         analyzedAt: row.analyzedAt.toISOString(),
         document: {
           id: row.document.id.toString(),
