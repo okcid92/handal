@@ -12,7 +12,7 @@ export function guardRole(request: NextRequest, allowedRoles: AppRole[]) {
 }
 
 export function guardStudent(request: NextRequest) {
-  return guardRole(request, ["STUDENT", "ADMIN"]);
+  return guardRole(request, ["STUDENT"]);
 }
 
 export function guardTeacher(request: NextRequest) {

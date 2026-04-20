@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, ThemeStatus } from "@prisma/client";
 
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -55,44 +55,45 @@ export async function createReferenceDocument(
 }
 
 export async function listReferenceProfiles(): Promise<ThemeProfile[]> {
-  const [legacyDocs, uploadedDocs] = await Promise.all([
-    prisma.referenceDocument.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        themeProfile: true,
+  const uploadedDocs = await prisma.document.findMany({
+    where: {
+      isReference: true,
+      extractedText: { not: null },
+      theme: {
+        is: {
+          OR: [
+            { teacherApproval: true },
+            { validatedCdBy: { not: null } },
+            {
+              status: {
+                in: [
+                  ThemeStatus.VALIDATED,
+                  ThemeStatus.VALIDATED_DA,
+                  ThemeStatus.DOCUMENT_SUBMITTED,
+                  ThemeStatus.ANALYSIS_PENDING,
+                  ThemeStatus.APPROVED,
+                  ThemeStatus.APPROVED_WITH_MENTION,
+                  ThemeStatus.CONDITIONAL_APPROVAL,
+                  ThemeStatus.REQUESTED_REVIEW,
+                  ThemeStatus.FLAGGED_PLAGIARISM,
+                ],
+              },
+            },
+          ],
+        },
       },
-    }),
-    prisma.document.findMany({
-      where: { extractedText: { not: null } },
-      orderBy: { createdAt: "desc" },
-      take: 250,
-      select: {
-        id: true,
-        isReference: true,
-        originalName: true,
-        extractedText: true,
-      },
-    }),
-  ]);
+    },
+    orderBy: { createdAt: "desc" },
+    take: 250,
+    select: {
+      id: true,
+      isReference: true,
+      originalName: true,
+      extractedText: true,
+    },
+  });
 
   const profiles: ThemeProfile[] = [];
-
-  for (const doc of legacyDocs) {
-    const profile = doc.themeProfile;
-    if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
-      continue;
-    }
-
-    const candidate = profile as Partial<ThemeProfile>;
-    if (
-      typeof candidate.documentName === "string" &&
-      Array.isArray(candidate.keywords) &&
-      candidate.themeVector &&
-      typeof candidate.themeVector === "object"
-    ) {
-      profiles.push(candidate as ThemeProfile);
-    }
-  }
 
   for (const doc of uploadedDocs) {
     if (!doc.extractedText || !doc.extractedText.trim()) {

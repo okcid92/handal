@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ThemeStatus } from "@prisma/client";
 import { errorResponse } from "@/lib/api-errors";
 import { prisma } from "@/lib/prisma";
 import { assertSameOrigin } from "@/lib/security";
@@ -31,7 +32,33 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build search query
-    const where: any = { isReference: true };
+    const where: any = {
+      isReference: true,
+      extractedText: { not: null },
+      theme: {
+        is: {
+          OR: [
+            { teacherApproval: true },
+            { validatedCdBy: { not: null } },
+            {
+              status: {
+                in: [
+                  ThemeStatus.VALIDATED,
+                  ThemeStatus.VALIDATED_DA,
+                  ThemeStatus.DOCUMENT_SUBMITTED,
+                  ThemeStatus.ANALYSIS_PENDING,
+                  ThemeStatus.APPROVED,
+                  ThemeStatus.APPROVED_WITH_MENTION,
+                  ThemeStatus.CONDITIONAL_APPROVAL,
+                  ThemeStatus.REQUESTED_REVIEW,
+                  ThemeStatus.FLAGGED_PLAGIARISM,
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
 
     if (search) {
       where.originalName = {

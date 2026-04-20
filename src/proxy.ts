@@ -37,7 +37,7 @@ export function isPublicPath(pathname: string) {
 
 export function roleIsAllowed(pathname: string, role: string) {
   if (studentPaths.some((path) => pathname.startsWith(path))) {
-    return role === "STUDENT" || role === "ADMIN";
+    return role === "STUDENT";
   }
 
   if (teacherPaths.some((path) => pathname.startsWith(path))) {
