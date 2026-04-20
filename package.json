@@ -16,7 +16,9 @@
     "test:selenium:install": "PYTHON_BIN=${PYTHON_BIN:-$( [ -x .venv/bin/python ] && echo .venv/bin/python || echo python3 )} && $PYTHON_BIN -m pip install -r requirements-selenium.txt",
     "prisma:generate": "prisma generate",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:migrate": "prisma migrate dev"
+    "prisma:migrate": "prisma migrate dev",
+    "admin:reset": "npx tsx scripts/reset-admin.ts",
+    "admin:audit": "npx tsx scripts/audit-users.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",

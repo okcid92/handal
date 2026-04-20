@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { ApiError } from "@/lib/api-errors";
 
-const SESSION_COOKIE_NAME = "origina_session";
+const SESSION_COOKIE_NAME = "handal_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 type SessionPayload = {

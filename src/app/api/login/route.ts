@@ -49,10 +49,14 @@ export async function POST(request: Request) {
     const payload = loginPayloadSchema.parse(await request.json());
 
     const user = payload.ine
-      ? await prisma.user.findFirst({ where: { ine: payload.ine } })
-      : await prisma.user.findFirst({ where: { email: payload.email } });
+      ? await prisma.user.findFirst({ where: { ine: payload.ine.trim() } })
+      : await prisma.user.findFirst({ where: { email: payload.email!.trim().toLowerCase() } });
 
     if (!user) {
+      logger.warn("auth.login.failed", "user not found", {
+        identifier: payload.ine ?? payload.email,
+        reason: "USER_NOT_FOUND",
+      });
       throw new ApiError("Invalid credentials", 401, "INVALID_CREDENTIALS");
     }
 
@@ -61,10 +65,20 @@ export async function POST(request: Request) {
       user.password,
     );
     if (!isValidPassword) {
+      logger.warn("auth.login.failed", "wrong password", {
+        userId: user.id.toString(),
+        role: user.role,
+        reason: "WRONG_PASSWORD",
+      });
       throw new ApiError("Invalid credentials", 401, "INVALID_CREDENTIALS");
     }
 
     if (payload.ine && user.role !== "STUDENT") {
+      logger.warn("auth.login.failed", "wrong login channel", {
+        userId: user.id.toString(),
+        role: user.role,
+        reason: "INE_NON_STUDENT",
+      });
       throw new ApiError(
         "INE login is only allowed for students",
         403,
@@ -73,6 +87,11 @@ export async function POST(request: Request) {
     }
 
     if (payload.email && user.role === "STUDENT") {
+      logger.warn("auth.login.failed", "wrong login channel", {
+        userId: user.id.toString(),
+        role: user.role,
+        reason: "EMAIL_STUDENT",
+      });
       throw new ApiError(
         "Student must login with INE",
         403,
@@ -104,11 +123,13 @@ export async function POST(request: Request) {
 
     return response;
   } catch (error) {
-    logger.error(
-      "auth.login.failed",
-      error instanceof Error ? error.message : "unknown",
-      {},
-    );
+    if (!(error instanceof ApiError)) {
+      logger.error(
+        "auth.login.unexpected",
+        error instanceof Error ? error.message : "unknown",
+        {},
+      );
+    }
     return errorResponse(error);
   }
 }
