@@ -50,8 +50,11 @@ export async function apiFetch<T>(
   if (!response.ok || !data.ok) {
     const errorPayload = data as ApiErrorPayload;
     const message = errorPayload.error?.message ?? "Request failed";
-
-    throw new Error(message);
+    const code = errorPayload.error?.code;
+    const err = new Error(message) as Error & { code?: string; status?: number };
+    err.code = code;
+    err.status = response.status;
+    throw err;
   }
 
   return data as ApiSuccess<T>;

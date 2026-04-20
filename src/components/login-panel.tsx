@@ -13,26 +13,40 @@ type LoginResponse = {
 };
 
 const demoAccounts = {
-  student: { label: "Etudiant", login: "N01331820231", password: "mon926732" },
-  teacher: {
-    label: "Enseignant",
-    login: "teacher@handal.local",
-    password: "mon926732",
-  },
-  da: { label: "DA", login: "da@handal.local", password: "mon926732" },
-  admin: {
-    label: "Admin",
-    login: "admin@handal.local",
-    password: "mon926732",
-  },
+  student: { label: "Etudiant", login: "N01331820231", password: "" },
+  teacher: { label: "Enseignant", login: "teacher@handal.local", password: "" },
+  da: { label: "DA", login: "da@handal.local", password: "" },
+  admin: { label: "Admin", login: "admin@handal.local", password: "" },
 } as const;
+
+type ApiErrorWithCode = Error & { code?: string; status?: number };
+
+function mapAuthError(error: unknown): string {
+  const err = error as ApiErrorWithCode;
+  const code = err?.code;
+  const status = err?.status;
+  if (code === "INVALID_CREDENTIALS" || status === 401) {
+    return "Identifiant ou mot de passe incorrect.";
+  }
+  if (code === "INVALID_LOGIN_CHANNEL") {
+    const msg = err?.message ?? "";
+    if (msg.includes("INE")) return "Les étudiants doivent se connecter avec leur INE, pas un email.";
+    if (msg.includes("Student")) return "Ce compte étudiant doit utiliser l\u2019onglet \u00ab\u00a0Etudiant\u00a0\u00bb avec son INE.";
+    return "Canal de connexion incorrect pour ce rôle.";
+  }
+  if (code === "RATE_LIMIT_EXCEEDED" || status === 429) {
+    return "Trop de tentatives. Veuillez patienter avant de réessayer.";
+  }
+  if (status === 500) {
+    return "Erreur serveur Handal. Veuillez réessayer dans un instant.";
+  }
+  return err?.message ?? "Erreur de connexion.";
+}
 
 export function LoginPanel() {
   const [mode, setMode] = useState<LoginMode>("student");
   const [login, setLogin] = useState<string>(demoAccounts.student.login);
-  const [password, setPassword] = useState<string>(
-    demoAccounts.student.password,
-  );
+  const [password, setPassword] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -44,8 +58,8 @@ export function LoginPanel() {
     try {
       const payload =
         mode === "student"
-          ? { ine: login, password }
-          : { email: login, password };
+          ? { ine: login.trim(), password }
+          : { email: login.trim().toLowerCase(), password };
 
       const result = await apiFetch<LoginResponse>("/api/login", {
         method: "POST",
@@ -53,11 +67,11 @@ export function LoginPanel() {
       });
 
       const role = result.user.role.toLowerCase();
+      // Laisser le cookie se propager avant la navigation
+      await new Promise((resolve) => setTimeout(resolve, 80));
       window.location.assign(`/${role}`);
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Erreur de connexion",
-      );
+      setMessage(mapAuthError(error));
     } finally {
       setLoading(false);
     }

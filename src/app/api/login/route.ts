@@ -64,6 +64,16 @@ export async function POST(request: Request) {
       payload.password,
       user.password,
     );
+
+    // [AUTH DEBUG] — retirer après validation en production
+    logger.info("auth.login.debug", {
+      userId: user.id.toString(),
+      role: user.role,
+      passwordHashPrefix: user.password.slice(0, 7),
+      passwordMatch: isValidPassword,
+      emailVerifiedAt: user.emailVerifiedAt ?? "null (non bloqué)",
+    });
+
     if (!isValidPassword) {
       logger.warn("auth.login.failed", "wrong password", {
         userId: user.id.toString(),
