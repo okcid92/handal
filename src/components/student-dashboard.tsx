@@ -13,6 +13,8 @@ import {
   Send,
   History,
   FileText,
+  ExternalLink,
+  AlertTriangle,
 } from "lucide-react";
 import { apiFetch } from "@/lib/frontend-api";
 
@@ -49,6 +51,30 @@ type AnalysisEntry = {
   titleMismatch: boolean;
   attemptNumber: number;
   analyzedAt: string;
+  sourceReference: string | null;
+  sourceReferenceId: string | null;
+  sourceReferenceSimilarity: number | null;
+};
+
+type ReportDetail = {
+  id: string;
+  documentId: string;
+  globalSimilarity: string;
+  aiScore: string | null;
+  riskLevel: string;
+  matchedSources: Array<{
+    name: string;
+    similarity: number;
+    type: string;
+    sourceId: string | null;
+    sourceLabel: string | null;
+  }>;
+  analyzedAt: string;
+  document: {
+    id: string;
+    originalName: string;
+    title: string;
+  };
 };
 
 const STEPS = [
@@ -162,8 +188,16 @@ export function StudentDashboard() {
     riskLevel: string;
     blocked: boolean;
     uploadAttempts: number;
+    topReferenceSource?: {
+      sourceId: string | null;
+      sourceLabel: string | null;
+      sourceSimilarity: number | null;
+    };
   } | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisEntry[]>([]);
+  const [reportModal, setReportModal] = useState<ReportDetail | null>(null);
+  const [reportModalLoading, setReportModalLoading] = useState<string | null>(null);
+  const [reportModalError, setReportModalError] = useState<string | null>(null);
 
   // Statuts validés si le thème est VALIDATED, VALIDATED_DA, ou les deux votes v2 approuvés
   const VALIDATED_STATUSES = [
@@ -316,6 +350,23 @@ export function StudentDashboard() {
     } finally {
       setUploading(false);
       setUploadStatusMessage(null);
+    }
+  }
+
+  async function openReport(reportId: string) {
+    setReportModalError(null);
+    setReportModalLoading(reportId);
+    try {
+      const data = await apiFetch<{ ok: boolean; report: ReportDetail }>(
+        `/api/me/reports/${reportId}`,
+      );
+      setReportModal(data.report);
+    } catch (err) {
+      setReportModalError(
+        err instanceof Error ? err.message : "Impossible de charger le rapport.",
+      );
+    } finally {
+      setReportModalLoading(null);
     }
   }
 
@@ -790,7 +841,18 @@ export function StudentDashboard() {
                         <p className="text-sm font-bold text-[#7b2438]">
                           Taux de plagiat trop élevé (50%+)
                         </p>
-                        <p className="text-xs font-medium text-[#5f1a29]">
+                        {analysisResult.topReferenceSource?.sourceId && (
+                          <p className="mt-0.5 text-xs font-semibold text-[#5f1a29]">
+                            Similitude détectée avec le{" "}
+                            <span className="font-bold">
+                              document de référence #{analysisResult.topReferenceSource.sourceId}
+                            </span>
+                            {analysisResult.topReferenceSource.sourceSimilarity != null && (
+                              <> ({analysisResult.topReferenceSource.sourceSimilarity.toFixed(1)}%)</>
+                            )}
+                          </p>
+                        )}
+                        <p className="mt-1 text-xs font-medium text-[#5f1a29]">
                           Vous devez corriger votre document et le soumettre à
                           nouveau.
                         </p>
@@ -959,29 +1021,42 @@ export function StudentDashboard() {
                             Titre non conforme
                           </span>
                         ) : entry.similarityScore != null ? (
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="text-lg font-extrabold"
-                              style={{
-                                color: isLatest
-                                  ? "#7b2438"
-                                  : entry.blocked
-                                    ? "#b91c1c"
-                                    : entry.similarityScore < 20
-                                      ? "#16a34a"
-                                      : "#c98a2f",
-                              }}
-                            >
-                              {entry.similarityScore.toFixed(1)}%
-                            </span>
-                            {entry.blocked ? (
-                              <span className="rounded-full border border-[#7b2438]/50 bg-[#f2d9e0] px-2.5 py-0.5 text-[11px] font-bold text-[#7b2438]">
-                                Rejeté (&gt;50%)
+                          <div className="flex flex-col items-end gap-1.5">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="text-lg font-extrabold"
+                                style={{
+                                  color: isLatest
+                                    ? "#7b2438"
+                                    : entry.blocked
+                                      ? "#b91c1c"
+                                      : entry.similarityScore < 20
+                                        ? "#16a34a"
+                                        : "#c98a2f",
+                                }}
+                              >
+                                {entry.similarityScore.toFixed(1)}%
                               </span>
-                            ) : (
-                              <span className="rounded-full border border-green-300 bg-green-50 px-2.5 py-0.5 text-[11px] font-bold text-green-700">
-                                Validé pour examen
-                              </span>
+                              {entry.blocked ? (
+                                <span className="rounded-full border border-[#7b2438]/50 bg-[#f2d9e0] px-2.5 py-0.5 text-[11px] font-bold text-[#7b2438]">
+                                  Rejeté (&gt;50%)
+                                </span>
+                              ) : (
+                                <span className="rounded-full border border-green-300 bg-green-50 px-2.5 py-0.5 text-[11px] font-bold text-green-700">
+                                  Validé pour examen
+                                </span>
+                              )}
+                            </div>
+                            {entry.sourceReferenceId && (
+                              <p className="text-[10px] font-semibold text-[#7b2438] text-right">
+                                Similitude détectée avec le{" "}
+                                <span className="font-bold">
+                                  document de référence #{entry.sourceReferenceId}
+                                </span>
+                                {entry.sourceReferenceSimilarity != null && (
+                                  <> ({entry.sourceReferenceSimilarity.toFixed(1)}%)</>
+                                )}
+                              </p>
                             )}
                           </div>
                         ) : (
@@ -992,9 +1067,21 @@ export function StudentDashboard() {
                         {entry.reportId && (
                           <button
                             type="button"
-                            className="rounded-lg border border-[#7b2438]/30 px-3 py-1 text-[11px] font-bold text-[#7b2438] transition hover:bg-[#f2d9e0]"
+                            onClick={() => openReport(entry.reportId!)}
+                            disabled={reportModalLoading === entry.reportId}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#7b2438]/30 px-3 py-1 text-[11px] font-bold text-[#7b2438] transition hover:bg-[#f2d9e0] disabled:cursor-not-allowed disabled:opacity-60"
                           >
-                            Voir le rapport
+                            {reportModalLoading === entry.reportId ? (
+                              <>
+                                <span className="h-3 w-3 animate-spin rounded-full border border-[#7b2438]/30 border-t-[#7b2438]" />
+                                Chargement...
+                              </>
+                            ) : (
+                              <>
+                                <ExternalLink className="h-3 w-3" />
+                                Voir le rapport
+                              </>
+                            )}
                           </button>
                         )}
                       </div>
@@ -1006,6 +1093,149 @@ export function StudentDashboard() {
           )}
         </section>
       </div>
+
+      {/* ── Modal Rapport ── */}
+      {(reportModal || reportModalError) && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+          onClick={() => { setReportModal(null); setReportModalError(null); }}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header modal */}
+            <div className="flex items-center justify-between border-b border-[#7b2438]/10 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/brand/handal-lamp.png"
+                  alt="Handal"
+                  width={20}
+                  height={20}
+                  className="h-5 w-auto object-contain"
+                  style={{ height: "auto" }}
+                />
+                <span className="text-sm font-black uppercase tracking-widest" style={{ color: "var(--primary)" }}>
+                  HANDAL
+                </span>
+                <span className="text-xs font-semibold text-[#6c5448]">— Rapport d&apos;analyse</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setReportModal(null); setReportModalError(null); }}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-[#6c5448] transition hover:bg-[#f2d9e0] hover:text-[#7b2438]"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Contenu modal */}
+            <div className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-4">
+              {reportModalError ? (
+                <div className="flex items-start gap-3 rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                  <p className="text-sm font-semibold text-red-700">{reportModalError}</p>
+                </div>
+              ) : reportModal ? (
+                <>
+                  {/* Titre document */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">Document</p>
+                    <p className="mt-0.5 text-sm font-semibold text-[#2b1d16] truncate">{reportModal.document.title}</p>
+                    <p className="text-[10px] text-[#6c5448]/70">{reportModal.document.originalName}</p>
+                  </div>
+
+                  {/* Scores */}
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      {
+                        label: "Similarité globale",
+                        value: `${parseFloat(reportModal.globalSimilarity).toFixed(1)}%`,
+                        color:
+                          parseFloat(reportModal.globalSimilarity) >= 50
+                            ? "#b91c1c"
+                            : parseFloat(reportModal.globalSimilarity) >= 20
+                              ? "#c98a2f"
+                              : "#16a34a",
+                      },
+                      {
+                        label: "Score IA",
+                        value: reportModal.aiScore
+                          ? `${parseFloat(reportModal.aiScore).toFixed(1)}%`
+                          : "—",
+                        color: "#2b1d16",
+                      },
+                      {
+                        label: "Niveau de risque",
+                        value:
+                          reportModal.riskLevel === "LOW"
+                            ? "Faible"
+                            : reportModal.riskLevel === "MEDIUM"
+                              ? "Moyen"
+                              : "Élevé",
+                        color:
+                          reportModal.riskLevel === "LOW"
+                            ? "#16a34a"
+                            : reportModal.riskLevel === "MEDIUM"
+                              ? "#c98a2f"
+                              : "#b91c1c",
+                      },
+                    ].map(({ label, value, color }) => (
+                      <div
+                        key={label}
+                        className="rounded-xl border-2 border-[#7b2438]/10 bg-[#faf7f4] p-3 text-center"
+                      >
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-[#6c5448]">{label}</p>
+                        <p className="mt-1 text-base font-extrabold" style={{ color }}>{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Sources détectées */}
+                  {Array.isArray(reportModal.matchedSources) && reportModal.matchedSources.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">Sources détectées</p>
+                      <div className="space-y-2">
+                        {reportModal.matchedSources.slice(0, 6).map((src, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between rounded-lg border border-[#7b2438]/10 bg-white px-3 py-2"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-xs font-semibold text-[#2b1d16]">
+                                {src.sourceLabel ?? src.name}
+                              </p>
+                              <p className="text-[10px] text-[#6c5448]/70 capitalize">{src.type}</p>
+                            </div>
+                            <span
+                              className="ml-3 shrink-0 text-sm font-extrabold"
+                              style={{
+                                color:
+                                  src.similarity >= 50
+                                    ? "#b91c1c"
+                                    : src.similarity >= 20
+                                      ? "#c98a2f"
+                                      : "#16a34a",
+                              }}
+                            >
+                              {src.similarity.toFixed(1)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-[#6c5448]/60 text-right">
+                    Analysé le {new Date(reportModal.analyzedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
+                  </p>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
