@@ -189,6 +189,9 @@ function StagingCard({
             <div>
               <label className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
                 <User className="h-3 w-3" /> Auteur
+                {meta?.authorName && (
+                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">auto</span>
+                )}
               </label>
               <input
                 type="text"
@@ -203,6 +206,9 @@ function StagingCard({
             <div>
               <label className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
                 <GraduationCap className="h-3 w-3" /> Filière
+                {meta?.department && (
+                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">auto</span>
+                )}
               </label>
               <select
                 value={edit.department}
@@ -221,6 +227,9 @@ function StagingCard({
             <div>
               <label className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
                 <Calendar className="h-3 w-3" /> Année
+                {meta?.academicYear && (
+                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">auto</span>
+                )}
               </label>
               <input
                 type="text"

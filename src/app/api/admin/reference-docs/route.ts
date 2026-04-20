@@ -16,6 +16,7 @@ import {
 } from "@/server/text-extraction";
 import { analyzeTheme } from "@/server/analysis/themeanalysor";
 import { filterInstitutionalContent } from "@/server/analysis/content-filter";
+import { extractCoverMetadata } from "@/server/analysis/cover-extractor";
 
 const REFERENCE_STORAGE_DIR = path.join(process.cwd(), "storage", "references");
 const TMP_STORAGE_DIR = path.join(process.cwd(), "storage", "tmp");
@@ -291,6 +292,7 @@ export async function POST(request: NextRequest) {
               name: file.name,
               content: filtered.filteredContent,
             });
+            const cover = extractCoverMetadata(extractedText);
 
             const stagingMetadata = {
               subjectLabel: profile.subjectLabel ?? null,
@@ -298,9 +300,9 @@ export async function POST(request: NextRequest) {
               dominantTheme: profile.dominantTheme,
               topKeywords: profile.keywords.slice(0, 8).map((k) => k.word),
               excludedRatio: Math.round(filtered.excludedRatio * 100),
-              authorName: null as string | null,
-              department: null as string | null,
-              academicYear: null as string | null,
+              authorName: cover.authorName,
+              department: cover.department,
+              academicYear: cover.academicYear,
             };
 
             let document;
