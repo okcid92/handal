@@ -1034,6 +1034,8 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
         matchedSources,
         highlightedSegments,
         topReferenceSource,
+        exclusionNote: plagiarism.exclusionNote,
+        filterResult: plagiarism.filterResult,
       },
     };
   } catch (error) {
@@ -1213,6 +1215,8 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       blocked: globalSimilarity > 50,
       uploadAttempts: document.uploadAttempts,
       topReferenceSource,
+      exclusionNote: plagiarism.exclusionNote,
+      filterResult: plagiarism.filterResult,
     };
   } catch (error) {
     await prisma.document.update({

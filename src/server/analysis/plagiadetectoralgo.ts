@@ -1,3 +1,5 @@
+import { filterInstitutionalContent, buildExclusionNote, type FilterResult } from "./content-filter";
+
 export interface Document {
   name: string;
   content: string;
@@ -18,6 +20,8 @@ export interface PlagiarismReport {
   maxSimilarity: number;
   avgSimilarity: number;
   results: SimilarityResult[];
+  exclusionNote: string | null;
+  filterResult: Pick<FilterResult, "wasSliced" | "introFound" | "conclusionFound" | "excludedRatio">;
 }
 
 function stripHTML(text: string): string {
@@ -174,14 +178,30 @@ export function analyzePlagiarism(
   main: Document,
   references: Document[],
 ): PlagiarismReport {
-  const allContents = [main.content, ...references.map((r) => r.content)];
+  // Filtrer le contenu institutionnel du document principal
+  const filterResult = filterInstitutionalContent(main.content);
+  const filteredMain = {
+    ...main,
+    content: filterResult.filteredContent,
+  };
+
+  // Filtrer aussi les documents de référence
+  const filteredReferences = references.map((ref) => ({
+    ...ref,
+    content: filterInstitutionalContent(ref.content).filteredContent,
+  }));
+
+  const allContents = [
+    filteredMain.content,
+    ...filteredReferences.map((r) => r.content),
+  ];
   const tfidfVectors = computeTFIDF(allContents);
   const mainVector = tfidfVectors[0];
 
-  const results: SimilarityResult[] = references.map((ref, i) => {
+  const results: SimilarityResult[] = filteredReferences.map((ref, i) => {
     const cs = cosineSimilarity(mainVector, tfidfVectors[i + 1]);
-    const js = jaccardSimilarity(main.content, ref.content);
-    const ng = ngramSimilarity(main.content, ref.content);
+    const js = jaccardSimilarity(filteredMain.content, ref.content);
+    const ng = ngramSimilarity(filteredMain.content, ref.content);
     const combined = cs * 0.5 + js * 0.25 + ng * 0.25;
 
     return {
@@ -190,7 +210,7 @@ export function analyzePlagiarism(
       jaccard: js,
       ngram: ng,
       combined,
-      commonPhrases: findCommonPhrases(main.content, ref.content),
+      commonPhrases: findCommonPhrases(filteredMain.content, ref.content),
     };
   });
 
@@ -201,11 +221,20 @@ export function analyzePlagiarism(
     results.reduce((sum, result) => sum + result.combined, 0) /
     (results.length || 1);
 
+  const exclusionNote = buildExclusionNote(filterResult);
+
   return {
     mainDocument: main.name,
     analyzedAt: new Date(),
     maxSimilarity,
     avgSimilarity,
     results,
+    exclusionNote,
+    filterResult: {
+      wasSliced: filterResult.wasSliced,
+      introFound: filterResult.introFound,
+      conclusionFound: filterResult.conclusionFound,
+      excludedRatio: filterResult.excludedRatio,
+    },
   };
 }

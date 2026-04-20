@@ -193,6 +193,7 @@ export function StudentDashboard() {
       sourceLabel: string | null;
       sourceSimilarity: number | null;
     };
+    exclusionNote?: string | null;
   } | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisEntry[]>([]);
   const [reportModal, setReportModal] = useState<ReportDetail | null>(null);
@@ -936,6 +937,18 @@ export function StudentDashboard() {
                           délibération.
                         </p>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Note d'exclusion institutionnelle */}
+                  {analysisResult.exclusionNote && (
+                    <div className="rounded-xl border border-[#7b2438]/15 bg-[#faf7f4] px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448] mb-1">
+                        Sections exclues de l&apos;analyse
+                      </p>
+                      <p className="text-xs font-medium text-[#6c5448] whitespace-pre-line leading-relaxed">
+                        {analysisResult.exclusionNote}
+                      </p>
                     </div>
                   )}
 
