@@ -5,6 +5,7 @@ import { guardAdmin } from "@/lib/route-guards";
 import { assertSameOrigin } from "@/lib/security";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { findOrCreateReferenceTheme } from "@/server/themes";
 
 export const runtime = "nodejs";
 
@@ -22,7 +23,8 @@ export async function PATCH(
 ) {
   try {
     assertSameOrigin(request);
-    guardAdmin(request);
+    const session = guardAdmin(request);
+    const adminId = BigInt(session.userId);
     const { id } = await params;
     const documentId = BigInt(id);
 
@@ -38,12 +40,14 @@ export async function PATCH(
     }
 
     if (doc.documentStatus !== "PENDING_ADMIN_REVIEW") {
-      throw new ApiError(
-        "Document is not in staging",
-        409,
-        "NOT_IN_STAGING",
-      );
+      throw new ApiError("Document is not in staging", 409, "NOT_IN_STAGING");
     }
+
+    // Find-or-create le thème avec le titre validé par l'admin
+    const themeId = await findOrCreateReferenceTheme(
+      body.subjectLabel,
+      adminId,
+    );
 
     const finalMetadata = {
       subjectLabel: body.subjectLabel,
@@ -57,6 +61,7 @@ export async function PATCH(
     await prisma.document.update({
       where: { id: documentId },
       data: {
+        themeId,
         documentStatus: "APPROVED",
         isReference: true,
         analysisStatus: "PENDING",
@@ -66,6 +71,7 @@ export async function PATCH(
 
     logger.info("admin.reference.approved", {
       documentId: id,
+      themeId: themeId.toString(),
       subjectLabel: body.subjectLabel,
       techStack: body.techStack,
     });
@@ -73,6 +79,7 @@ export async function PATCH(
     return NextResponse.json({
       ok: true,
       documentId: id,
+      themeId: themeId.toString(),
       message: `Document approuvé et indexé comme référence Handal.`,
     });
   } catch (error) {

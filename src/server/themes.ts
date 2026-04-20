@@ -59,6 +59,66 @@ export function normalizeThemeTitle(title: string) {
   return title.trim().toLowerCase();
 }
 
+/**
+ * Nettoie un titre de thème : trim, espaces doubles, première lettre majuscule.
+ */
+export function sanitizeThemeTitle(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/^(.)/, (c) => c.toUpperCase());
+}
+
+/**
+ * Find-or-create pour les thèmes de documents de référence (upload admin).
+ * Contrairement à createTheme(), ne vérifie pas la similarité ni le statut étudiant.
+ * Retourne l'ID du thème existant ou créé.
+ */
+export async function findOrCreateReferenceTheme(
+  title: string,
+  adminId: bigint,
+  description?: string,
+): Promise<bigint> {
+  const cleaned = sanitizeThemeTitle(title || "Sujet non classé");
+  const normalized = normalizeThemeTitle(cleaned);
+
+  // 1. Chercher un thème existant (correspondance exacte normalisée)
+  const existing = await prisma.theme.findUnique({
+    where: { titleNormalized: normalized },
+    select: { id: true },
+  });
+  if (existing) {
+    logger.info("theme.reference.found", { themeId: existing.id.toString(), title: cleaned });
+    return existing.id;
+  }
+
+  // 2. Créer le thème avec statut VALIDATED (référence officielle)
+  try {
+    const created = await prisma.theme.create({
+      data: {
+        studentId: adminId,
+        title: cleaned,
+        titleNormalized: normalized,
+        description: description ?? `Thème extrait automatiquement depuis un document de référence IBAM : ${cleaned}.`,
+        status: ThemeStatus.VALIDATED,
+      },
+      select: { id: true },
+    });
+    logger.info("theme.reference.created", { themeId: created.id.toString(), title: cleaned });
+    return created.id;
+  } catch (err) {
+    // Race condition : un autre processus a créé le même thème entre le findUnique et le create
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const retry = await prisma.theme.findUnique({
+        where: { titleNormalized: normalized },
+        select: { id: true },
+      });
+      if (retry) return retry.id;
+    }
+    throw err;
+  }
+}
+
 function serializeTheme(
   theme: Theme & {
     student?: {
