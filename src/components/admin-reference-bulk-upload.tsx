@@ -6,8 +6,9 @@ import Image from "next/image";
 interface UploadResult {
   fileName: string;
   documentId: string;
-  similarity?: number;
-  riskLevel?: string;
+  dominantTheme?: string;
+  topKeywords?: string[];
+  excludedRatio?: number;
   warning?: string;
 }
 
@@ -311,13 +312,13 @@ export function AdminReferenceBulkUpload() {
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#7b2438]/20 border-t-[#7b2438]" />
               <div>
                 <p className="font-semibold text-gray-700">
-                  Importation en cours...
+                  Indexation en cours...
                 </p>
                 {progress?.fileName && (
                   <p className="text-sm text-gray-500">
-                    {progress.fileName}
+                    Document [{progress.fileName}]
                     {progress.fileIndex && progress.totalFiles
-                      ? ` · Fichier ${progress.fileIndex}/${progress.totalFiles}`
+                      ? ` · ${progress.fileIndex}/${progress.totalFiles}`
                       : ""}
                     {progress.pageIndex && progress.totalPages
                       ? ` · Page ${progress.pageIndex}/${progress.totalPages}`
@@ -326,7 +327,7 @@ export function AdminReferenceBulkUpload() {
                 )}
                 {progress?.extractedCharacters !== undefined && (
                   <p className="text-xs text-gray-500">
-                    {progress.extractedCharacters} caractères extraits
+                    {progress.extractedCharacters.toLocaleString()} caractères extraits
                   </p>
                 )}
               </div>
@@ -345,27 +346,36 @@ export function AdminReferenceBulkUpload() {
               {results.map((result, idx) => (
                 <div
                   key={idx}
-                  className="flex items-center justify-between rounded-lg bg-green-50 p-3 border-l-4 border-green-500"
+                  className="rounded-lg bg-green-50 p-3 border-l-4 border-green-500"
                 >
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-800">
-                      {result.fileName}
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium text-gray-800">{result.fileName}</p>
+                    <p className="text-xs text-gray-500">
+                      ID: {result.documentId.slice(0, 8)}...
                     </p>
-                    {result.similarity !== undefined && (
-                      <p className="text-sm text-gray-600">
-                        Similarité: {result.similarity}% · Niveau de risque:{" "}
-                        {result.riskLevel}
-                      </p>
-                    )}
-                    {result.warning && (
-                      <p className="text-sm text-yellow-700">
-                        {result.warning}
-                      </p>
-                    )}
                   </div>
-                  <p className="text-xs text-gray-500">
-                    ID: {result.documentId.slice(0, 8)}...
+                  <p className="mt-1 text-xs font-semibold text-green-700">
+                    ✓ Indexé comme référence Handal
                   </p>
+                  {result.dominantTheme && result.dominantTheme !== "indéterminé" && (
+                    <p className="mt-0.5 text-xs text-gray-600">
+                      <span className="font-semibold">Thème :</span>{" "}
+                      {result.dominantTheme}
+                    </p>
+                  )}
+                  {result.topKeywords && result.topKeywords.length > 0 && (
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      {result.topKeywords.join(" · ")}
+                    </p>
+                  )}
+                  {result.excludedRatio !== undefined && result.excludedRatio > 5 && (
+                    <p className="mt-0.5 text-[10px] text-gray-400">
+                      {result.excludedRatio}% de contenu institutionnel exclu de l’index
+                    </p>
+                  )}
+                  {result.warning && (
+                    <p className="mt-0.5 text-xs text-yellow-700">{result.warning}</p>
+                  )}
                 </div>
               ))}
             </div>

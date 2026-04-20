@@ -14,7 +14,8 @@ import {
   extractUploadedDocumentTextFromPdf,
   extractFirstPageText,
 } from "@/server/text-extraction";
-import { analyzeDocumentInline } from "@/server/documents";
+import { analyzeTheme } from "@/server/analysis/themeanalysor";
+import { filterInstitutionalContent } from "@/server/analysis/content-filter";
 
 const REFERENCE_STORAGE_DIR = path.join(process.cwd(), "storage", "references");
 const TMP_STORAGE_DIR = path.join(process.cwd(), "storage", "tmp");
@@ -303,45 +304,32 @@ export async function POST(request: NextRequest) {
 
             console.log(
               `[ADMIN-REF-UPLOAD] Document created for ${file.name}:`,
-              {
-                documentId: document.id.toString(),
-              },
+              { documentId: document.id.toString() },
             );
 
-            try {
-              const analysis = await analyzeDocumentInline(document.id);
-              const result = {
-                fileName: file.name,
-                documentId: document.id.toString(),
-                similarity: analysis.globalSimilarity,
-                riskLevel: analysis.riskLevel,
-              };
+            // Indexation thématique uniquement — pas d'analyse de similarité
+            // Les documents de référence sont des sources de vérité, pas des sujets d'analyse.
+            const filtered = filterInstitutionalContent(extractedText);
+            const profile = analyzeTheme({
+              name: file.name,
+              content: filtered.filteredContent,
+            });
 
-              console.log(
-                `[ADMIN-REF-UPLOAD] Analysis completed for ${file.name}:`,
-                {
-                  globalSimilarity: analysis.globalSimilarity,
-                  riskLevel: analysis.riskLevel,
-                },
-              );
+            const result = {
+              fileName: file.name,
+              documentId: document.id.toString(),
+              dominantTheme: profile.dominantTheme,
+              topKeywords: profile.keywords.slice(0, 5).map((k) => k.word),
+              excludedRatio: Math.round(filtered.excludedRatio * 100),
+            };
 
-              results.push(result);
-              emit("file-complete", result);
-            } catch (error) {
-              console.warn(
-                `[ADMIN-REF-UPLOAD] Analysis failed for ${file.name}:`,
-                error,
-              );
-              const result = {
-                fileName: file.name,
-                documentId: document.id.toString(),
-                warning:
-                  "Analysis failed, document indexed without similarity scores",
-              };
+            console.log(
+              `[ADMIN-REF-UPLOAD] Indexed ${file.name}:`,
+              { dominantTheme: profile.dominantTheme },
+            );
 
-              results.push(result);
-              emit("file-complete", result);
-            }
+            results.push(result);
+            emit("file-complete", result);
           } catch (error) {
             console.error(
               `[ADMIN-REF-UPLOAD] Unexpected error processing ${file.name}:`,
