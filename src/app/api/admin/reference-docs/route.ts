@@ -293,8 +293,8 @@ export async function POST(request: NextRequest) {
             });
 
             const stagingMetadata = {
-              subjectLabel: profile.subjectLabel,
-              techStack: profile.techStack,
+              subjectLabel: profile.subjectLabel ?? null,
+              techStack: profile.techStack ?? [],
               dominantTheme: profile.dominantTheme,
               topKeywords: profile.keywords.slice(0, 8).map((k) => k.word),
               excludedRatio: Math.round(filtered.excludedRatio * 100),
@@ -303,22 +303,37 @@ export async function POST(request: NextRequest) {
               academicYear: null as string | null,
             };
 
-            const document = await prisma.document.create({
-              data: {
-                themeId: null,
-                studentId: adminId,
-                originalName: file.name,
-                storagePath: storedFile.relativePath,
-                mimeType: file.type,
-                fileSize: BigInt(file.size),
-                checksum,
-                extractedText,
-                documentStatus: "PENDING_ADMIN_REVIEW",
-                isReference: false,
-                stagingMetadata,
-                submittedAt: new Date(),
-              },
-            });
+            let document;
+            try {
+              document = await prisma.document.create({
+                data: {
+                  themeId: null,
+                  studentId: adminId,
+                  originalName: file.name,
+                  storagePath: storedFile.relativePath,
+                  mimeType: file.type,
+                  fileSize: BigInt(file.size),
+                  checksum,
+                  extractedText: extractedText || null,
+                  analysisStatus: "PENDING",
+                  documentStatus: "PENDING_ADMIN_REVIEW",
+                  isReference: false,
+                  isFinal: false,
+                  stagingMetadata: stagingMetadata as unknown as import("@prisma/client").Prisma.InputJsonValue,
+                  submittedAt: new Date(),
+                },
+                select: { id: true },
+              });
+            } catch (dbError) {
+              const msg = dbError instanceof Error ? dbError.message : String(dbError);
+              console.error(`[ADMIN-REF-UPLOAD] DB insert failed for ${file.name}:`, msg);
+              errors.push({ fileName: file.name, error: `Échec de l’indexation : ${msg.slice(0, 200)}` });
+              emit("file-error", {
+                fileName: file.name,
+                error: "Échec de l’indexation : Données de thème manquantes ou format de fichier invalide.",
+              });
+              continue;
+            }
 
             console.log(
               `[ADMIN-REF-UPLOAD] Staged ${file.name} for review:`,
