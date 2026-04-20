@@ -4,7 +4,6 @@ import Link from "next/link";
 type Props = {
   subtitle: string;
   href: string;
-  /** "light" = logo sur fond bordeaux (sidebar DA précédente), "dark" = logo sur fond beige */
   variant?: "dark" | "light";
 };
 

@@ -2,6 +2,7 @@ import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 import * as pdfjsWorker from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+
 import { ApiError } from "@/lib/api-errors";
 
 const pdfjsGlobal = globalThis as typeof globalThis & {
@@ -25,6 +26,17 @@ type LoadedPdfDocument = {
     cleanup?: () => unknown;
   }>;
   destroy(): Promise<void>;
+};
+
+export type PdfExtractionProgress = {
+  pageIndex: number;
+  totalPages: number;
+  extractedCharacters: number;
+};
+
+export type PdfExtractionOptions = {
+  timeoutMs?: number;
+  onProgress?: (progress: PdfExtractionProgress) => void;
 };
 
 function buildPdfLoadingOptions(buffer: Buffer) {
@@ -68,17 +80,69 @@ export function assertAllowedDocumentSize(sizeInBytes: number) {
   }
 }
 
+function getPageTextWithTimeout(
+  page: {
+    getTextContent: (options?: { maxImageSize?: number }) => Promise<{
+      items: Array<{ str?: string }>;
+    }>;
+  },
+  timeoutMs = Number(process.env.PDF_PAGE_TIMEOUT_MS ?? 300000),
+) {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      console.warn(`[PDF] Text extraction timeout (${timeoutMs}ms)`);
+      reject(new Error("PDF text extraction timeout"));
+    }, timeoutMs);
+    timeoutHandle.unref?.();
+  });
+
+  return Promise.race([
+    page.getTextContent({ maxImageSize: 512 * 512 }).finally(() => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }),
+    timeoutPromise.finally(() => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }),
+  ]);
+}
+
+async function extractPdfPageText(
+  page: {
+    getTextContent: (options?: { maxImageSize?: number }) => Promise<{
+      items: Array<{ str?: string }>;
+    }>;
+  },
+  timeoutMs = Number(process.env.PDF_PAGE_TIMEOUT_MS ?? 300000),
+) {
+  try {
+    const textContent = await getPageTextWithTimeout(page, timeoutMs);
+
+    return textContent.items
+      .map((item) => (item.str ? `${item.str} ` : ""))
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+  } catch (err) {
+    if (err instanceof Error && err.message === "PDF text extraction timeout") {
+      throw new ApiError(
+        "Le document est trop lourd pour l'analyse rapide. Réessayez.",
+        422,
+        "PDF_TIMEOUT",
+      );
+    }
+
+    throw err;
+  }
+}
+
 /**
  * Extrait le texte de la première page uniquement (fonction Handal-specific).
- * - PDF: Utilise pdfjs-dist de manière server-friendly
- * - DOCX/TXT: Premier 2000 caractères du buffer
- *
- * Lève une ApiError explicite si le PDF est corrompu ou protégé.
- * Limite à 3000 caractères pour éviter les fuites mémoire.
- *
- * @param buffer Contenu du fichier
- * @param mimeType Type MIME du fichier
- * @returns Texte de la première page
  */
 export async function extractFirstPageHandal(
   buffer: Buffer,
@@ -103,7 +167,6 @@ export async function extractFirstPageHandal(
     }
   }
 
-  // DOCX / TXT: premiers 2000 caractères
   console.log("[EXTRACT] File is non-PDF, extracting first 2000 chars");
   const extracted = buffer
     .toString("utf-8", 0, 2000)
@@ -113,67 +176,8 @@ export async function extractFirstPageHandal(
   return extracted;
 }
 
-function getPageTextWithTimeout(page: {
-  getTextContent: (options?: {
-    maxImageSize?: number;
-  }) => Promise<{ items: Array<{ str?: string }> }>;
-}) {
-  const timeoutMs = 10000;
-  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutHandle = setTimeout(() => {
-      console.warn("[PDF] Text extraction timeout (10s)");
-      reject(new Error("PDF text extraction timeout"));
-    }, timeoutMs);
-    timeoutHandle.unref?.();
-  });
-
-  return Promise.race([
-    page.getTextContent({ maxImageSize: 512 * 512 }).finally(() => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
-    }),
-    timeoutPromise.finally(() => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
-    }),
-  ]);
-}
-
-async function extractPdfPageText(page: {
-  getTextContent: (options?: {
-    maxImageSize?: number;
-  }) => Promise<{ items: Array<{ str?: string }> }>;
-}) {
-  try {
-    const textContent = await getPageTextWithTimeout(page);
-
-    return textContent.items
-      .map((item) => (item.str ? `${item.str} ` : ""))
-      .join("")
-      .replace(/\s+/g, " ")
-      .trim();
-  } catch (err) {
-    if (err instanceof Error && err.message === "PDF text extraction timeout") {
-      throw new ApiError(
-        "Le document est trop lourd pour l'analyse rapide. Réessayez.",
-        422,
-        "PDF_TIMEOUT",
-      );
-    }
-
-    throw err;
-  }
-}
-
 /**
  * Extrait le texte de la première page d'un PDF avec gestion d'erreur robuste.
- * Arrête strictement après la première page pour éviter les fuites mémoire.
- *
- * @param buffer Contenu du fichier PDF
- * @returns Texte de la première page (max 3000 caractères)
  */
 export async function extractFirstPageFromLoadedPdf(
   pdf: LoadedPdfDocument,
@@ -259,17 +263,6 @@ export async function extractFirstPageFromLoadedPdf(
   }
 }
 
-/**
- * Alias pour compatibilité avec le code existant.
- * Utilise la nouvelle fonction Handal.
- */
-export async function extractFirstPageText(
-  buffer: Buffer,
-  mimeType: string,
-): Promise<string> {
-  return extractFirstPageHandal(buffer, mimeType);
-}
-
 export async function extractUploadedDocumentText(
   buffer: Buffer,
   mimeType: string,
@@ -294,7 +287,6 @@ export async function extractUploadedDocumentText(
       .trim();
   }
 
-  // DOCX: on garde le comportement de secours existant pour éviter une nouvelle dépendance.
   return buffer
     .toString("utf-8")
     .replace(/\u0000/g, " ")
@@ -303,23 +295,29 @@ export async function extractUploadedDocumentText(
 
 export async function extractUploadedDocumentTextFromPdf(
   pdf: LoadedPdfDocument,
+  options: PdfExtractionOptions = {},
 ): Promise<string> {
   console.log("[EXTRACT] Extracting full PDF text for upload");
 
-  const pageCount = Math.min(
-    pdf.numPages,
-    Number(process.env.PDF_FULL_TEXT_MAX_PAGES ?? 40),
-  );
+  const pageCount = pdf.numPages;
   const chunks: string[] = [];
+  const timeoutMs =
+    options.timeoutMs ?? Number(process.env.PDF_PAGE_TIMEOUT_MS ?? 300000);
 
   for (let pageIndex = 1; pageIndex <= pageCount; pageIndex += 1) {
     console.log("[PDF] Extracting page", pageIndex, "of", pageCount);
     const page = await pdf.getPage(pageIndex);
-    const pageText = await extractPdfPageText(page);
+    const pageText = await extractPdfPageText(page, timeoutMs);
 
     if (pageText) {
       chunks.push(pageText);
     }
+
+    options.onProgress?.({
+      pageIndex,
+      totalPages: pageCount,
+      extractedCharacters: chunks.join(" ").length,
+    });
 
     try {
       await page.cleanup?.();
@@ -338,21 +336,9 @@ export async function extractUploadedDocumentTextFromPdf(
     );
   }
 
-  if (pdf.numPages > pageCount) {
-    console.warn("[PDF] Full extraction truncated by page limit:", {
-      numPages: pdf.numPages,
-      pageCount,
-    });
-  }
-
   return cleanText;
 }
 
-/**
- * Vérifie que le titre du thème validé apparaît sur la première page.
- * Retourne le score de correspondance (0-100).
- * Seuil recommandé : 80%.
- */
 export function firstPageTitleScore(
   firstPageText: string,
   themeTitle: string,
@@ -372,13 +358,11 @@ export function firstPageTitleScore(
 
   if (!titleNorm) return 0;
 
-  // Correspondance exacte (insensible casse)
   if (pageNorm.includes(titleNorm)) return 100;
 
-  // Score bigramme: proportion des bigrammes du titre présents dans la page
   const bigrams = (s: string): Set<string> => {
     const grams = new Set<string>();
-    for (let i = 0; i < s.length - 1; i++) grams.add(s.slice(i, i + 2));
+    for (let i = 0; i < s.length - 1; i += 1) grams.add(s.slice(i, i + 2));
     return grams;
   };
 
@@ -387,7 +371,7 @@ export function firstPageTitleScore(
 
   let matches = 0;
   titleGrams.forEach((g) => {
-    if (pageNorm.includes(g)) matches++;
+    if (pageNorm.includes(g)) matches += 1;
   });
 
   return Math.round((matches / titleGrams.size) * 100);
@@ -409,4 +393,11 @@ export function extractTextFromUploadedContent(
   }
 
   return normalized;
+}
+
+export async function extractFirstPageText(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<string> {
+  return extractFirstPageHandal(buffer, mimeType);
 }

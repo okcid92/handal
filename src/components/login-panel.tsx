@@ -16,13 +16,13 @@ const demoAccounts = {
   student: { label: "Etudiant", login: "N01331820231", password: "mon926732" },
   teacher: {
     label: "Enseignant",
-    login: "teacher@origina.local",
+    login: "teacher@handal.local",
     password: "mon926732",
   },
-  da: { label: "DA", login: "da@origina.local", password: "mon926732" },
+  da: { label: "DA", login: "da@handal.local", password: "mon926732" },
   admin: {
     label: "Admin",
-    login: "admin@origina.local",
+    login: "admin@handal.local",
     password: "mon926732",
   },
 } as const;
@@ -106,7 +106,7 @@ export function LoginPanel() {
               onChange={(event) => setLogin(event.target.value)}
               className="mt-2 w-full rounded-2xl border border-[#7b2438]/18 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#7b2438]"
               placeholder={
-                mode === "student" ? "N01331820231" : "teacher@origina.local"
+                mode === "student" ? "N01331820231" : "teacher@handal.local"
               }
               autoComplete="username"
             />

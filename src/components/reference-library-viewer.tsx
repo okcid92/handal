@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/frontend-api";
 
 interface ReferenceDocument {
   id: string;
+  documentId: string;
   title: string;
   size: string;
   type: string;
@@ -275,9 +276,14 @@ export function ReferenceLibraryViewer() {
                           )}
                         </td>
                         <td className="px-6 py-4">
-                          <button className="text-[#7b2438] transition-colors hover:text-[#5f1b2a]">
+                          <a
+                            href={`/api/documents/${doc.documentId}/view`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-semibold text-[#7b2438] transition-colors hover:text-[#5f1b2a] hover:underline"
+                          >
                             Consulter
-                          </button>
+                          </a>
                         </td>
                       </tr>
                     ))}

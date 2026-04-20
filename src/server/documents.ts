@@ -66,6 +66,7 @@ type SimilarityReportWithRelations = SimilarityReport & {
     analysisError: string | null;
     isFinal: boolean;
     submittedAt: Date;
+    theme: { title: string } | null;
   };
 };
 
@@ -176,6 +177,7 @@ function serializeReport(report: SimilarityReportWithRelations) {
       themeId: report.document.themeId?.toString() ?? null,
       studentId: report.document.studentId.toString(),
       originalName: report.document.originalName,
+      title: report.document.theme?.title ?? report.document.originalName,
       storagePath: report.document.storagePath,
       mimeType: report.document.mimeType,
       fileSize: report.document.fileSize.toString(),
@@ -427,7 +429,15 @@ async function loadReport(reportId: bigint) {
   const report = await prisma.similarityReport.findUnique({
     where: { id: reportId },
     include: {
-      document: true,
+      document: {
+        include: {
+          theme: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -855,7 +865,9 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
     });
 
     return {
-      report: serializeReport(created as SimilarityReportWithRelations),
+      report: serializeReport(
+        created as unknown as SimilarityReportWithRelations,
+      ),
       analysis: {
         comparedAgainst: comparisonCorpus.length,
         aiScore,
@@ -885,7 +897,15 @@ export async function listReports() {
   const reports = await prisma.similarityReport.findMany({
     orderBy: { analyzedAt: "desc" },
     include: {
-      document: true,
+      document: {
+        include: {
+          theme: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -1015,7 +1035,17 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
           highlightedSegments as unknown as Prisma.InputJsonValue,
         analyzedAt: new Date(),
       },
-      select: { id: true },
+      include: {
+        document: {
+          include: {
+            theme: {
+              select: {
+                title: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     await prisma.document.update({

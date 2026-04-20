@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ThemeStatus } from "@prisma/client";
 import { errorResponse } from "@/lib/api-errors";
 import { prisma } from "@/lib/prisma";
 import { assertSameOrigin } from "@/lib/security";
@@ -35,29 +34,6 @@ export async function GET(request: NextRequest) {
     const where: any = {
       isReference: true,
       extractedText: { not: null },
-      theme: {
-        is: {
-          OR: [
-            { teacherApproval: true },
-            { validatedCdBy: { not: null } },
-            {
-              status: {
-                in: [
-                  ThemeStatus.VALIDATED,
-                  ThemeStatus.VALIDATED_DA,
-                  ThemeStatus.DOCUMENT_SUBMITTED,
-                  ThemeStatus.ANALYSIS_PENDING,
-                  ThemeStatus.APPROVED,
-                  ThemeStatus.APPROVED_WITH_MENTION,
-                  ThemeStatus.CONDITIONAL_APPROVAL,
-                  ThemeStatus.REQUESTED_REVIEW,
-                  ThemeStatus.FLAGGED_PLAGIARISM,
-                ],
-              },
-            },
-          ],
-        },
-      },
     };
 
     if (search) {
@@ -129,6 +105,7 @@ export async function GET(request: NextRequest) {
       documents: documents.map((doc) => ({
         id: doc.id.toString(),
         title: doc.originalName,
+        documentId: doc.id.toString(),
         size: doc.fileSize.toString(),
         type: doc.mimeType,
         preview: doc.extractedText ? doc.extractedText.slice(0, 200) : "",

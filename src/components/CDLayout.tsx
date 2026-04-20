@@ -9,7 +9,7 @@ import {
   GraduationCap,
   BookOpen,
 } from "lucide-react";
-import { HandalLogo } from "./OriginaLogo";
+import { HandalLogo } from "./HandalLogo";
 
 export type CdView = "dashboard" | "themes" | "reports" | "archives";
 

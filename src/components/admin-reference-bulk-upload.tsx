@@ -16,11 +16,23 @@ interface UploadError {
   error: string;
 }
 
+interface UploadProgress {
+  fileName?: string;
+  fileIndex?: number;
+  totalFiles?: number;
+  pageIndex?: number;
+  totalPages?: number;
+  extractedCharacters?: number;
+  message?: string;
+}
+
 export function AdminReferenceBulkUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const [results, setResults] = useState<UploadResult[]>([]);
   const [errors, setErrors] = useState<UploadError[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [progress, setProgress] = useState<UploadProgress | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -50,6 +62,8 @@ export function AdminReferenceBulkUpload() {
     setIsUploading(true);
     setResults([]);
     setErrors([]);
+    setNotice(null);
+    setProgress(null);
 
     try {
       const formData = new FormData();
@@ -57,26 +71,141 @@ export function AdminReferenceBulkUpload() {
         formData.append("files", file);
       });
 
-      const response = await fetch("/api/admin/reference-docs", {
+      const response = await fetch("/api/admin/reference-upload", {
         method: "POST",
         body: formData,
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
+        let data: any = null;
+        try {
+          data = await response.json();
+        } catch {
+          data = null;
+        }
         console.error("Upload failed:", data);
+        const message =
+          data.error?.code === "STORAGE_TRANSFER_FAILED"
+            ? "Erreur de stockage système : Espace disque insuffisant ou partitions incompatibles sur le serveur Handal."
+            : data.error?.message || "Upload failed";
         setErrors([
           {
             fileName: "Bulk upload",
-            error: data.error?.message || "Upload failed",
+            error: message,
           },
         ]);
         return;
       }
 
-      setResults(data.uploads || []);
-      setErrors(data.errors || []);
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("text/event-stream") && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffered = "";
+
+        const parseChunk = (chunk: string) => {
+          buffered += chunk;
+
+          let separatorIndex = buffered.indexOf("\n\n");
+          while (separatorIndex !== -1) {
+            const rawEvent = buffered.slice(0, separatorIndex).trim();
+            buffered = buffered.slice(separatorIndex + 2);
+
+            let eventName = "message";
+            const dataLines: string[] = [];
+
+            rawEvent.split("\n").forEach((line) => {
+              if (line.startsWith("event:")) {
+                eventName = line.slice(6).trim();
+                return;
+              }
+              if (line.startsWith("data:")) {
+                dataLines.push(line.slice(5).trim());
+              }
+            });
+
+            if (dataLines.length === 0) {
+              separatorIndex = buffered.indexOf("\n\n");
+              continue;
+            }
+
+            try {
+              const payload = JSON.parse(dataLines.join("\n"));
+
+              if (eventName === "start") {
+                setNotice(payload.message || null);
+              }
+
+              if (eventName === "file-start") {
+                setProgress({
+                  fileName: payload.fileName,
+                  fileIndex: payload.fileIndex,
+                  totalFiles: payload.totalFiles,
+                });
+              }
+
+              if (eventName === "page-progress") {
+                setProgress({
+                  fileName: payload.fileName,
+                  fileIndex: payload.fileIndex,
+                  totalFiles: payload.totalFiles,
+                  pageIndex: payload.pageIndex,
+                  totalPages: payload.totalPages,
+                  extractedCharacters: payload.extractedCharacters,
+                });
+              }
+
+              if (eventName === "file-complete") {
+                setResults((current) => [...current, payload]);
+              }
+
+              if (eventName === "file-error") {
+                setErrors((current) => [...current, payload]);
+              }
+
+              if (eventName === "done") {
+                setResults(payload.uploads || []);
+                setErrors(payload.errors || []);
+                if ((payload.uploads || []).length > 0) {
+                  setNotice(payload.message || null);
+                }
+                setProgress(null);
+              }
+
+              if (eventName === "fatal") {
+                setErrors([
+                  {
+                    fileName: "Bulk upload",
+                    error: payload.error?.message || "Upload failed",
+                  },
+                ]);
+                setProgress(null);
+              }
+            } catch (error) {
+              console.error("Failed to parse upload event", error);
+            }
+
+            separatorIndex = buffered.indexOf("\n\n");
+          }
+        };
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          parseChunk(decoder.decode(value, { stream: true }));
+        }
+
+        parseChunk(decoder.decode());
+      } else {
+        const data = await response.json();
+        setResults(data.uploads || []);
+        setErrors(data.errors || []);
+        if ((data.uploads || []).length > 0) {
+          setNotice(
+            "Document ajouté à la bibliothèque de référence Handal avec succès.",
+          );
+        }
+      }
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -170,13 +299,37 @@ export function AdminReferenceBulkUpload() {
         </div>
 
         {/* Upload Progress / Results */}
+        {notice && (
+          <div className="mb-6 rounded-2xl border-2 border-[#631926]/30 bg-[#f6e7ea] px-5 py-4 text-sm font-semibold text-[#631926]">
+            {notice}
+          </div>
+        )}
+
         {isUploading && (
           <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#7b2438]/20 border-t-[#7b2438]" />
-              <p className="font-semibold text-gray-700">
-                Importation en cours...
-              </p>
+              <div>
+                <p className="font-semibold text-gray-700">
+                  Importation en cours...
+                </p>
+                {progress?.fileName && (
+                  <p className="text-sm text-gray-500">
+                    {progress.fileName}
+                    {progress.fileIndex && progress.totalFiles
+                      ? ` · Fichier ${progress.fileIndex}/${progress.totalFiles}`
+                      : ""}
+                    {progress.pageIndex && progress.totalPages
+                      ? ` · Page ${progress.pageIndex}/${progress.totalPages}`
+                      : ""}
+                  </p>
+                )}
+                {progress?.extractedCharacters !== undefined && (
+                  <p className="text-xs text-gray-500">
+                    {progress.extractedCharacters} caractères extraits
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         )}

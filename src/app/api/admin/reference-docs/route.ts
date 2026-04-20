@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { copyFile, mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 
-import { errorResponse } from "@/lib/api-errors";
+import { ApiError, errorResponse } from "@/lib/api-errors";
 import { guardAdmin } from "@/lib/route-guards";
 import { prisma } from "@/lib/prisma";
 import { assertSameOrigin } from "@/lib/security";
@@ -13,6 +15,68 @@ import {
   extractFirstPageText,
 } from "@/server/text-extraction";
 import { analyzeDocumentInline } from "@/server/documents";
+
+const REFERENCE_STORAGE_DIR = path.join(process.cwd(), "storage", "references");
+const TMP_STORAGE_DIR = path.join(process.cwd(), "storage", "tmp");
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+function sanitizeFileName(fileName: string) {
+  return (
+    fileName
+      .replace(/[^a-zA-Z0-9._-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "document.pdf"
+  );
+}
+
+async function moveToReferenceStorage(
+  buffer: Buffer,
+  originalName: string,
+  checksum: string,
+) {
+  await mkdir(TMP_STORAGE_DIR, { recursive: true });
+  await mkdir(REFERENCE_STORAGE_DIR, { recursive: true });
+
+  const safeName = sanitizeFileName(originalName);
+  const storedFileName = `${Date.now()}-${checksum.slice(0, 10)}-${safeName}`;
+  const tmpFilePath = path.join(
+    TMP_STORAGE_DIR,
+    `handal-ref-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.tmp`,
+  );
+  const finalFilePath = path.join(REFERENCE_STORAGE_DIR, storedFileName);
+
+  try {
+    await writeFile(tmpFilePath, buffer);
+    await copyFile(tmpFilePath, finalFilePath);
+    try {
+      await unlink(tmpFilePath);
+    } catch {
+      // ignore cleanup errors after a successful copy
+    }
+  } catch (error) {
+    try {
+      await unlink(tmpFilePath);
+    } catch {
+      // ignore cleanup errors
+    }
+    const fsError = error as NodeJS.ErrnoException;
+    if (fsError.code === "EXDEV") {
+      throw new ApiError(
+        "Erreur de stockage système : Espace disque insuffisant ou partitions incompatibles sur le serveur Handal.",
+        500,
+        "STORAGE_TRANSFER_FAILED",
+      );
+    }
+    throw error;
+  }
+
+  return {
+    absolutePath: finalFilePath,
+    relativePath: `storage/references/${storedFileName}`,
+  };
+}
 
 /**
  * Admin bulk upload endpoint for reference documents
@@ -55,175 +119,282 @@ export async function POST(request: NextRequest) {
 
     console.log("[ADMIN-REF-UPLOAD] Processing", files.length, "files");
 
-    const results = [];
-    const errors = [];
+    const encoder = new TextEncoder();
+    const results: Array<Record<string, unknown>> = [];
+    const errors: Array<Record<string, unknown>> = [];
+    let controllerRef: {
+      enqueue: (chunk: Uint8Array) => void;
+      close: () => void;
+    } | null = null;
 
-    // Process each file
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      try {
-        console.log(
-          `[ADMIN-REF-UPLOAD] Processing file ${i + 1}/${files.length}:`,
-          {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-          },
-        );
-
-        // Validate file type and size
-        try {
-          assertAllowedDocumentType(file.type);
-          assertAllowedDocumentSize(file.size);
-        } catch (error) {
-          console.warn(
-            `[ADMIN-REF-UPLOAD] Validation failed for ${file.name}:`,
-            error,
-          );
-          errors.push({
-            fileName: file.name,
-            error:
-              error instanceof Error ? error.message : "File validation failed",
-          });
-          continue;
-        }
-
-        // Convert to buffer
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const checksum = crypto
-          .createHash("sha256")
-          .update(buffer)
-          .digest("hex");
-
-        console.log(`[ADMIN-REF-UPLOAD] Buffer created for ${file.name}:`, {
-          size: buffer.length,
-          checksum: checksum.slice(0, 8) + "...",
-        });
-
-        let pdfDocument: Awaited<ReturnType<typeof loadPdfDocument>> | null =
-          null;
-
-        // Extract text
-        let extractedText = "";
-        try {
-          if (file.type === "application/pdf") {
-            pdfDocument = await loadPdfDocument(buffer);
-            extractedText =
-              await extractUploadedDocumentTextFromPdf(pdfDocument);
-          } else {
-            extractedText = await extractFirstPageText(buffer, file.type);
-          }
-          console.log(`[ADMIN-REF-UPLOAD] Text extracted from ${file.name}:`, {
-            length: extractedText.length,
-          });
-        } catch (error) {
-          const errorMsg =
-            error instanceof Error ? error.message : String(error);
-          console.warn(
-            `[ADMIN-REF-UPLOAD] Text extraction failed for ${file.name}:`,
-            {
-              error: errorMsg,
-              type: file.type,
-              size: buffer.length,
-            },
-          );
-          errors.push({
-            fileName: file.name,
-            error: `Could not extract text: ${errorMsg}`,
-          });
-          continue;
-        } finally {
-          if (pdfDocument) {
-            try {
-              await pdfDocument.destroy();
-            } catch {
-              // ignore cleanup errors
-            }
-          }
-        }
-
-        // Create reference document in database with is_reference = true
-        const document = await prisma.document.create({
-          data: {
-            themeId: null,
-            studentId: adminId, // Admin owns reference documents
-            originalName: file.name,
-            storagePath: `/reference/${Date.now()}-${checksum.slice(0, 8)}.pdf`,
-            mimeType: file.type,
-            fileSize: BigInt(file.size),
-            checksum,
-            extractedText,
-            documentStatus: "APPROVED", // Reference docs are pre-approved
-            isReference: true, // Mark as reference document
-            submittedAt: new Date(),
-          },
-        });
-
-        console.log(`[ADMIN-REF-UPLOAD] Document created for ${file.name}:`, {
-          documentId: document.id.toString(),
-        });
-
-        // Analyze with Handal plagiarism algorithm
-        try {
-          const analysis = await analyzeDocumentInline(document.id);
-
-          console.log(
-            `[ADMIN-REF-UPLOAD] Analysis completed for ${file.name}:`,
-            {
-              globalSimilarity: analysis.globalSimilarity,
-              riskLevel: analysis.riskLevel,
-            },
-          );
-
-          results.push({
-            fileName: file.name,
-            documentId: document.id.toString(),
-            similarity: analysis.globalSimilarity,
-            riskLevel: analysis.riskLevel,
-          });
-        } catch (error) {
-          console.warn(
-            `[ADMIN-REF-UPLOAD] Analysis failed for ${file.name}:`,
-            error,
-          );
-          // Continue without analysis - document is still created
-          results.push({
-            fileName: file.name,
-            documentId: document.id.toString(),
-            warning:
-              "Analysis failed, document indexed without similarity scores",
-          });
-        }
-      } catch (error) {
-        console.error(
-          `[ADMIN-REF-UPLOAD] Unexpected error processing ${file.name}:`,
-          error,
-        );
-        errors.push({
-          fileName: file.name,
-          error: error instanceof Error ? error.message : "Unexpected error",
-        });
-      }
-    }
-
-    console.log("[ADMIN-REF-UPLOAD] Bulk upload complete:", {
-      successful: results.length,
-      failed: errors.length,
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controllerRef = controller as typeof controllerRef;
+      },
     });
 
-    return NextResponse.json(
-      {
-        ok: true,
-        uploads: results,
-        errors: errors.length > 0 ? errors : undefined,
-        summary: {
+    const emit = (event: string, data: unknown) => {
+      controllerRef?.enqueue(
+        encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
+      );
+    };
+
+    void (async () => {
+      try {
+        emit("start", {
+          ok: true,
           total: files.length,
-          successful: results.length,
-          failed: errors.length,
-        },
+          message:
+            "Document ajouté à la bibliothèque de référence Handal avec succès.",
+        });
+
+        for (let i = 0; i < files.length; i += 1) {
+          const file = files[i];
+          emit("file-start", {
+            fileName: file.name,
+            fileIndex: i + 1,
+            totalFiles: files.length,
+          });
+
+          try {
+            console.log(
+              `[ADMIN-REF-UPLOAD] Processing file ${i + 1}/${files.length}:`,
+              {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+              },
+            );
+
+            try {
+              assertAllowedDocumentType(file.type);
+              assertAllowedDocumentSize(file.size);
+            } catch (error) {
+              console.warn(
+                `[ADMIN-REF-UPLOAD] Validation failed for ${file.name}:`,
+                error,
+              );
+              const message =
+                error instanceof Error
+                  ? error.message
+                  : "File validation failed";
+              errors.push({ fileName: file.name, error: message });
+              emit("file-error", {
+                fileName: file.name,
+                error: message,
+              });
+              continue;
+            }
+
+            const buffer = Buffer.from(await file.arrayBuffer());
+            const checksum = crypto
+              .createHash("sha256")
+              .update(buffer)
+              .digest("hex");
+
+            console.log(`[ADMIN-REF-UPLOAD] Buffer created for ${file.name}:`, {
+              size: buffer.length,
+              checksum: checksum.slice(0, 8) + "...",
+            });
+
+            let pdfDocument: Awaited<
+              ReturnType<typeof loadPdfDocument>
+            > | null = null;
+
+            let extractedText = "";
+            try {
+              if (file.type === "application/pdf") {
+                pdfDocument = await loadPdfDocument(buffer);
+                const totalPages = pdfDocument.numPages;
+                extractedText = await extractUploadedDocumentTextFromPdf(
+                  pdfDocument,
+                  {
+                    timeoutMs: Number(
+                      process.env.PDF_PAGE_TIMEOUT_MS ?? 120000,
+                    ),
+                    onProgress: (progress) => {
+                      emit("page-progress", {
+                        fileName: file.name,
+                        pageIndex: progress.pageIndex,
+                        totalPages: progress.totalPages,
+                        extractedCharacters: progress.extractedCharacters,
+                        totalFiles: files.length,
+                        fileIndex: i + 1,
+                      });
+                    },
+                  },
+                );
+                emit("file-pages", {
+                  fileName: file.name,
+                  totalPages,
+                });
+              } else {
+                extractedText = await extractFirstPageText(buffer, file.type);
+              }
+              console.log(
+                `[ADMIN-REF-UPLOAD] Text extracted from ${file.name}:`,
+                {
+                  length: extractedText.length,
+                },
+              );
+            } catch (error) {
+              const errorMsg =
+                error instanceof Error ? error.message : String(error);
+              console.warn(
+                `[ADMIN-REF-UPLOAD] Text extraction failed for ${file.name}:`,
+                {
+                  error: errorMsg,
+                  type: file.type,
+                  size: buffer.length,
+                },
+              );
+              errors.push({
+                fileName: file.name,
+                error: `Could not extract text: ${errorMsg}`,
+              });
+              emit("file-error", {
+                fileName: file.name,
+                error: `Could not extract text: ${errorMsg}`,
+              });
+              continue;
+            } finally {
+              if (pdfDocument) {
+                try {
+                  await pdfDocument.destroy();
+                } catch {
+                  // ignore cleanup errors
+                }
+              }
+            }
+
+            let storedFile;
+            try {
+              storedFile = await moveToReferenceStorage(
+                buffer,
+                file.name,
+                checksum,
+              );
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : "Unexpected error";
+              errors.push({ fileName: file.name, error: message });
+              emit("file-error", {
+                fileName: file.name,
+                error: message,
+              });
+              continue;
+            }
+
+            const document = await prisma.document.create({
+              data: {
+                themeId: null,
+                studentId: adminId,
+                originalName: file.name,
+                storagePath: storedFile.relativePath,
+                mimeType: file.type,
+                fileSize: BigInt(file.size),
+                checksum,
+                extractedText,
+                documentStatus: "APPROVED",
+                isReference: true,
+                submittedAt: new Date(),
+              },
+            });
+
+            console.log(
+              `[ADMIN-REF-UPLOAD] Document created for ${file.name}:`,
+              {
+                documentId: document.id.toString(),
+              },
+            );
+
+            try {
+              const analysis = await analyzeDocumentInline(document.id);
+              const result = {
+                fileName: file.name,
+                documentId: document.id.toString(),
+                similarity: analysis.globalSimilarity,
+                riskLevel: analysis.riskLevel,
+              };
+
+              console.log(
+                `[ADMIN-REF-UPLOAD] Analysis completed for ${file.name}:`,
+                {
+                  globalSimilarity: analysis.globalSimilarity,
+                  riskLevel: analysis.riskLevel,
+                },
+              );
+
+              results.push(result);
+              emit("file-complete", result);
+            } catch (error) {
+              console.warn(
+                `[ADMIN-REF-UPLOAD] Analysis failed for ${file.name}:`,
+                error,
+              );
+              const result = {
+                fileName: file.name,
+                documentId: document.id.toString(),
+                warning:
+                  "Analysis failed, document indexed without similarity scores",
+              };
+
+              results.push(result);
+              emit("file-complete", result);
+            }
+          } catch (error) {
+            console.error(
+              `[ADMIN-REF-UPLOAD] Unexpected error processing ${file.name}:`,
+              error,
+            );
+            const message =
+              error instanceof Error ? error.message : "Unexpected error";
+            errors.push({ fileName: file.name, error: message });
+            emit("file-error", {
+              fileName: file.name,
+              error: message,
+            });
+          }
+        }
+
+        emit("done", {
+          ok: true,
+          uploads: results,
+          errors: errors.length > 0 ? errors : undefined,
+          summary: {
+            total: files.length,
+            successful: results.length,
+            failed: errors.length,
+          },
+          message:
+            "Document ajouté à la bibliothèque de référence Handal avec succès.",
+        });
+      } catch (error) {
+        console.error("[ADMIN-REF-UPLOAD] Unexpected error:", error);
+        emit("fatal", {
+          ok: false,
+          error: {
+            code: error instanceof ApiError ? error.code : "INTERNAL_ERROR",
+            message:
+              error instanceof Error ? error.message : "Unexpected error",
+          },
+        });
+      } finally {
+        if (controllerRef) {
+          (controllerRef as { close: () => void }).close();
+        }
+      }
+    })();
+
+    return new NextResponse(stream, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
       },
-      { status: 201 },
-    );
+    });
   } catch (error) {
     console.error("[ADMIN-REF-UPLOAD] Unexpected error:", error);
     return errorResponse(error);

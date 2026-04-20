@@ -8,7 +8,7 @@ import {
   GraduationCap,
   BookOpen,
 } from "lucide-react";
-import { HandalLogo } from "./OriginaLogo";
+import { HandalLogo } from "./HandalLogo";
 
 export type DaView = "dashboard" | "reports" | "deliberation";
 

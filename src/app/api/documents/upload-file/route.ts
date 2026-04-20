@@ -23,6 +23,8 @@ import {
 
 const TITLE_MATCH_THRESHOLD = 80;
 
+export const maxDuration = 300;
+
 export async function POST(request: NextRequest) {
   try {
     console.log("[UPLOAD] Starting file upload processing...");

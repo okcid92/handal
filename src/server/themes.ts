@@ -306,7 +306,8 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
 export async function listPendingThemes() {
   const themes = await prisma.theme.findMany({
     where: {
-      status: { in: [ThemeStatus.PENDING, ThemeStatus.PENDING_VALIDATION] },
+      // Only themes already accepted by the algorithm are routed to CD moderation.
+      status: ThemeStatus.PENDING_VALIDATION,
     },
     orderBy: { createdAt: "asc" },
     include: {
@@ -368,12 +369,9 @@ export async function validateThemeCd(
 ) {
   const theme = await loadTheme(themeId);
 
-  if (
-    theme.status !== ThemeStatus.PENDING &&
-    theme.status !== ThemeStatus.PENDING_VALIDATION
-  ) {
+  if (theme.status !== ThemeStatus.PENDING_VALIDATION) {
     throw new ApiError(
-      `Theme must be PENDING or PENDING_VALIDATION before CD validation`,
+      `Theme must be PENDING_VALIDATION (algorithm-approved) before CD validation`,
       409,
       "THEME_STATUS_INVALID",
     );

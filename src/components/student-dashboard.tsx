@@ -143,12 +143,16 @@ export function StudentDashboard() {
   const [themeSubmitted, setThemeSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [algoStatus, setAlgoStatus] = useState<ValidationStatus>("pending");
   const [cdStatus, setCdStatus] = useState<ValidationStatus>("pending");
   const [daStatus, setDaStatus] = useState<ValidationStatus>("pending");
 
   const [documentMessage, setDocumentMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [uploadStatusMessage, setUploadStatusMessage] = useState<string | null>(
+    null,
+  );
   const [titleMismatch, setTitleMismatch] = useState<{
     titleScore: number;
     validatedTitle: string;
@@ -174,6 +178,8 @@ export function StudentDashboard() {
     "FLAGGED_PLAGIARISM",
   ];
 
+  const ALGO_APPROVED_STATUSES = ["PENDING_VALIDATION", ...VALIDATED_STATUSES];
+
   useEffect(() => {
     let mounted = true;
     apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
@@ -191,6 +197,9 @@ export function StudentDashboard() {
         if (!t) return;
         // Thème soumis dès qu'il existe
         setThemeSubmitted(true);
+        // Validation algorithmique
+        const algoApproved = ALGO_APPROVED_STATUSES.includes(t.status);
+        setAlgoStatus(algoApproved ? "approved" : "pending");
         // Statut Chef de département
         const daApproved =
           t.daApproval === true ||
@@ -238,9 +247,9 @@ export function StudentDashboard() {
       setThemeTitle("");
       setThemeDescription("");
       setThemeMessage("Thème soumis avec succès !");
+      setAlgoStatus("pending");
       setCdStatus("pending");
       setDaStatus("pending");
-      setTimeout(() => setCdStatus("approved"), 1500);
     } catch (err) {
       setThemeMessage(
         err instanceof Error ? err.message : "Erreur lors de la soumission",
@@ -267,6 +276,9 @@ export function StudentDashboard() {
       return;
     }
     setUploading(true);
+    setUploadStatusMessage(
+      "Handal analyse l'intégralité de votre document... Veuillez patienter.",
+    );
     setDocumentMessage(null);
     setAnalysisResult(null);
     setTitleMismatch(null);
@@ -303,6 +315,7 @@ export function StudentDashboard() {
       setDocumentMessage(err instanceof Error ? err.message : "Erreur upload");
     } finally {
       setUploading(false);
+      setUploadStatusMessage(null);
     }
   }
 
@@ -342,7 +355,7 @@ export function StudentDashboard() {
               className="flex items-center gap-3 transition-opacity hover:opacity-80"
             >
               <Image
-                src="/brand/origina-logo-sm.png"
+                src="/brand/handal-lamp.png"
                 alt="Handal"
                 width={40}
                 height={27}
@@ -354,13 +367,13 @@ export function StudentDashboard() {
                   className="text-xl font-black uppercase tracking-widest leading-none"
                   style={{ color: "var(--primary)" }}
                 >
-                  ORIGINA
+                  HANDAL
                 </p>
                 <p
                   className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider"
                   style={{ color: "var(--text-soft)" }}
                 >
-                  Espace Étudiant
+                  Plateforme d&apos;analyse IBAM
                 </p>
               </div>
             </Link>
@@ -463,7 +476,8 @@ export function StudentDashboard() {
           {uploading && (
             <div className="mt-4 rounded-xl border-2 border-[#7b2438]/20 bg-[#f2d9e0]/35 px-5 py-4">
               <p className="text-sm font-bold text-[#7b2438]">
-                Analyse profonde du contenu en cours...
+                {uploadStatusMessage ??
+                  "Handal analyse l'intégralité de votre document... Veuillez patienter."}
               </p>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#7b2438]/10">
                 <div
@@ -473,7 +487,7 @@ export function StudentDashboard() {
               </div>
               <p className="mt-2 text-xs font-medium text-[#6c5448]">
                 Extraction du texte, vérification du titre et analyse de
-                similarité.
+                similarité sur l'intégralité des pages.
               </p>
             </div>
           )}
@@ -497,19 +511,23 @@ export function StudentDashboard() {
                   Statuts de validation
                 </p>
                 <div className="grid grid-cols-2 gap-4">
-                  {[{ label: "Chef de Département", status: cdStatus }].map(
-                    ({ label, status }) => (
-                      <div
-                        key={label}
-                        className="rounded-xl border-2 border-[#7b2438]/12 bg-white p-5"
-                      >
-                        <p className="mb-3 text-sm font-bold text-[#2b1d16]">
-                          {label}
-                        </p>
-                        <StatusBadge status={status} />
-                      </div>
-                    ),
-                  )}
+                  {[
+                    {
+                      label: "Validation par l'algorithme",
+                      status: algoStatus,
+                    },
+                    { label: "Chef de Département", status: cdStatus },
+                  ].map(({ label, status }) => (
+                    <div
+                      key={label}
+                      className="rounded-xl border-2 border-[#7b2438]/12 bg-white p-5"
+                    >
+                      <p className="mb-3 text-sm font-bold text-[#2b1d16]">
+                        {label}
+                      </p>
+                      <StatusBadge status={status} />
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -648,8 +666,8 @@ export function StudentDashboard() {
                     />
                   </div>
                   <p className="text-center text-sm font-semibold text-[#6c5448]">
-                    Analyse de similarité en cours par rapport aux archives de
-                    l’IBAM...
+                    {uploadStatusMessage ??
+                      "Handal analyse l'intégralité de votre document... Veuillez patienter."}
                   </p>
                 </div>
               )}
@@ -822,9 +840,11 @@ export function StudentDashboard() {
           ) : (
             <div className="rounded-xl border-2 border-[#c98a2f]/40 bg-[#fff6e6] px-5 py-4 text-sm font-semibold text-[#5f3a10]">
               État actuel :{" "}
-              {cdStatus === "rejected"
-                ? "Thème rejeté par le Chef de Département"
-                : "En attente de validation du Chef de Département"}
+              {algoStatus !== "approved"
+                ? "En attente de validation par l'algorithme"
+                : cdStatus === "rejected"
+                  ? "Thème rejeté par le Chef de Département"
+                  : "En attente de validation du Chef de Département"}
             </div>
           )}
 

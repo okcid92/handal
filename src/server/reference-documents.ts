@@ -1,4 +1,4 @@
-import { Prisma, ThemeStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
@@ -59,29 +59,6 @@ export async function listReferenceProfiles(): Promise<ThemeProfile[]> {
     where: {
       isReference: true,
       extractedText: { not: null },
-      theme: {
-        is: {
-          OR: [
-            { teacherApproval: true },
-            { validatedCdBy: { not: null } },
-            {
-              status: {
-                in: [
-                  ThemeStatus.VALIDATED,
-                  ThemeStatus.VALIDATED_DA,
-                  ThemeStatus.DOCUMENT_SUBMITTED,
-                  ThemeStatus.ANALYSIS_PENDING,
-                  ThemeStatus.APPROVED,
-                  ThemeStatus.APPROVED_WITH_MENTION,
-                  ThemeStatus.CONDITIONAL_APPROVAL,
-                  ThemeStatus.REQUESTED_REVIEW,
-                  ThemeStatus.FLAGGED_PLAGIARISM,
-                ],
-              },
-            },
-          ],
-        },
-      },
     },
     orderBy: { createdAt: "desc" },
     take: 250,

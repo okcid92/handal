@@ -24,16 +24,37 @@ type ReportSummary = {
   globalSimilarity: string;
   riskLevel: string;
   analyzedAt: string;
+  document: {
+    id: string;
+    title: string;
+    originalName: string;
+    storagePath: string;
+    mimeType: string;
+  };
 };
 
-function Banner({ children, ok = true }: { children: React.ReactNode; ok?: boolean }) {
+function Banner({
+  children,
+  ok = true,
+}: {
+  children: React.ReactNode;
+  ok?: boolean;
+}) {
   return (
     <div
       className="mx-8 mt-4 flex items-start gap-2 rounded-xl border-2 px-4 py-3 text-sm font-medium"
       style={
         ok
-          ? { borderColor: "rgba(201,138,47,0.40)", background: "#fff6e6", color: "#755028" }
-          : { borderColor: "rgba(220,38,38,0.30)", background: "#fef2f2", color: "#b91c1c" }
+          ? {
+              borderColor: "rgba(201,138,47,0.40)",
+              background: "#fff6e6",
+              color: "#755028",
+            }
+          : {
+              borderColor: "rgba(220,38,38,0.30)",
+              background: "#fef2f2",
+              color: "#b91c1c",
+            }
       }
     >
       {children}
@@ -42,7 +63,9 @@ function Banner({ children, ok = true }: { children: React.ReactNode; ok?: boole
 }
 
 export function TeacherDashboard() {
-  const [overview, setOverview] = useState<{ user: { name: string; role: string; department?: string } } | null>(null);
+  const [overview, setOverview] = useState<{
+    user: { name: string; role: string; department?: string };
+  } | null>(null);
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [view, setView] = useState<CdView>("dashboard");
@@ -53,7 +76,9 @@ export function TeacherDashboard() {
   useEffect(() => {
     let mounted = true;
     Promise.all([
-      apiFetch<{ user: { name: string; role: string; department?: string } }>("/api/me/overview"),
+      apiFetch<{ user: { name: string; role: string; department?: string } }>(
+        "/api/me/overview",
+      ),
       apiFetch<{ themes: ThemeSummary[] }>("/api/themes/pending"),
       apiFetch<{ reports: ReportSummary[] }>("/api/reports"),
     ])
@@ -63,8 +88,12 @@ export function TeacherDashboard() {
         setThemes(themeResult.themes);
         setReports(reportResult.reports);
       })
-      .catch((e) => notify(e instanceof Error ? e.message : "Erreur de chargement", false));
-    return () => { mounted = false; };
+      .catch((e) =>
+        notify(e instanceof Error ? e.message : "Erreur de chargement", false),
+      );
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   function notify(msg: string, ok = true) {
