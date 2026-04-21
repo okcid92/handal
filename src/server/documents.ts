@@ -11,7 +11,7 @@ import {
 import { ApiError } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { analyzePlagiarism } from "@/server/analysis/plagiadetectoralgo";
+import { analyzePlagiarism, type SimilarityResult } from "@/server/analysis/plagiadetectoralgo";
 import { analyzeTheme } from "@/server/analysis/themeanalysor";
 
 type DocumentPayload = {
@@ -206,11 +206,12 @@ function enrichMatchedSources(results: SimilarityResult[]) {
       name: result.name,
       url: "",
       similarity: Number((result.combined * 100).toFixed(2)),
-      type:
+      type: (
         result.name.startsWith("reference:") ||
         result.name.startsWith("validated:")
           ? "repository"
-          : "journal",
+          : "journal"
+      ) as ReportSource["type"],
       sourceId: sourceInfo.sourceId,
       sourceLabel: sourceInfo.sourceLabel,
     };
@@ -1116,6 +1117,13 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
     sourceLabel: string | null;
     sourceSimilarity: number | null;
   };
+  exclusionNote: string | null;
+  filterResult: {
+    wasSliced: boolean;
+    introFound: boolean;
+    conclusionFound: boolean;
+    excludedRatio: number;
+  };
 }> {
   const document = await loadDocument(documentId);
 
@@ -1126,11 +1134,9 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       reportId: "",
       blocked: false,
       uploadAttempts: document.uploadAttempts,
-      topReferenceSource: {
-        sourceId: null,
-        sourceLabel: null,
-        sourceSimilarity: null,
-      },
+      topReferenceSource: { sourceId: null, sourceLabel: null, sourceSimilarity: null },
+      exclusionNote: null,
+      filterResult: { wasSliced: false, introFound: false, conclusionFound: false, excludedRatio: 0 },
     };
   }
 

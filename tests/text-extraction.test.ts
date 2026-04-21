@@ -13,6 +13,7 @@ import {
   assertAllowedDocumentType,
   assertAllowedDocumentSize,
 } from "@/server/text-extraction";
+import { extractReportMetadata } from "@/lib/extract-report-metadata";
 import { ApiError } from "@/lib/api-errors";
 
 describe("text-extraction (Handal)", () => {
