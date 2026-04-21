@@ -1191,11 +1191,11 @@ export function StudentDashboard() {
           }}
         >
           <div
-            className="relative w-[95%] max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl md:p-8"
+            className="relative flex w-[95%] max-w-2xl flex-col max-h-[90vh] rounded-2xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header modal */}
-            <div className="flex items-center justify-between border-b border-[#7b2438]/10 px-0 pb-4">
+            {/* Header modal — sticky */}
+            <div className="flex shrink-0 items-center justify-between border-b border-[#7b2438]/10 px-4 py-4 md:px-8">
               <div className="flex items-center gap-2">
                 <Image
                   src="/brand/handal-lamp.png"
@@ -1227,8 +1227,8 @@ export function StudentDashboard() {
               </button>
             </div>
 
-            {/* Contenu modal */}
-            <div className="space-y-4 pt-4">
+            <div className="flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-8">
+              <div className="space-y-4">
               {reportModalError ? (
                 <div className="flex items-start gap-3 rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
@@ -1371,6 +1371,7 @@ export function StudentDashboard() {
                   </p>
                 </>
               ) : null}
+              </div>
             </div>
           </div>
         </div>
