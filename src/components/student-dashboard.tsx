@@ -77,6 +77,20 @@ type ReportDetail = {
   };
 };
 
+const VALIDATED_STATUSES = [
+  "VALIDATED",
+  "VALIDATED_DA",
+  "DOCUMENT_SUBMITTED",
+  "ANALYSIS_PENDING",
+  "APPROVED",
+  "APPROVED_WITH_MENTION",
+  "CONDITIONAL_APPROVAL",
+  "REQUESTED_REVIEW",
+  "FLAGGED_PLAGIARISM",
+];
+
+const ALGO_APPROVED_STATUSES = ["PENDING_VALIDATION", ...VALIDATED_STATUSES];
+
 const STEPS = [
   { id: 1, label: "Proposition de thème" },
   { id: 2, label: "Validation Chef de Dépt" },
@@ -171,7 +185,7 @@ export function StudentDashboard() {
 
   const [algoStatus, setAlgoStatus] = useState<ValidationStatus>("pending");
   const [cdStatus, setCdStatus] = useState<ValidationStatus>("pending");
-  const [daStatus, setDaStatus] = useState<ValidationStatus>("pending");
+  const [, setDaStatus] = useState<ValidationStatus>("pending");
 
   const [documentMessage, setDocumentMessage] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -197,23 +211,10 @@ export function StudentDashboard() {
   } | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisEntry[]>([]);
   const [reportModal, setReportModal] = useState<ReportDetail | null>(null);
-  const [reportModalLoading, setReportModalLoading] = useState<string | null>(null);
+  const [reportModalLoading, setReportModalLoading] = useState<string | null>(
+    null,
+  );
   const [reportModalError, setReportModalError] = useState<string | null>(null);
-
-  // Statuts validés si le thème est VALIDATED, VALIDATED_DA, ou les deux votes v2 approuvés
-  const VALIDATED_STATUSES = [
-    "VALIDATED",
-    "VALIDATED_DA",
-    "DOCUMENT_SUBMITTED",
-    "ANALYSIS_PENDING",
-    "APPROVED",
-    "APPROVED_WITH_MENTION",
-    "CONDITIONAL_APPROVAL",
-    "REQUESTED_REVIEW",
-    "FLAGGED_PLAGIARISM",
-  ];
-
-  const ALGO_APPROVED_STATUSES = ["PENDING_VALIDATION", ...VALIDATED_STATUSES];
 
   useEffect(() => {
     let mounted = true;
@@ -343,10 +344,12 @@ export function StudentDashboard() {
       }
       const cloned = res.clone();
       if (!res.ok) {
-        const err = await cloned.json().catch(() => ({})) as { error?: { message?: string } };
+        const err = (await cloned.json().catch(() => ({}))) as {
+          error?: { message?: string };
+        };
         throw new Error(err.error?.message || "Erreur upload");
       }
-      const data = await cloned.json() as {
+      const data = (await cloned.json()) as {
         titleMismatch?: boolean;
         titleScore?: number;
         validatedTitle?: string;
@@ -417,7 +420,9 @@ export function StudentDashboard() {
       setReportModal(data.report);
     } catch (err) {
       setReportModalError(
-        err instanceof Error ? err.message : "Impossible de charger le rapport.",
+        err instanceof Error
+          ? err.message
+          : "Impossible de charger le rapport.",
       );
     } finally {
       setReportModalLoading(null);
@@ -454,7 +459,7 @@ export function StudentDashboard() {
       <div className="mx-auto max-w-3xl space-y-6">
         {/* ── Header ── */}
         <header className="section-frame rounded-2xl p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Link
               href="/student"
               className="flex items-center gap-3 transition-opacity hover:opacity-80"
@@ -482,7 +487,7 @@ export function StudentDashboard() {
                 </p>
               </div>
             </Link>
-            <div className="flex items-center gap-3">
+            <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start">
               <p
                 className="hidden text-sm font-semibold sm:block"
                 style={{ color: "var(--text-soft)" }}
@@ -568,11 +573,11 @@ export function StudentDashboard() {
               </button>
             </form>
           ) : (
-            <div className="rounded-xl border-2 border-[#7b2438]/15 bg-white px-5 py-4">
+            <div className="max-w-full overflow-hidden rounded-xl border-2 border-[#7b2438]/15 bg-white px-5 py-4">
               <p className="text-xs font-bold uppercase tracking-widest text-[#6c5448] mb-1">
                 Thème soumis
               </p>
-              <p className="text-sm font-semibold text-[#2b1d16]">
+              <p className="max-w-full truncate text-sm font-semibold text-[#2b1d16]">
                 {overview?.activeTheme?.title ?? "—"}
               </p>
             </div>
@@ -592,7 +597,7 @@ export function StudentDashboard() {
               </div>
               <p className="mt-2 text-xs font-medium text-[#6c5448]">
                 Extraction du texte, vérification du titre et analyse de
-                similarité sur l'intégralité des pages.
+                similarité sur l&apos;intégralité des pages.
               </p>
             </div>
           )}
@@ -615,7 +620,7 @@ export function StudentDashboard() {
                 <p className="mb-4 text-xs font-bold uppercase tracking-widest text-[#6c5448]">
                   Statuts de validation
                 </p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   {[
                     {
                       label: "Validation par l'algorithme",
@@ -710,16 +715,16 @@ export function StudentDashboard() {
 
               {/* Erreur titre premiere page */}
               {titleMismatch && (
-                <div className="mt-4 flex items-start gap-3 rounded-xl border-2 border-[#7b2438]/60 bg-[#f2d9e0] px-5 py-4">
+                <div className="mt-4 flex max-w-full items-start gap-3 overflow-hidden rounded-xl border-2 border-[#7b2438]/60 bg-[#f2d9e0] px-5 py-4">
                   <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7b2438]" />
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-bold text-[#7b2438]">
                       Erreur : Le titre détecté sur votre document ne correspond
                       pas au thème validé par le Chef de département.
                     </p>
                     <p className="mt-1 text-xs font-medium text-[#5f1a29]">
                       Titre attendu :{" "}
-                      <span className="font-bold">
+                      <span className="block max-w-full truncate font-bold">
                         {titleMismatch.validatedTitle}
                       </span>
                     </p>
@@ -745,7 +750,7 @@ export function StudentDashboard() {
               {uploading && (
                 <div className="mt-4 space-y-3">
                   {" "}
-                  <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
                     <Image
                       src="/brand/handal-lamp.png"
                       alt="Handal"
@@ -757,7 +762,7 @@ export function StudentDashboard() {
                     <span className="text-xs font-black uppercase tracking-widest text-[#7b2438]">
                       HANDAL
                     </span>
-                    <span className="text-[10px] font-semibold text-[#6c5448]">
+                    <span className="text-[10px] font-semibold text-[#6c5448] break-words">
                       — Analyse en cours
                     </span>
                   </div>{" "}
@@ -780,9 +785,8 @@ export function StudentDashboard() {
               {/* Résultat d'analyse : jauge circulaire */}
               {analysisResult && (
                 <div className="mt-4 space-y-4">
-                  <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-[#7b2438]/15 bg-white p-6">
-                    {/* Logo Handal officiel */}
-                    <div className="flex items-center gap-2 border-b border-[#7b2438]/10 pb-3 w-full justify-center">
+                  <div className="flex max-w-full flex-col items-center gap-4 overflow-hidden rounded-xl border-2 border-[#7b2438]/15 bg-white p-6">
+                    <div className="flex w-full flex-wrap items-center justify-center gap-2 border-b border-[#7b2438]/10 pb-3 text-center">
                       <Image
                         src="/brand/handal-lamp.png"
                         alt="Handal"
@@ -804,7 +808,7 @@ export function StudentDashboard() {
                         — Analyse officielle
                       </span>
                     </div>
-                    {/* Jauge circulaire SVG */}
+
                     <div className="relative flex items-center justify-center">
                       <svg width="120" height="120" viewBox="0 0 120 120">
                         <circle
@@ -853,7 +857,8 @@ export function StudentDashboard() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex gap-6 text-center">
+
+                    <div className="grid w-full grid-cols-1 gap-4 text-center sm:grid-cols-2">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
                           Niveau de risque
@@ -887,22 +892,30 @@ export function StudentDashboard() {
                     </div>
                   </div>
 
-                  {/* Feedback visuel selon seuil */}
                   {analysisResult.blocked ? (
-                    <div className="flex items-start gap-3 rounded-xl border-2 border-[#7b2438]/60 bg-[#f2d9e0] px-5 py-4">
+                    <div className="flex max-w-full items-start gap-3 overflow-hidden rounded-xl border-2 border-[#7b2438]/60 bg-[#f2d9e0] px-5 py-4">
                       <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#7b2438]" />
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm font-bold text-[#7b2438]">
                           Taux de plagiat trop élevé (50%+)
                         </p>
                         {analysisResult.topReferenceSource?.sourceId && (
                           <p className="mt-0.5 text-xs font-semibold text-[#5f1a29]">
                             Similitude détectée avec :{" "}
-                            <span className="font-extrabold">
-                              {analysisResult.topReferenceSource.sourceLabel ?? `Document #${analysisResult.topReferenceSource.sourceId}`}
+                            <span className="inline-block max-w-full truncate align-bottom font-extrabold">
+                              {analysisResult.topReferenceSource.sourceLabel ??
+                                `Document #${analysisResult.topReferenceSource.sourceId}`}
                             </span>
-                            {analysisResult.topReferenceSource.sourceSimilarity != null && (
-                              <> ({analysisResult.topReferenceSource.sourceSimilarity.toFixed(1)}%)</>
+                            {analysisResult.topReferenceSource
+                              .sourceSimilarity != null && (
+                              <>
+                                {" "}
+                                (
+                                {analysisResult.topReferenceSource.sourceSimilarity.toFixed(
+                                  1,
+                                )}
+                                %)
+                              </>
                             )}
                           </p>
                         )}
@@ -940,13 +953,12 @@ export function StudentDashboard() {
                     </div>
                   )}
 
-                  {/* Note d'exclusion institutionnelle */}
                   {analysisResult.exclusionNote && (
                     <div className="rounded-xl border border-[#7b2438]/15 bg-[#faf7f4] px-4 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448] mb-1">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
                         Sections exclues de l&apos;analyse
                       </p>
-                      <p className="text-xs font-medium text-[#6c5448] whitespace-pre-line leading-relaxed">
+                      <p className="whitespace-pre-line text-xs font-medium leading-relaxed text-[#6c5448]">
                         {analysisResult.exclusionNote}
                       </p>
                     </div>
@@ -1038,7 +1050,7 @@ export function StudentDashboard() {
                 return (
                   <div
                     key={entry.id}
-                    className="rounded-xl border bg-white px-5 py-4"
+                    className="max-w-full overflow-hidden rounded-xl border bg-white px-5 py-4"
                     style={{
                       borderColor: isLatest
                         ? "rgba(123,36,56,0.30)"
@@ -1051,7 +1063,7 @@ export function StudentDashboard() {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       {/* Infos gauche */}
                       <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex max-w-full flex-wrap items-center gap-2">
                           <span className="text-xs font-semibold text-[#6c5448]">
                             {dateStr} à {timeStr}
                           </span>
@@ -1067,17 +1079,16 @@ export function StudentDashboard() {
 
                         {/* Titre détecté */}
                         {entry.detectedTitle && (
-                          <p className="text-xs text-[#6c5448] truncate max-w-xs">
+                          <p className="max-w-full overflow-hidden text-xs text-[#6c5448] line-clamp-2 break-words">
                             <span className="font-semibold">
                               Titre détecté :
                             </span>{" "}
-                            {entry.detectedTitle.slice(0, 80)}
-                            {entry.detectedTitle.length > 80 ? "…" : ""}
+                            {entry.detectedTitle}
                           </p>
                         )}
 
                         {/* Fichier */}
-                        <p className="text-[10px] text-[#6c5448]/70 truncate max-w-xs">
+                        <p className="max-w-full truncate text-[10px] text-[#6c5448]/70">
                           {entry.fileName}
                         </p>
                       </div>
@@ -1094,13 +1105,11 @@ export function StudentDashboard() {
                               <span
                                 className="text-lg font-extrabold"
                                 style={{
-                                  color: isLatest
-                                    ? "#7b2438"
-                                    : entry.blocked
-                                      ? "#b91c1c"
-                                      : entry.similarityScore < 20
-                                        ? "#16a34a"
-                                        : "#c98a2f",
+                                  color: entry.blocked
+                                    ? "#b91c1c"
+                                    : entry.similarityScore < 20
+                                      ? "#16a34a"
+                                      : "#c98a2f",
                                 }}
                               >
                                 {entry.similarityScore.toFixed(1)}%
@@ -1116,13 +1125,19 @@ export function StudentDashboard() {
                               )}
                             </div>
                             {entry.sourceReferenceId && (
-                              <p className="text-[10px] font-semibold text-[#7b2438] text-right">
+                              <p className="max-w-full break-words text-[10px] font-semibold text-[#7b2438] text-right">
                                 Similitude détectée avec :{" "}
-                                <span className="font-extrabold">
-                                  {entry.sourceReference ?? `Document #${entry.sourceReferenceId}`}
+                                <span className="font-extrabold break-words">
+                                  {entry.sourceReference ??
+                                    `Document #${entry.sourceReferenceId}`}
                                 </span>
                                 {entry.sourceReferenceSimilarity != null && (
-                                  <> ({entry.sourceReferenceSimilarity.toFixed(1)}%)</>
+                                  <>
+                                    {" "}
+                                    (
+                                    {entry.sourceReferenceSimilarity.toFixed(1)}
+                                    %)
+                                  </>
                                 )}
                               </p>
                             )}
@@ -1166,15 +1181,21 @@ export function StudentDashboard() {
       {(reportModal || reportModalError) && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
-          onClick={() => { setReportModal(null); setReportModalError(null); }}
+          style={{
+            background: "rgba(0,0,0,0.55)",
+            backdropFilter: "blur(4px)",
+          }}
+          onClick={() => {
+            setReportModal(null);
+            setReportModalError(null);
+          }}
         >
           <div
-            className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl"
+            className="relative w-[95%] max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl md:p-8"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header modal */}
-            <div className="flex items-center justify-between border-b border-[#7b2438]/10 px-6 py-4">
+            <div className="flex items-center justify-between border-b border-[#7b2438]/10 px-0 pb-4">
               <div className="flex items-center gap-2">
                 <Image
                   src="/brand/handal-lamp.png"
@@ -1184,14 +1205,22 @@ export function StudentDashboard() {
                   className="h-5 w-auto object-contain"
                   style={{ height: "auto" }}
                 />
-                <span className="text-sm font-black uppercase tracking-widest" style={{ color: "var(--primary)" }}>
+                <span
+                  className="text-sm font-black uppercase tracking-widest"
+                  style={{ color: "var(--primary)" }}
+                >
                   HANDAL
                 </span>
-                <span className="text-xs font-semibold text-[#6c5448]">— Rapport d&apos;analyse</span>
+                <span className="text-xs font-semibold text-[#6c5448]">
+                  — Rapport d&apos;analyse
+                </span>
               </div>
               <button
                 type="button"
-                onClick={() => { setReportModal(null); setReportModalError(null); }}
+                onClick={() => {
+                  setReportModal(null);
+                  setReportModalError(null);
+                }}
                 className="flex h-7 w-7 items-center justify-center rounded-full text-[#6c5448] transition hover:bg-[#f2d9e0] hover:text-[#7b2438]"
               >
                 <XCircle className="h-5 w-5" />
@@ -1199,23 +1228,31 @@ export function StudentDashboard() {
             </div>
 
             {/* Contenu modal */}
-            <div className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-4">
+            <div className="space-y-4 pt-4">
               {reportModalError ? (
                 <div className="flex items-start gap-3 rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
-                  <p className="text-sm font-semibold text-red-700">{reportModalError}</p>
+                  <p className="text-sm font-semibold text-red-700">
+                    {reportModalError}
+                  </p>
                 </div>
               ) : reportModal ? (
                 <>
                   {/* Titre document */}
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">Document</p>
-                    <p className="mt-0.5 text-sm font-semibold text-[#2b1d16] truncate">{reportModal.document.title}</p>
-                    <p className="text-[10px] text-[#6c5448]/70">{reportModal.document.originalName}</p>
+                  <div className="max-w-full overflow-hidden">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
+                      Document
+                    </p>
+                    <p className="mt-0.5 break-words text-sm font-semibold text-[#2b1d16]">
+                      {reportModal.document.title || reportModal.document.originalName || "Titre non disponible"}
+                    </p>
+                    <p className="max-w-full truncate text-[10px] text-[#6c5448]/70">
+                      {reportModal.document.originalName}
+                    </p>
                   </div>
 
                   {/* Scores */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {[
                       {
                         label: "Similarité globale",
@@ -1247,62 +1284,80 @@ export function StudentDashboard() {
                         key={label}
                         className="rounded-xl border-2 border-[#7b2438]/10 bg-[#faf7f4] p-3 text-center"
                       >
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-[#6c5448]">{label}</p>
-                        <p className="mt-1 text-base font-extrabold" style={{ color }}>{value}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-[#6c5448]">
+                          {label}
+                        </p>
+                        <p
+                          className="mt-1 text-base font-extrabold"
+                          style={{ color }}
+                        >
+                          {value}
+                        </p>
                       </div>
                     ))}
                   </div>
 
                   {/* Sources détectées */}
-                  {Array.isArray(reportModal.matchedSources) && reportModal.matchedSources.length > 0 && (
-                    <div>
-                      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">Sources détectées</p>
-                      <div className="space-y-2">
-                        {reportModal.matchedSources.slice(0, 6).map((src, i) => (
-                          <div
-                            key={i}
-                            className="flex items-center justify-between rounded-lg border border-[#7b2438]/10 bg-white px-3 py-2"
-                          >
-                            <div className="min-w-0 flex-1">
-                              {src.sourceDocumentId ? (
-                                <a
-                                  href={`/api/documents/${src.sourceDocumentId}/view`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-1 truncate text-xs font-bold text-[#7b2438] underline decoration-dotted hover:decoration-solid"
-                                  title="Ouvrir le document source"
+                  {Array.isArray(reportModal.matchedSources) &&
+                    reportModal.matchedSources.length > 0 && (
+                      <div>
+                        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
+                          Sources détectées
+                        </p>
+                        <div className="space-y-2">
+                          {reportModal.matchedSources
+                            .slice(0, 6)
+                            .map((src, i) => (
+                              <div
+                                key={i}
+                                className="flex items-center justify-between rounded-lg border border-[#7b2438]/10 bg-white px-3 py-2"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  {src.sourceDocumentId ? (
+                                    <a
+                                      href={`/api/documents/${src.sourceDocumentId}/view`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-1 truncate text-xs font-bold text-[#7b2438] underline decoration-dotted hover:decoration-solid"
+                                      title="Ouvrir le document source"
+                                    >
+                                      <ExternalLink className="h-3 w-3 shrink-0" />
+                                      {src.sourceLabel ?? src.name}
+                                    </a>
+                                  ) : (
+                                    <p className="truncate text-xs font-semibold text-[#2b1d16]">
+                                      {src.sourceLabel ?? src.name}
+                                    </p>
+                                  )}
+                                  <p className="text-[10px] text-[#6c5448]/70 capitalize">
+                                    {src.type}
+                                  </p>
+                                </div>
+                                <span
+                                  className="ml-3 shrink-0 text-sm font-extrabold"
+                                  style={{
+                                    color:
+                                      src.similarity >= 50
+                                        ? "#b91c1c"
+                                        : src.similarity >= 20
+                                          ? "#c98a2f"
+                                          : "#16a34a",
+                                  }}
                                 >
-                                  <ExternalLink className="h-3 w-3 shrink-0" />
-                                  {src.sourceLabel ?? src.name}
-                                </a>
-                              ) : (
-                                <p className="truncate text-xs font-semibold text-[#2b1d16]">
-                                  {src.sourceLabel ?? src.name}
-                                </p>
-                              )}
-                              <p className="text-[10px] text-[#6c5448]/70 capitalize">{src.type}</p>
-                            </div>
-                            <span
-                              className="ml-3 shrink-0 text-sm font-extrabold"
-                              style={{
-                                color:
-                                  src.similarity >= 50
-                                    ? "#b91c1c"
-                                    : src.similarity >= 20
-                                      ? "#c98a2f"
-                                      : "#16a34a",
-                              }}
-                            >
-                              {src.similarity.toFixed(1)}%
-                            </span>
-                          </div>
-                        ))}
+                                  {src.similarity.toFixed(1)}%
+                                </span>
+                              </div>
+                            ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   <p className="text-[10px] text-[#6c5448]/60 text-right">
-                    Analysé le {new Date(reportModal.analyzedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
+                    Analysé le{" "}
+                    {new Date(reportModal.analyzedAt).toLocaleDateString(
+                      "fr-FR",
+                      { day: "2-digit", month: "long", year: "numeric" },
+                    )}
                   </p>
                 </>
               ) : null}

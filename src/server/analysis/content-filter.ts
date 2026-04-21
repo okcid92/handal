@@ -78,6 +78,13 @@ const CONCLUSION_MARKERS: RegExp[] = [
   /perspectives?\s+et\s+recommandations?/i,
 ];
 
+// Marqueurs de démarrage du travail technique (souvent chapitre 2)
+const CHAPTER_TWO_START_MARKERS: RegExp[] = [
+  /chapitre\s*(?:ii|2)\s*[:\-]/i,
+  /\b2\s+[\.)\-:]?\s*analyse\s+et\s+conception\b/i,
+  /\bchapitre\s*(?:ii|2)\b[\s\S]{0,120}\b(?:analyse|conception|etude\s+prealable|m[ée]thodologie)\b/i,
+];
+
 // ── 3. Seuil de détection boilerplate ─────────────────────────────────────
 // Un paragraphe est considéré institutionnel si sa similarité Jaccard
 // avec la blacklist dépasse ce seuil.
@@ -112,7 +119,9 @@ function jaccardTokens(a: string[], b: string[]): number {
   const setA = new Set(a);
   const setB = new Set(b);
   let inter = 0;
-  setA.forEach((t) => { if (setB.has(t)) inter++; });
+  setA.forEach((t) => {
+    if (setB.has(t)) inter++;
+  });
   const union = setA.size + setB.size - inter;
   return union === 0 ? 0 : inter / union;
 }
@@ -126,9 +135,13 @@ function containsBlacklistedPhrase(paragraph: string): boolean {
 /** Vérifie si un paragraphe ressemble à du boilerplate par Jaccard */
 function isBoilerplateParagraph(paragraph: string): boolean {
   const tokens = tokenizeSimple(paragraph);
-  if (tokens.length < MIN_PARAGRAPH_TOKENS) return true; // trop court = titre/entête
+  // Ne rejette pas les paragraphes courts : ils peuvent être du contenu légitime
+  if (tokens.length === 0) return true;
+  if (tokens.length < MIN_PARAGRAPH_TOKENS) return false;
   const blacklistTokens = tokenizeSimple(INSTITUTIONAL_PHRASES.join(" "));
-  return jaccardTokens(tokens, blacklistTokens) >= BOILERPLATE_JACCARD_THRESHOLD;
+  return (
+    jaccardTokens(tokens, blacklistTokens) >= BOILERPLATE_JACCARD_THRESHOLD
+  );
 }
 
 // ── Export principal ───────────────────────────────────────────────────────
@@ -142,6 +155,29 @@ export type FilterResult = {
 };
 
 /**
+ * Coupe le texte pour démarrer l'analyse à partir du Chapitre 2,
+ * afin d'ignorer la présentation institutionnelle du Chapitre 1.
+ */
+export function skipChapterOne(text: string): string {
+  for (const marker of CHAPTER_TWO_START_MARKERS) {
+    const match = marker.exec(text);
+    if (match?.index !== undefined && match.index >= 0) {
+      return text.slice(match.index);
+    }
+  }
+
+  // Fallback: si on trouve une introduction générale, on la retire
+  // pour limiter le bruit institutionnel même sans détection explicite du chapitre 2.
+  const introEndRegex =
+    /introduction\s+g[eé]n[eé]rale[\s\S]+?(?=\n\s*(?:chapitre\s*(?:ii|2)|2\s+[\.)\-:]?))/i;
+  if (introEndRegex.test(text)) {
+    return text.replace(introEndRegex, "").trim();
+  }
+
+  return text;
+}
+
+/**
  * Filtre le contenu d'un document avant analyse :
  * 1. Slice entre Introduction et Conclusion si détectées
  * 2. Supprime les paragraphes institutionnels (blacklist + Jaccard)
@@ -149,8 +185,11 @@ export type FilterResult = {
 export function filterInstitutionalContent(rawText: string): FilterResult {
   const originalLength = rawText.length;
 
+  // ── Étape 0 : Amputation du chapitre 1 (bruit institutionnel massif) ───
+  const afterChapterOneSkip = skipChapterOne(rawText);
+
   // ── Étape 1 : Slicing intro → conclusion ──────────────────────────────
-  let sliced = rawText;
+  let sliced = afterChapterOneSkip;
   let introFound = false;
   let conclusionFound = false;
   let wasSliced = false;
@@ -179,9 +218,10 @@ export function filterInstitutionalContent(rawText: string): FilterResult {
   }
 
   if (introFound && introIndex !== -1) {
-    const end = conclusionFound && conclusionIndex > introIndex
-      ? conclusionIndex + 500 // inclure quelques lignes de conclusion
-      : sliced.length;
+    const end =
+      conclusionFound && conclusionIndex > introIndex
+        ? conclusionIndex + 500 // inclure quelques lignes de conclusion
+        : sliced.length;
     sliced = sliced.slice(introIndex, end);
     wasSliced = true;
   }
