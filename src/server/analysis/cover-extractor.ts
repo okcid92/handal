@@ -32,11 +32,7 @@ function levenshtein(a: string, b: string): number {
 }
 
 /** Cherche une ancre dans le texte avec tolérance OCR (Levenshtein <= maxDist) */
-function findAnchorIndex(
-  text: string,
-  anchor: string,
-  maxDist = 2,
-): number {
+function findAnchorIndex(text: string, anchor: string, maxDist = 2): number {
   const lower = text.toLowerCase();
   const anchorLower = anchor.toLowerCase();
   const anchorLen = anchorLower.length;
@@ -81,24 +77,40 @@ function cleanAuthorName(raw: string): string {
     .trim();
 }
 
-/** Nettoie un titre de thème */
+/** Nettoie un titre de thème - supprime bruits de navigation et résidus IBAM */
 function cleanSubject(raw: string): string {
-  return raw
-    .replace(/[^\w\s\u00c0-\u024f'«»"":,.()\-]/g, " ")
+  const cleaned = raw
     .replace(/\s+/g, " ")
+    // Supprime "Suivant", "Précédent", "Page X" en début (bruits PDF)
+    .replace(
+      /^(suivant|pr[eé]c[eé]dent|page\s*\d+|cliquez|retour|lire|suite)\s*[:\-]?\s*/i,
+      "",
+    )
+    // Supprime les résidus IBAM/UJKZ qui polluent le titre
+    .replace(
+      /(option\s*:?[\s\-]?m\.?i\.?a\.?g\.?e|m\.?i\.?a\.?g\.?e|institut burkinab[eé]|ujkz|universit[eé][^,]*ki\-zerbo)/gi,
+      "",
+    )
+    .replace(/\s{2,}/g, " ")
     .trim();
+  // Garde le texte original si le nettoyage a trop réduit
+  return cleaned.length >= 10 ? cleaned : raw.trim();
 }
 
-// Termes OS/génériques à rejeter dans un titre de thème
+// Termes de bruit à rejeter dans un titre de thème (sections de document, pas contenu substantiel)
 const SUBJECT_REJECT_TERMS = [
-  "windows", "linux", "macos", "android", "ios",
-  "miage", "cca", "agro", "ibam", "ujkz",
-  "burkina", "ouagadougou",
+  "sommaire",
+  "dedicace",
+  "dedicaces",
+  "table des matieres",
+  "remerciements",
+  "bibliographie",
+  "annexes",
 ];
 
 function isValidSubject(text: string): boolean {
   const lower = text.toLowerCase();
-  // Rejeter si trop court ou contient des termes OS/institutionnels
+  // Rejeter uniquement si trop court OU si c'est une section de bruit (sommaire, etc.)
   if (text.length < 10) return false;
   if (SUBJECT_REJECT_TERMS.some((t) => lower.includes(t))) return false;
   return true;
@@ -107,25 +119,50 @@ function isValidSubject(text: string): boolean {
 // ── Ancres de la page de garde IBAM ────────────────────────────────────────
 // Ordre typique : THEME → Présenté par → Maître de stage / Encadreur
 
-const THEME_ANCHORS = [
-  "theme :", "thème :", "theme:", "thème:", "theme -", "sujet :", "sujet:",
-  "intitule :", "intitulé :", "titre :",
-];
+// Regex qui ignore les mots de navigation en début (Suivant:, Précédent:, etc.)
+const RE_THEME_SIMPLE =
+  /th[eèê]me\s*[:\-]?\s*(?:suivant\s*[:\-]?\s*)?([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par)/i;
 
 const AUTHOR_START_ANCHORS = [
-  "présenté par", "presente par", "réalisé par", "realise par",
-  "elaboré par", "elabore par", "auteur :", "auteur:",
+  "présenté par",
+  "presente par",
+  "réalisé par",
+  "realise par",
+  "elaboré par",
+  "elabore par",
+  "auteur :",
+  "auteur:",
 ];
 
 const AUTHOR_END_ANCHORS = [
-  "maître de stage", "maitre de stage", "encadreur", "encadreur pédagogique",
-  "directeur de mémoire", "directeur de memoire", "sous la direction",
-  "jury", "soutenu le", "année académique", "annee academique",
+  "maître de stage",
+  "maitre de stage",
+  "encadreur",
+  "encadreur pédagogique",
+  "directeur de mémoire",
+  "directeur de memoire",
+  "sous la direction",
+  "jury",
+  "soutenu le",
+  "année académique",
+  "annee academique",
+  "sommaire",
+  "remerciements",
+  "remerciement",
+  "dedicaces",
+  "dédicaces",
+  "liste des tableaux",
+  "liste des figures",
+  "table des matières",
+  "table des matieres",
 ];
 
 // ── Mapping filières ────────────────────────────────────────────────────────
 const DEPARTMENT_PATTERNS: Array<[RegExp, string]> = [
-  [/m[eé]thodes?\s+informatiques?\s+appliqu[eé]es?\s+[àa]\s+la\s+gestion/i, "MIAGE"],
+  [
+    /m[eé]thodes?\s+informatiques?\s+appliqu[eé]es?\s+[àa]\s+la\s+gestion/i,
+    "MIAGE",
+  ],
   [/\bMIAGE\b/, "MIAGE"],
   [/comptabilit[eé]\s+contr[oô]le\s+audit/i, "CCA"],
   [/\bCCA\b/, "CCA"],
@@ -141,57 +178,50 @@ const DEPARTMENT_PATTERNS: Array<[RegExp, string]> = [
 // ── Extraction par ancres ───────────────────────────────────────────────────
 
 function extractSubjectByAnchors(cover: string): string | null {
-  const flat = flattenText(cover);
+  // Travailler sur le texte brut (avec newlines) pour que [\s\S] fonctionne
+  const text = cover.replace(/\r/g, "");
+  const flat = flattenText(cover); // version aplatie pour les patterns qui en ont besoin
 
-  // 1. Chercher l'ancre THEME avec tolérance OCR
-  let themeStart = -1;
-  let themeAnchorLen = 0;
-  for (const anchor of THEME_ANCHORS) {
-    const idx = findAnchorIndex(flat, anchor, 1);
-    if (idx !== -1) {
-      themeStart = idx + anchor.length;
-      themeAnchorLen = anchor.length;
-      break;
+  // Essayer d'abord sur le texte brut (préserve les sauts de ligne)
+  const rawPatterns = [
+    /th[eèê]me\s*[:\-]?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /suj[eé]t\s*[:\-]?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /titre\s*[:\-]?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /intitul[eé]\s*[:\-]?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+  ];
+
+  const flatPatterns = [
+    /th[eèê]me\s*[:\-]?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /suj[eé]t\s*[:\-]?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /titre\s*[:\-]?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /intitul[eé]\s*[:\-]?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /expos[eé]\s*[:\-]?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+  ];
+
+  for (const [patterns, source] of [[rawPatterns, text], [flatPatterns, flat]] as const) {
+    for (const pattern of patterns) {
+      const match = source.match(pattern);
+      if (!match?.[1]) continue;
+
+      // Normaliser les sauts de ligne en espaces pour le nettoyage
+      const raw = match[1].replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+      const cleaned = cleanSubject(raw);
+
+      if (cleaned.length > 300) {
+        const firstSentenceEnd = cleaned.search(/\.(?=\s|$)/);
+        if (firstSentenceEnd > 0) {
+          const truncated = cleaned.slice(0, firstSentenceEnd).trim();
+          if (isValidSubject(truncated)) return truncated;
+        }
+      }
+
+      if (isValidSubject(cleaned)) {
+        return cleaned.length > 200 ? cleaned.slice(0, 200).trim() : cleaned;
+      }
     }
   }
 
-  if (themeStart === -1) {
-    // Fallback : chercher le bloc en majuscules le plus long sur la page de garde
-    return extractLongestUppercaseBlock(flat);
-  }
-
-  // 2. Chercher la fin du thème = début de "Présenté par"
-  let themeEnd = flat.length;
-  for (const anchor of AUTHOR_START_ANCHORS) {
-    const idx = findAnchorIndex(flat.slice(themeStart), anchor, 2);
-    if (idx !== -1) {
-      themeEnd = themeStart + idx;
-      break;
-    }
-  }
-
-  const raw = flat.slice(themeStart, themeEnd).trim();
-  const cleaned = cleanSubject(raw);
-
-  if (isValidSubject(cleaned)) {
-    return cleaned.length > 200 ? cleaned.slice(0, 200).trim() : cleaned;
-  }
-
-  // Si le résultat est invalide, fallback sur le bloc majuscules
-  return extractLongestUppercaseBlock(flat);
-}
-
-/** Fallback : bloc de texte en majuscules le plus long (souvent le titre) */
-function extractLongestUppercaseBlock(flat: string): string | null {
-  const blocks = flat.match(/[A-ZÀÂÉÈÊËÎÏÔÙÛÜÇ][A-ZÀÂÉÈÊËÎÏÔÙÛÜÇ\s'«»"":,.()\-]{15,}/g);
-  if (!blocks) return null;
-
-  const candidates = blocks
-    .map((b) => b.trim())
-    .filter((b) => isValidSubject(b))
-    .sort((a, b) => b.length - a.length);
-
-  return candidates[0] ?? null;
+  return null;
 }
 
 function extractAuthorByAnchors(cover: string): string | null {

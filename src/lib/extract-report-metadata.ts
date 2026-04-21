@@ -39,12 +39,12 @@ function normalizePdfText(raw: string): string {
 const RE_THEME_FULL = /th[eèê]me\s*:?\s*([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par)/i;
 
 const RE_THEME_SECTION =
-  /th[eèê]me\s*:?\s*\n?([\s\S]+?)(?=\n[ \t]*\n|\n[ \t]*(?:pr[eé]sent|ma[iî]tre|directeur|p[eé]riode|ann[eé]e|encadreur|jury|auteur|soutenu|r[eé]alis))/i;
+  /th[eèê]me\s*:?\s*\n?([\s\S]+?)(?=\n[ \t]*\n|\n[ \t]*(?:pr[eé]sent|ma[iî]tre|directeur|p[eé]riode|ann[eé]e|encadreur|jury|auteur|soutenu|r[eé]alis|sommaire|d[eé]dicaces?))/i;
 
 const RE_THEME_INLINE = /th[eèê]me\s*:?\s*((?:[^\n]+\n?){1,6})/i;
 
 const RE_STUDENT_PRIMARY =
-  /pr[eéê]sent[eéê]\s+par\s*:?\s*([\s\S]+?)(?=ma[iî]tre\s+de\s+stage)/i;
+  /pr[eéê]sent[eéê]\s+par\s*:?\s*([\s\S]+?)(?=\n\s*\n|ma[iî]tre\s+de\s+stage|encadreur|directeur|jury|ann[eé]e\s+acad[eé]mique|$)/i;
 
 const RE_ACADEMIC_YEAR =
   /ann[eé]e\s+acad[eé]mique\s*:?\s*(\d{4}\s*[-\u2013\u2014\/]{1,3}\s*\d{4})/i;
@@ -71,6 +71,9 @@ const HEADER_WORDS = new Set([
   "ARTS",
   "METIERS",
   "ZERBO",
+  "SOMMAIRE",
+  "DEDICACES",
+  "DEDICACE",
 ]);
 
 const NOISE_WORDS = [
@@ -79,6 +82,7 @@ const NOISE_WORDS = [
   /IBAM/gi,
   /RAPPORT\s+DE\s+STAGE/gi,
   /LICEN[CS]E/gi,
+  /REMERCIEMENT[S]?/gi,
 ];
 
 function isHeaderBlock(text: string): boolean {
@@ -166,7 +170,7 @@ function extractTheme(text: string): FieldResult<string> & {
 } {
   const m1 = RE_THEME_FULL.exec(text);
   if (m1?.[1]) {
-    const c = cleanTheme(m1[1]);
+    const c = cleanNoise(cleanTheme(m1[1]));
     if (c.length >= 10 && !isHeaderBlock(c)) {
       return { value: c, confidence: 0.95, method: "anchor_full" };
     }
@@ -174,7 +178,7 @@ function extractTheme(text: string): FieldResult<string> & {
 
   const m2 = RE_THEME_SECTION.exec(text);
   if (m2?.[1]) {
-    const c = cleanTheme(m2[1]);
+    const c = cleanNoise(cleanTheme(m2[1]));
     if (c.length >= 10 && !isHeaderBlock(c)) {
       return { value: c, confidence: 0.9, method: "anchor_section" };
     }
@@ -182,7 +186,7 @@ function extractTheme(text: string): FieldResult<string> & {
 
   const m3 = RE_THEME_INLINE.exec(text);
   if (m3?.[1]) {
-    const c = cleanTheme(m3[1]);
+    const c = cleanNoise(cleanTheme(m3[1]));
     if (c.length >= 10 && !isHeaderBlock(c)) {
       return { value: c, confidence: 0.8, method: "anchor_inline" };
     }
@@ -194,7 +198,7 @@ function extractTheme(text: string): FieldResult<string> & {
     .sort((a, b) => b.length - a.length);
 
   if (candidates.length > 0) {
-    const c = cleanTheme(candidates[0]);
+    const c = cleanNoise(cleanTheme(candidates[0]));
     if (c.length >= 15)
       return { value: c, confidence: 0.6, method: "fallback_caps" };
   }
@@ -207,10 +211,10 @@ function extractStudent(text: string): FieldResult<string> & {
 } {
   const m = RE_STUDENT_PRIMARY.exec(text);
   if (m?.[1]) {
-    const name = normalizeWhitespace(m[1].replace(RE_CIVILITY_TITLES, ""));
-    const candidate = toProperCase(
-      name.split(/\s+/).filter(Boolean).slice(0, 4).join(" "),
+    const name = normalizeWhitespace(
+      m[1].split("\n")[0].replace(RE_CIVILITY_TITLES, ""),
     );
+    const candidate = name.split(/\s+/).filter(Boolean).slice(0, 4).join(" ");
     if (candidate.length >= 4)
       return { value: candidate, confidence: 0.92, method: "anchor" };
   }
@@ -343,7 +347,7 @@ export function extractReportMetadata(text: string): ReportMetadata {
     confidenceScore: extracted.confidenceScore,
   };
 
-  if (!theme || !studentName || extracted.confidenceScore < 0.8) {
+  if (!theme || !studentName) {
     result.isUncertain = true;
   }
 
