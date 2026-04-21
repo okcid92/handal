@@ -144,6 +144,61 @@ describe("text-extraction (Handal)", () => {
   });
 });
 
+describe("extractReportMetadata", () => {
+  it("strategy 1: extracts theme via fuzzy anchor across newlines", () => {
+    const text = `THEME : ANALYSE ET DEVELOPPEMENT \n D'UNE PLATEFORME WEB\nPrésenté par : Jean DUPONT`;
+    const result = extractReportMetadata(text);
+    expect(result.theme).toContain("ANALYSE ET DEVELOPPEMENT");
+    expect(result.isUncertain).toBeUndefined();
+  });
+
+  it("strategy 1: handles THÈME with accent", () => {
+    const text = `THÈME - GESTION DES STOCKS EN TEMPS RÉEL\nPrésenté par : Marie KONE`;
+    const result = extractReportMetadata(text);
+    expect(result.theme).toContain("GESTION DES STOCKS");
+  });
+
+  it("strategy 2: fallback to longest uppercase block", () => {
+    const text = `Université Joseph Ki-Zerbo\nANALYSE ET DÉVELOPPEMENT D'UNE APPLICATION MOBILE\nAuteur: Paul SAWADOGO`;
+    const result = extractReportMetadata(text);
+    expect(result.theme).toContain("ANALYSE ET DÉVELOPPEMENT");
+    expect(result.isUncertain).toBe(true);
+  });
+
+  it("strategy 3: strips institutional noise from theme", () => {
+    const text = `THEME : IBAM RAPPORT DE STAGE ANALYSE DES SYSTÈMES\nPrésenté par : Ali TRAORÉ`;
+    const result = extractReportMetadata(text);
+    expect(result.theme).not.toMatch(/IBAM|RAPPORT DE STAGE/);
+    expect(result.theme).toContain("ANALYSE DES SYSTÈMES");
+  });
+
+  it("strategy 3: rejects theme shorter than 10 chars", () => {
+    const text = `THEME : COURT\nPrésenté par : Ali TRAORÉ`;
+    const result = extractReportMetadata(text);
+    expect(result.theme).toBeNull();
+    expect(result.isUncertain).toBe(true);
+  });
+
+  it("extracts student name and strips civility prefix", () => {
+    const text = `THEME : DÉVELOPPEMENT D'UNE API REST\nPrésenté par : M. Jean-Baptiste OUEDRAOGO\n\nMaître de stage`;
+    const result = extractReportMetadata(text);
+    expect(result.studentName).toBe("Jean-Baptiste OUEDRAOGO");
+  });
+
+  it("stops student name at double newline", () => {
+    const text = `THEME : DÉVELOPPEMENT D'UNE API REST\nPrésenté par : Fatou DIALLO\n\nEncadreur: Prof. SOME`;
+    const result = extractReportMetadata(text);
+    expect(result.studentName).toBe("Fatou DIALLO");
+  });
+
+  it("returns isUncertain when name is missing", () => {
+    const text = `THEME : ANALYSE DES DONNÉES MASSIVES`;
+    const result = extractReportMetadata(text);
+    expect(result.studentName).toBeNull();
+    expect(result.isUncertain).toBe(true);
+  });
+});
+
 /**
  * INTEGRATION TESTS (À exécuter avec un vrai PDF)
  *
