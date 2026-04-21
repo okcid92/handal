@@ -11,12 +11,11 @@ import {
   Lock,
   XCircle,
   Send,
-  History,
-  FileText,
   ExternalLink,
   AlertTriangle,
 } from "lucide-react";
 import { apiFetch } from "@/lib/frontend-api";
+import HistoriqueAttempts from "./historique-attempts";
 
 type OverviewResponse = {
   user: {
@@ -54,6 +53,7 @@ type AnalysisEntry = {
   sourceReference: string | null;
   sourceReferenceId: string | null;
   sourceReferenceSimilarity: number | null;
+  autoValidatedByCd?: boolean;
 };
 
 type ReportDetail = {
@@ -1004,176 +1004,12 @@ export function StudentDashboard() {
         </section>
 
         {/* ── Historique des analyses ── */}
-        <section className="section-frame rounded-2xl p-8">
-          <div className="mb-6 flex items-center gap-3 border-b border-[#7b2438]/10 pb-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f2d9e0]">
-              <History className="h-5 w-5 text-[#7b2438]" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-[#2b1d16]">
-                Historique de vos tentatives
-              </h3>
-              <p className="text-xs font-medium text-[#6c5448]">
-                Toutes vos analyses sont conservées comme preuve de correction
-              </p>
-            </div>
-          </div>
-
-          {analysisHistory.length === 0 ? (
-            <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-[#7b2438]/15 bg-white py-12 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f2d9e0]">
-                <FileText className="h-7 w-7 text-[#7b2438]/50" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-[#2b1d16]">
-                  Aucune analyse effectuée pour le moment
-                </p>
-                <p className="mt-1 text-xs font-medium text-[#6c5448]">
-                  Déposez votre document pour commencer.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {analysisHistory.map((entry, idx) => {
-                const isLatest = idx === 0;
-                const date = new Date(entry.analyzedAt);
-                const dateStr = date.toLocaleDateString("fr-FR", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                });
-                const timeStr = date.toLocaleTimeString("fr-FR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                });
-                return (
-                  <div
-                    key={entry.id}
-                    className="max-w-full overflow-hidden rounded-xl border bg-white px-5 py-4"
-                    style={{
-                      borderColor: isLatest
-                        ? "rgba(123,36,56,0.30)"
-                        : "rgba(203,213,225,0.8)",
-                      boxShadow: isLatest
-                        ? "0 0 0 1px rgba(123,36,56,0.08)"
-                        : undefined,
-                    }}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      {/* Infos gauche */}
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex max-w-full flex-wrap items-center gap-2">
-                          <span className="text-xs font-semibold text-[#6c5448]">
-                            {dateStr} à {timeStr}
-                          </span>
-                          {isLatest && (
-                            <span className="rounded-full bg-[#7b2438] px-2 py-0.5 text-[10px] font-bold text-white">
-                              Dernière
-                            </span>
-                          )}
-                          <span className="text-[10px] font-medium text-[#6c5448]">
-                            Tentative #{entry.attemptNumber}
-                          </span>
-                        </div>
-
-                        {/* Titre détecté */}
-                        {entry.detectedTitle && (
-                          <p className="max-w-full overflow-hidden text-xs text-[#6c5448] line-clamp-2 break-words">
-                            <span className="font-semibold">
-                              Titre détecté :
-                            </span>{" "}
-                            {entry.detectedTitle}
-                          </p>
-                        )}
-
-                        {/* Fichier */}
-                        <p className="max-w-full truncate text-[10px] text-[#6c5448]/70">
-                          {entry.fileName}
-                        </p>
-                      </div>
-
-                      {/* Score + statut droite */}
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        {entry.titleMismatch ? (
-                          <span className="rounded-full border border-[#7b2438]/40 bg-[#f2d9e0] px-3 py-1 text-[11px] font-bold text-[#7b2438]">
-                            Titre non conforme
-                          </span>
-                        ) : entry.similarityScore != null ? (
-                          <div className="flex flex-col items-end gap-1.5">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="text-lg font-extrabold"
-                                style={{
-                                  color: entry.blocked
-                                    ? "#b91c1c"
-                                    : entry.similarityScore < 20
-                                      ? "#16a34a"
-                                      : "#c98a2f",
-                                }}
-                              >
-                                {entry.similarityScore.toFixed(1)}%
-                              </span>
-                              {entry.blocked ? (
-                                <span className="rounded-full border border-[#7b2438]/50 bg-[#f2d9e0] px-2.5 py-0.5 text-[11px] font-bold text-[#7b2438]">
-                                  Rejeté (&gt;50%)
-                                </span>
-                              ) : (
-                                <span className="rounded-full border border-green-300 bg-green-50 px-2.5 py-0.5 text-[11px] font-bold text-green-700">
-                                  Validé pour examen
-                                </span>
-                              )}
-                            </div>
-                            {entry.sourceReferenceId && (
-                              <p className="max-w-full break-words text-[10px] font-semibold text-[#7b2438] text-right">
-                                Similitude détectée avec :{" "}
-                                <span className="font-extrabold break-words">
-                                  {entry.sourceReference ??
-                                    `Document #${entry.sourceReferenceId}`}
-                                </span>
-                                {entry.sourceReferenceSimilarity != null && (
-                                  <>
-                                    {" "}
-                                    (
-                                    {entry.sourceReferenceSimilarity.toFixed(1)}
-                                    %)
-                                  </>
-                                )}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-[#6c5448]">—</span>
-                        )}
-
-                        {/* Bouton Voir le rapport */}
-                        {entry.reportId && (
-                          <button
-                            type="button"
-                            onClick={() => openReport(entry.reportId!)}
-                            disabled={reportModalLoading === entry.reportId}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-[#7b2438]/30 px-3 py-1 text-[11px] font-bold text-[#7b2438] transition hover:bg-[#f2d9e0] disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {reportModalLoading === entry.reportId ? (
-                              <>
-                                <span className="h-3 w-3 animate-spin rounded-full border border-[#7b2438]/30 border-t-[#7b2438]" />
-                                Chargement...
-                              </>
-                            ) : (
-                              <>
-                                <ExternalLink className="h-3 w-3" />
-                                Voir le rapport
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        <section className="section-frame rounded-2xl p-0">
+          <HistoriqueAttempts
+            attempts={analysisHistory}
+            onViewReport={(reportId) => openReport(reportId)}
+            reportModalLoading={reportModalLoading}
+          />
         </section>
       </div>
 

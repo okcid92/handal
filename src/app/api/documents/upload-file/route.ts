@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import path from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
 
 import { errorResponse } from "@/lib/api-errors";
 import { guardStudent } from "@/lib/route-guards";
@@ -20,8 +22,14 @@ import {
   extractUploadedDocumentTextFromPdf,
   extractUploadedDocumentText,
 } from "@/server/text-extraction";
+import { prisma } from "@/lib/prisma";
 
 const TITLE_MATCH_THRESHOLD = 80;
+
+function resolveAbsoluteDocumentPath(storagePath: string) {
+  const normalizedStoragePath = storagePath.trim().replace(/^\/+/, "");
+  return path.join(process.cwd(), normalizedStoragePath);
+}
 
 function cleanDetectedTitle(text: string): string {
   return text
@@ -271,7 +279,21 @@ export async function POST(request: NextRequest) {
         studentId,
       );
       console.log("[UPLOAD] Document created:", { documentId: document.id });
+
+      // Persister le binaire sur disque pour l'endpoint /api/documents/[id]/view.
+      const absoluteFilePath = resolveAbsoluteDocumentPath(document.storagePath);
+      await mkdir(path.dirname(absoluteFilePath), { recursive: true });
+      await writeFile(absoluteFilePath, buffer);
+      console.log("[UPLOAD] File persisted:", { absoluteFilePath });
     } catch (err) {
+      // En cas d'erreur d'écriture disque après création DB, nettoyer l'entrée document.
+      if (document?.id) {
+        try {
+          await prisma.document.delete({ where: { id: BigInt(document.id) } });
+        } catch {
+          // ignore cleanup error
+        }
+      }
       console.error(
         "[UPLOAD] Failed to create document:",
         err instanceof Error ? err.message : err,

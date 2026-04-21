@@ -62,7 +62,7 @@ export async function GET(
     return new NextResponse(webStream, {
       status: 200,
       headers: {
-        "Content-Type": "application/pdf",
+        "Content-Type": record.mimeType || "application/octet-stream",
         "Content-Disposition": `inline; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(record.originalName || `document-${record.id}`)}`,
         "Cache-Control": "private, no-store, max-age=0",
         "X-Content-Type-Options": "nosniff",

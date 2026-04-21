@@ -17,6 +17,8 @@
 /.next/
 /out/
 
+/.vscode/
+
 # production
 /build
 
@@ -44,3 +46,5 @@ __pycache__/
 
 storage/references/
 storeage/tmp/
+
+prompt.txt

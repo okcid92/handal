@@ -3,6 +3,10 @@ import { DeliberationDecision } from "@prisma/client";
 import { ApiError } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
+import { analyzeTheme } from "@/server/analysis/themeanalysor";
+import { filterInstitutionalContent } from "@/server/analysis/content-filter";
+import { extractCoverMetadata } from "@/server/analysis/cover-extractor";
+import { findOrCreateReferenceTheme } from "@/server/themes";
 
 export type DeliberationPayload = {
   committee?: string | null;
@@ -31,7 +35,15 @@ async function loadReport(reportId: bigint) {
   const report = await prisma.similarityReport.findUnique({
     where: { id: reportId },
     include: {
-      document: true,
+      document: {
+        include: {
+          theme: {
+            select: {
+              title: true,
+            },
+          },
+        },
+      },
       deliberations: {
         orderBy: { decidedAt: "desc" },
         include: {
@@ -52,6 +64,29 @@ async function loadReport(reportId: bigint) {
   }
 
   return report;
+}
+
+function buildReferenceStagingMetadata(extractedText: string, fallbackTitle?: string | null) {
+  const filtered = filterInstitutionalContent(extractedText);
+  const profile = analyzeTheme({
+    name: "validated-report",
+    content: filtered.filteredContent,
+  });
+  const cover = extractCoverMetadata(extractedText);
+
+  return {
+    subjectLabel:
+      fallbackTitle?.trim() || cover.subjectLabel || profile.subjectLabel || null,
+    techStack: profile.techStack ?? [],
+    authorName: cover.authorName ?? null,
+    department: cover.department ?? null,
+    academicYear: cover.academicYear ?? null,
+    dominantTheme: profile.dominantTheme ?? null,
+    topKeywords: profile.keywords.slice(0, 8).map((k) => k.word),
+    excludedRatio: Math.round(filtered.excludedRatio * 100),
+    approvedAt: new Date().toISOString(),
+    source: "cd_final_validation",
+  };
 }
 
 function serializeDeliberation(deliberation: {
@@ -145,14 +180,35 @@ export async function validateReportByChefDept(
   decidedBy: bigint,
   payload: DeliberationPayload,
 ) {
+  const loadedReport = await loadReport(reportId);
   const result = await createDeliberation(reportId, decidedBy, payload);
 
   if (payload.decision === "final_validation") {
+    const extractedText = loadedReport.document.extractedText ?? "";
+    const metadata = extractedText
+      ? buildReferenceStagingMetadata(
+          extractedText,
+          loadedReport.document.theme?.title ?? null,
+        )
+      : null;
+
+    let themeId = loadedReport.document.themeId;
+    if (metadata?.subjectLabel) {
+      themeId = await findOrCreateReferenceTheme(metadata.subjectLabel, decidedBy);
+    }
+
     await prisma.document.update({
       where: { id: BigInt(result.report.documentId) },
       data: {
         documentStatus: "APPROVED",
         isReference: true,
+        ...(themeId ? { themeId } : {}),
+        ...(metadata
+          ? {
+              stagingMetadata:
+                metadata as unknown as import("@prisma/client").Prisma.InputJsonValue,
+            }
+          : {}),
       },
     });
 
@@ -160,6 +216,8 @@ export async function validateReportByChefDept(
       reportId: result.report.id,
       documentId: result.report.documentId,
       decidedBy: decidedBy.toString(),
+      themeId: themeId?.toString() ?? null,
+      subjectLabel: metadata?.subjectLabel ?? null,
     });
   }
 

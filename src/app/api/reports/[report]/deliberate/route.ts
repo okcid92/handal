@@ -21,9 +21,14 @@ export async function POST(
 ) {
   try {
     assertSameOrigin(request);
-    const session = guardRole(request, ["DA", "ADMIN"]);
     const { report } = await params;
     const payload = payloadSchema.parse(await request.json());
+
+    const allowedRoles =
+      payload.decision === "final_validation"
+        ? ["TEACHER", "DA", "ADMIN"]
+        : ["DA", "ADMIN"];
+    const session = guardRole(request, allowedRoles);
 
     const result =
       payload.decision === "final_validation"
