@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 import { copyFile, mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -322,26 +323,35 @@ export async function POST(request: NextRequest) {
                   documentStatus: "PENDING_ADMIN_REVIEW",
                   isReference: false,
                   isFinal: false,
-                  stagingMetadata: stagingMetadata as unknown as import("@prisma/client").Prisma.InputJsonValue,
+                  stagingMetadata:
+                    stagingMetadata as unknown as import("@prisma/client").Prisma.InputJsonValue,
                   submittedAt: new Date(),
                 },
                 select: { id: true },
               });
             } catch (dbError) {
-              const msg = dbError instanceof Error ? dbError.message : String(dbError);
-              console.error(`[ADMIN-REF-UPLOAD] DB insert failed for ${file.name}:`, msg);
-              errors.push({ fileName: file.name, error: `Échec de l’indexation : ${msg.slice(0, 200)}` });
+              const msg =
+                dbError instanceof Error ? dbError.message : String(dbError);
+              console.error(
+                `[ADMIN-REF-UPLOAD] DB insert failed for ${file.name}:`,
+                msg,
+              );
+              errors.push({
+                fileName: file.name,
+                error: `Échec de l’indexation : ${msg.slice(0, 200)}`,
+              });
               emit("file-error", {
                 fileName: file.name,
-                error: "Échec de l’indexation : Données de thème manquantes ou format de fichier invalide.",
+                error:
+                  "Échec de l’indexation : Données de thème manquantes ou format de fichier invalide.",
               });
               continue;
             }
 
-            console.log(
-              `[ADMIN-REF-UPLOAD] Staged ${file.name} for review:`,
-              { documentId: document.id.toString(), subjectLabel: profile.subjectLabel },
-            );
+            console.log(`[ADMIN-REF-UPLOAD] Staged ${file.name} for review:`, {
+              documentId: document.id.toString(),
+              subjectLabel: profile.subjectLabel,
+            });
 
             const result = {
               fileName: file.name,
@@ -394,6 +404,13 @@ export async function POST(request: NextRequest) {
       } finally {
         if (controllerRef) {
           (controllerRef as { close: () => void }).close();
+        }
+        // Revalide le cache pour forcer le refresh côté frontend
+        try {
+          revalidatePath("/api/admin/reference-docs");
+          revalidatePath("/api/admin/reference-docs/staging");
+        } catch (e) {
+          console.warn("[ADMIN-REF-UPLOAD] Cache revalidation warning:", e);
         }
       }
     })();

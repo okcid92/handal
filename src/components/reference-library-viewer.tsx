@@ -195,23 +195,23 @@ export function ReferenceLibraryViewer() {
         {!loading && documents.length > 0 && (
           <>
             <div className="mb-6 overflow-hidden rounded-2xl bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="w-full overflow-x-auto">
+                <table className="min-w-[720px] w-full text-sm">
                   <thead className="border-b border-gray-200 bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left font-bold text-gray-700">
                         Titre
                       </th>
-                      <th className="px-6 py-3 text-left font-bold text-gray-700">
+                      <th className="hidden px-6 py-3 text-left font-bold text-gray-700 md:table-cell">
                         Taille
                       </th>
-                      <th className="px-6 py-3 text-left font-bold text-gray-700">
+                      <th className="hidden px-6 py-3 text-left font-bold text-gray-700 md:table-cell">
                         Date
                       </th>
-                      <th className="px-6 py-3 text-left font-bold text-gray-700">
+                      <th className="hidden px-6 py-3 text-left font-bold text-gray-700 lg:table-cell">
                         Similarité
                       </th>
-                      <th className="px-6 py-3 text-left font-bold text-gray-700">
+                      <th className="hidden px-6 py-3 text-left font-bold text-gray-700 lg:table-cell">
                         Risque
                       </th>
                       <th className="px-6 py-3 text-left font-bold text-gray-700">
@@ -237,13 +237,13 @@ export function ReferenceLibraryViewer() {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-gray-600">
+                        <td className="hidden px-6 py-4 text-gray-600 md:table-cell">
                           {formatFileSize(doc.size)}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">
+                        <td className="hidden px-6 py-4 text-gray-600 md:table-cell">
                           {formatDate(doc.uploadedAt)}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="hidden px-6 py-4 lg:table-cell">
                           {(() => {
                             const similarityValue = toSimilarity(
                               (doc as { similarity?: unknown }).similarity,
@@ -260,7 +260,7 @@ export function ReferenceLibraryViewer() {
                             );
                           })()}
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="hidden px-6 py-4 lg:table-cell">
                           {doc.riskLevel && (
                             <span
                               className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${getRiskColor(

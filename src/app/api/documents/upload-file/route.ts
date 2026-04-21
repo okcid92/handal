@@ -23,6 +23,16 @@ import {
 
 const TITLE_MATCH_THRESHOLD = 80;
 
+function cleanDetectedTitle(text: string): string {
+  return text
+    .replace(
+      /^\s*(?:suivant|pr[eé]c[eé]dent|page\s*\d+|titre|chapitre)\s*[:\-]?\s*/i,
+      "",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
@@ -168,10 +178,13 @@ export async function POST(request: NextRequest) {
 
       // Enregistrer la tentative échouée
       try {
+        const detectedTitle = cleanDetectedTitle(
+          firstPageText.slice(0, 200) || "",
+        );
         await createAnalysisHistory({
           studentId,
           fileName: file.name,
-          detectedTitle: firstPageText.slice(0, 200).trim() || null,
+          detectedTitle: detectedTitle || null,
           titleScore,
           similarityScore: null,
           blocked: false,
@@ -297,12 +310,15 @@ export async function POST(request: NextRequest) {
     // Enregistrer dans l'historique
     console.log("[UPLOAD] Recording analysis history...");
     try {
+      const detectedTitle = cleanDetectedTitle(
+        firstPageText.slice(0, 200) || "",
+      );
       await createAnalysisHistory({
         studentId,
         documentId: BigInt(document.id),
         reportId: analysis?.reportId ? BigInt(analysis.reportId) : null,
         fileName: file.name,
-        detectedTitle: firstPageText.slice(0, 200).trim() || null,
+        detectedTitle: detectedTitle || null,
         titleScore,
         similarityScore: analysis?.globalSimilarity ?? null,
         blocked: analysis?.blocked ?? false,

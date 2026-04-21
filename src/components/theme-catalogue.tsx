@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Search, Filter, BookOpen, Tag, User, Calendar, RefreshCw } from "lucide-react";
+import {
+  Search,
+  Filter,
+  BookOpen,
+  Tag,
+  User,
+  Calendar,
+  RefreshCw,
+} from "lucide-react";
 import { apiFetch } from "@/lib/frontend-api";
 
 type CatalogueEntry = {
@@ -64,11 +72,18 @@ export function ThemeCatalogue() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-extrabold" style={{ color: "var(--foreground)" }}>
+          <h2
+            className="text-xl font-extrabold"
+            style={{ color: "var(--foreground)" }}
+          >
             Catalogue des Thèmes
           </h2>
-          <p className="text-xs font-medium" style={{ color: "var(--text-soft)" }}>
-            {entries.length} mémoire{entries.length !== 1 ? "s" : ""} de référence indexé{entries.length !== 1 ? "s" : ""}
+          <p
+            className="text-xs font-medium"
+            style={{ color: "var(--text-soft)" }}
+          >
+            {entries.length} mémoire{entries.length !== 1 ? "s" : ""} de
+            référence indexé{entries.length !== 1 ? "s" : ""}
           </p>
         </div>
         <button
@@ -77,7 +92,9 @@ export function ThemeCatalogue() {
           disabled={loading}
           className="inline-flex items-center gap-2 rounded-xl border-2 border-[#7b2438]/20 px-3 py-2 text-xs font-bold text-[#7b2438] transition hover:bg-[#f2d9e0] disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+          />
           Actualiser
         </button>
       </div>
@@ -96,24 +113,39 @@ export function ThemeCatalogue() {
             onChange={(e) => setKeyword(e.target.value)}
             placeholder="Rechercher un thème, technologie, auteur..."
             className="h-10 w-full rounded-xl border-2 bg-white pl-9 pr-4 text-sm outline-none transition"
-            style={{ borderColor: "rgba(123,36,56,0.18)", color: "var(--foreground)" }}
-            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(123,36,56,0.18)"; }}
+            style={{
+              borderColor: "rgba(123,36,56,0.18)",
+              color: "var(--foreground)",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "var(--primary)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "rgba(123,36,56,0.18)";
+            }}
           />
         </div>
 
         {/* Filtre année */}
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pointer-events-none" style={{ color: "var(--text-soft)" }} />
+          <Filter
+            className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pointer-events-none"
+            style={{ color: "var(--text-soft)" }}
+          />
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
             className="h-10 rounded-xl border-2 bg-white pl-8 pr-4 text-sm outline-none transition appearance-none"
-            style={{ borderColor: "rgba(123,36,56,0.18)", color: "var(--foreground)" }}
+            style={{
+              borderColor: "rgba(123,36,56,0.18)",
+              color: "var(--foreground)",
+            }}
           >
             <option value="">Toutes les années</option>
             {years.map((y) => (
-              <option key={y} value={y}>{y}</option>
+              <option key={y} value={y}>
+                {y}
+              </option>
             ))}
           </select>
         </div>
@@ -126,10 +158,18 @@ export function ThemeCatalogue() {
         </div>
       ) : entries.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[#7b2438]/15 bg-white py-16 text-center">
-          <BookOpen className="h-10 w-10 opacity-30" style={{ color: "var(--primary)" }} />
+          <BookOpen
+            className="h-10 w-10 opacity-30"
+            style={{ color: "var(--primary)" }}
+          />
           <div>
-            <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>
-              {keyword || selectedYear ? "Aucun résultat pour ces filtres" : "Aucun mémoire indexé"}
+            <p
+              className="text-sm font-bold"
+              style={{ color: "var(--foreground)" }}
+            >
+              {keyword || selectedYear
+                ? "Aucun résultat pour ces filtres"
+                : "Aucun mémoire indexé"}
             </p>
             <p className="mt-1 text-xs" style={{ color: "var(--text-soft)" }}>
               {keyword || selectedYear
@@ -139,11 +179,18 @@ export function ThemeCatalogue() {
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border-2 bg-white overflow-hidden" style={{ borderColor: "rgba(123,36,56,0.12)" }}>
+        <div
+          className="rounded-2xl border-2 bg-white overflow-hidden"
+          style={{ borderColor: "rgba(123,36,56,0.12)" }}
+        >
           {/* En-tête table */}
           <div
-            className="grid grid-cols-[1fr_160px_100px_110px] gap-4 border-b px-5 py-3 text-[10px] font-bold uppercase tracking-widest"
-            style={{ borderColor: "var(--line)", color: "var(--text-soft)", background: "var(--surface-2)" }}
+            className="hidden gap-4 border-b px-5 py-3 text-[10px] font-bold uppercase tracking-widest md:grid md:grid-cols-[1fr_160px_100px_110px]"
+            style={{
+              borderColor: "var(--line)",
+              color: "var(--text-soft)",
+              background: "var(--surface-2)",
+            }}
           >
             <span>Sujet / Fichier</span>
             <span>Auteur · Filière</span>
@@ -156,15 +203,21 @@ export function ThemeCatalogue() {
             {entries.map((entry) => (
               <div
                 key={entry.id}
-                className="grid grid-cols-[1fr_160px_100px_110px] gap-4 px-5 py-4 transition hover:bg-[#faf7f4]"
+                className="grid gap-3 px-5 py-4 transition hover:bg-[#faf7f4] md:grid-cols-[1fr_160px_100px_110px] md:gap-4"
               >
                 {/* Sujet */}
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+                  <p
+                    className="truncate text-sm font-semibold"
+                    style={{ color: "var(--foreground)" }}
+                  >
                     {entry.subjectLabel ?? entry.originalName}
                   </p>
                   {entry.subjectLabel && (
-                    <p className="mt-0.5 truncate text-[10px]" style={{ color: "var(--text-soft)" }}>
+                    <p
+                      className="mt-0.5 truncate text-[10px]"
+                      style={{ color: "var(--text-soft)" }}
+                    >
                       {entry.originalName}
                     </p>
                   )}
@@ -174,7 +227,10 @@ export function ThemeCatalogue() {
                         <span
                           key={kw}
                           className="rounded-full border px-1.5 py-0.5 text-[9px]"
-                          style={{ borderColor: "rgba(123,36,56,0.15)", color: "var(--text-soft)" }}
+                          style={{
+                            borderColor: "rgba(123,36,56,0.15)",
+                            color: "var(--text-soft)",
+                          }}
                         >
                           {kw}
                         </span>
@@ -187,8 +243,14 @@ export function ThemeCatalogue() {
                 <div className="flex flex-col gap-1 justify-center">
                   {entry.authorName && (
                     <div className="flex items-center gap-1">
-                      <User className="h-3 w-3 shrink-0" style={{ color: "var(--text-soft)" }} />
-                      <span className="truncate text-xs font-medium" style={{ color: "var(--foreground)" }}>
+                      <User
+                        className="h-3 w-3 shrink-0"
+                        style={{ color: "var(--text-soft)" }}
+                      />
+                      <span
+                        className="truncate text-xs font-medium"
+                        style={{ color: "var(--foreground)" }}
+                      >
                         {entry.authorName}
                       </span>
                     </div>
@@ -196,7 +258,11 @@ export function ThemeCatalogue() {
                   {entry.department && (
                     <span
                       className="inline-block w-fit rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-                      style={{ borderColor: "rgba(123,36,56,0.22)", background: "rgba(123,36,56,0.07)", color: "var(--primary)" }}
+                      style={{
+                        borderColor: "rgba(123,36,56,0.22)",
+                        background: "rgba(123,36,56,0.07)",
+                        color: "var(--primary)",
+                      }}
                     >
                       {entry.department}
                     </span>
@@ -208,18 +274,34 @@ export function ThemeCatalogue() {
                   {entry.techStack.slice(0, 3).map((t) => (
                     <div key={t} className="flex items-center gap-1">
                       <Tag className="h-3 w-3 shrink-0 text-[#7b2438]/40" />
-                      <span className="truncate text-[11px]" style={{ color: "var(--text-soft)" }}>{t}</span>
+                      <span
+                        className="truncate text-[11px]"
+                        style={{ color: "var(--text-soft)" }}
+                      >
+                        {t}
+                      </span>
                     </div>
                   ))}
                   {entry.techStack.length === 0 && (
-                    <span className="text-[10px]" style={{ color: "var(--text-soft)" }}>—</span>
+                    <span
+                      className="text-[10px]"
+                      style={{ color: "var(--text-soft)" }}
+                    >
+                      —
+                    </span>
                   )}
                 </div>
 
                 {/* Année */}
-                <div className="flex items-center gap-1.5 justify-center">
-                  <Calendar className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--text-soft)" }} />
-                  <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
+                <div className="flex items-center gap-1.5 justify-start md:justify-center">
+                  <Calendar
+                    className="h-3.5 w-3.5 shrink-0"
+                    style={{ color: "var(--text-soft)" }}
+                  />
+                  <span
+                    className="text-xs font-semibold"
+                    style={{ color: "var(--foreground)" }}
+                  >
                     {entry.academicYear ?? "—"}
                   </span>
                 </div>

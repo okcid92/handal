@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { errorResponse, ApiError } from "@/lib/api-errors";
 import { guardAdmin } from "@/lib/route-guards";
@@ -75,6 +76,14 @@ export async function PATCH(
       subjectLabel: body.subjectLabel,
       techStack: body.techStack,
     });
+
+    // Revalide le cache pour forcer le refresh côté frontend
+    try {
+      revalidatePath("/api/admin/reference-docs");
+      revalidatePath("/api/admin/reference-docs/staging");
+    } catch (e) {
+      console.warn("[APPROVE] Cache revalidation warning:", e);
+    }
 
     return NextResponse.json({
       ok: true,

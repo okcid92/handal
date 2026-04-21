@@ -54,130 +54,579 @@ export type ProximityLevel =
 
 const STOP_WORDS = new Set([
   // Articles et déterminants
-  "le","la","les","un","une","des","du","de","da","au","aux",
+  "le",
+  "la",
+  "les",
+  "un",
+  "une",
+  "des",
+  "du",
+  "de",
+  "da",
+  "au",
+  "aux",
   // Conjonctions et prépositions
-  "et","ou","ni","mais","donc","or","car","si","que","qui","quoi","dont",
-  "où","quand","comment","pourquoi","quel","quelle","quels","quelles",
-  "ce","cet","cette","ces","mon","ton","son","ma","ta","sa","notre",
-  "votre","leur","mes","tes","ses","nos","vos","leurs",
+  "et",
+  "ou",
+  "ni",
+  "mais",
+  "donc",
+  "or",
+  "car",
+  "si",
+  "que",
+  "qui",
+  "quoi",
+  "dont",
+  "où",
+  "quand",
+  "comment",
+  "pourquoi",
+  "quel",
+  "quelle",
+  "quels",
+  "quelles",
+  "ce",
+  "cet",
+  "cette",
+  "ces",
+  "mon",
+  "ton",
+  "son",
+  "ma",
+  "ta",
+  "sa",
+  "notre",
+  "votre",
+  "leur",
+  "mes",
+  "tes",
+  "ses",
+  "nos",
+  "vos",
+  "leurs",
   // Pronoms
-  "je","tu","il","elle","nous","vous","ils","elles","me","te","se",
-  "lui","y","en","on","ne","pas","plus","très","bien","aussi","même",
-  "tout","tous","toute","toutes","autre","autres","comme","avec","sans",
-  "sous","sur","dans","par","pour","vers","chez","entre","après","avant",
-  "pendant","depuis","jusqu",
+  "je",
+  "tu",
+  "il",
+  "elle",
+  "nous",
+  "vous",
+  "ils",
+  "elles",
+  "me",
+  "te",
+  "se",
+  "lui",
+  "y",
+  "en",
+  "on",
+  "ne",
+  "pas",
+  "plus",
+  "très",
+  "bien",
+  "aussi",
+  "même",
+  "tout",
+  "tous",
+  "toute",
+  "toutes",
+  "autre",
+  "autres",
+  "comme",
+  "avec",
+  "sans",
+  "sous",
+  "sur",
+  "dans",
+  "par",
+  "pour",
+  "vers",
+  "chez",
+  "entre",
+  "après",
+  "avant",
+  "pendant",
+  "depuis",
+  "jusqu",
   // Verbes auxiliaires
-  "est","sont","être","avoir","fait","faire","peut","peuvent","doit",
-  "doivent","va","vont","été","avait","avaient","était","étaient",
-  "sera","seront","ainsi","afin","lors","dont","cela","celui","celle",
-  "ceux","celles","ici","là","alors","puis","donc","enfin","notamment",
-  "notamment","soit","selon","via","dès","dès","lorsque","lorsqu",
+  "est",
+  "sont",
+  "être",
+  "avoir",
+  "fait",
+  "faire",
+  "peut",
+  "peuvent",
+  "doit",
+  "doivent",
+  "va",
+  "vont",
+  "été",
+  "avait",
+  "avaient",
+  "était",
+  "étaient",
+  "sera",
+  "seront",
+  "ainsi",
+  "afin",
+  "lors",
+  "dont",
+  "cela",
+  "celui",
+  "celle",
+  "ceux",
+  "celles",
+  "ici",
+  "là",
+  "alors",
+  "puis",
+  "donc",
+  "enfin",
+  "notamment",
+  "notamment",
+  "soit",
+  "selon",
+  "via",
+  "dès",
+  "dès",
+  "lorsque",
+  "lorsqu",
   // Anglais
-  "the","a","an","and","or","but","if","in","on","at","to","for",
-  "of","with","by","from","this","that","these","those","is","are",
-  "was","were","be","been","have","has","had","do","does","did",
-  "will","would","could","should","may","might","it","its","he",
-  "she","they","we","you","i","my","your","his","her","our","their",
-  "not","no","so","as","about","into","than","then","there","when",
-  "where","which","who","what","how","all","each","both","few",
-  "more","most","other","some","such",
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "but",
+  "if",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "of",
+  "with",
+  "by",
+  "from",
+  "this",
+  "that",
+  "these",
+  "those",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "it",
+  "its",
+  "he",
+  "she",
+  "they",
+  "we",
+  "you",
+  "i",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "not",
+  "no",
+  "so",
+  "as",
+  "about",
+  "into",
+  "than",
+  "then",
+  "there",
+  "when",
+  "where",
+  "which",
+  "who",
+  "what",
+  "how",
+  "all",
+  "each",
+  "both",
+  "few",
+  "more",
+  "most",
+  "other",
+  "some",
+  "such",
+  // Navigation PDF et mots de boutons
+  "suivant",
+  "précédent",
+  "precedent",
+  "cliquez",
+  "lire",
+  "suite",
 ]);
 
 // ── Stop-words académiques IBAM (termes trop génériques pour discriminer) ──
 const ACADEMIC_STOP_WORDS = new Set([
   // Structure de rapport
-  "rapport","stage","presentation","chapitre","figure","tableau",
-  "page","annexe","section","partie","introduction","conclusion",
-  "sommaire","resume","abstract","bibliographie","references",
-  "soutenance","memoire","these",
+  "rapport",
+  "stage",
+  "presentation",
+  "chapitre",
+  "figure",
+  "tableau",
+  "page",
+  "annexe",
+  "section",
+  "partie",
+  "introduction",
+  "conclusion",
+  "sommaire",
+  "resume",
+  "abstract",
+  "bibliographie",
+  "references",
+  "soutenance",
+  "memoire",
+  "these",
   // Termes académiques vides (mots seuls sans contexte)
-  "projet","systeme","analyse","developpement","etude","travail",
-  "objectif","objectifs","problematique","contexte","cadre",
-  "methodologie","approche","solution","resultat","resultats",
-  "perspective","perspectives","recommandation","recommandations",
-  "contribution","contributions","enjeux","besoin","besoins",
-  "fonctionnalite","fonctionnalites","module","modules",
-  "mise","place","realisation","implementation",
+  "projet",
+  "systeme",
+  "analyse",
+  "developpement",
+  "etude",
+  "travail",
+  "objectif",
+  "objectifs",
+  "problematique",
+  "contexte",
+  "cadre",
+  "methodologie",
+  "approche",
+  "solution",
+  "resultat",
+  "resultats",
+  "perspective",
+  "perspectives",
+  "recommandation",
+  "recommandations",
+  "contribution",
+  "contributions",
+  "enjeux",
+  "besoin",
+  "besoins",
+  "fonctionnalite",
+  "fonctionnalites",
+  "module",
+  "modules",
+  "mise",
+  "place",
+  "realisation",
+  "implementation",
   // Institutions et lieux
-  "ibam","ujkz","burkina","faso","ouagadougou",
-  "universite","institut","ecole","departement","filiere",
+  "ibam",
+  "ujkz",
+  "burkina",
+  "faso",
+  "ouagadougou",
+  "universite",
+  "institut",
+  "ecole",
+  "departement",
+  "filiere",
   // Mots de liaison académique
-  "permet","permettre","permettant","afin","notamment","ainsi",
-  "cependant","toutefois","neanmoins","egalement",
-  "differents","differentes","plusieurs","certains","certaines",
-  "important","importante","importants","importantes",
-  "general","generale","generaux","generales",
-  "niveau","niveaux","type","types","forme","formes",
-  "cas","exemple","exemples","point","points",
+  "permet",
+  "permettre",
+  "permettant",
+  "afin",
+  "notamment",
+  "ainsi",
+  "cependant",
+  "toutefois",
+  "neanmoins",
+  "egalement",
+  "differents",
+  "differentes",
+  "plusieurs",
+  "certains",
+  "certaines",
+  "important",
+  "importante",
+  "importants",
+  "importantes",
+  "general",
+  "generale",
+  "generaux",
+  "generales",
+  "niveau",
+  "niveaux",
+  "type",
+  "types",
+  "forme",
+  "formes",
+  "cas",
+  "exemple",
+  "exemples",
+  "point",
+  "points",
   // ── Bucket C : Filières IBAM (à ignorer — déjà connues via profil) ──────
-  "miage","cca","agro","agriculture","comptabilite","controle","audit",
-  "informatique","genie","logiciel","reseaux","telecommunication",
-  "finance","marketing","management","commerce","economie",
+  "miage",
+  "cca",
+  "agro",
+  "agriculture",
+  "comptabilite",
+  "controle",
+  "audit",
+  "informatique",
+  "genie",
+  "logiciel",
+  "reseaux",
+  "telecommunication",
+  "finance",
+  "marketing",
+  "management",
+  "commerce",
+  "economie",
   // ── OS et environnements (bruit technique non discriminant) ─────────────
-  "windows","macos","android","ios","unix","wsl",
-  "ordinateur","serveur","machine","materiel","logiciel",
-  "installation","configuration","environnement","plateforme",
+  "windows",
+  "macos",
+  "android",
+  "ios",
+  "unix",
+  "wsl",
+  "ordinateur",
+  "serveur",
+  "machine",
+  "materiel",
+  "logiciel",
+  "installation",
+  "configuration",
+  "environnement",
+  "plateforme",
   // Termes CRM/ERP génériques sans contexte
-  "utilisateur","utilisateurs","client","clients","admin",
-  "interface","application","applications","web","mobile",
-  "base","donnees","donnee","information","informations",
+  "utilisateur",
+  "utilisateurs",
+  "client",
+  "clients",
+  "admin",
+  "interface",
+  "application",
+  "applications",
+  "web",
+  "mobile",
+  "base",
+  "donnees",
+  "donnee",
+  "information",
+  "informations",
 ]);
 
 // ── Bucket B : Technologies discriminantes (à isoler, pas à mélanger au sujet)
 const TECH_KEYWORDS = new Set([
   // Langages
-  "java","python","javascript","typescript","php","kotlin","swift",
-  "csharp","cpp","ruby","golang","rust","scala","dart","flutter",
+  "java",
+  "python",
+  "javascript",
+  "typescript",
+  "php",
+  "kotlin",
+  "swift",
+  "csharp",
+  "cpp",
+  "ruby",
+  "golang",
+  "rust",
+  "scala",
+  "dart",
+  "flutter",
   // Frameworks web
-  "react","angular","vuejs","nextjs","nodejs","express","django",
-  "laravel","symfony","spring","springboot","fastapi","nestjs",
+  "react",
+  "angular",
+  "vuejs",
+  "nextjs",
+  "nodejs",
+  "express",
+  "django",
+  "laravel",
+  "symfony",
+  "spring",
+  "springboot",
+  "fastapi",
+  "nestjs",
   // Bases de données
-  "mysql","postgresql","mongodb","redis","sqlite","oracle",
-  "mariadb","cassandra","elasticsearch","firebase",
+  "mysql",
+  "postgresql",
+  "mongodb",
+  "redis",
+  "sqlite",
+  "oracle",
+  "mariadb",
+  "cassandra",
+  "elasticsearch",
+  "firebase",
   // DevOps / Infrastructure (Linux retiré — trop générique)
-  "docker","kubernetes","jenkins","gitlab","github","ansible",
-  "terraform","nginx","apache","ubuntu","debian",
+  "docker",
+  "kubernetes",
+  "jenkins",
+  "gitlab",
+  "github",
+  "ansible",
+  "terraform",
+  "nginx",
+  "apache",
+  "ubuntu",
+  "debian",
   // Sécurité / Auth
-  "keycloak","oauth","jwt","ldap","ssl","tls","https","saml",
+  "keycloak",
+  "oauth",
+  "jwt",
+  "ldap",
+  "ssl",
+  "tls",
+  "https",
+  "saml",
   // Méthodes / Modélisation
-  "merise","uml","agile","scrum","kanban","devops","cicd",
-  "mvc","api","rest","graphql","microservices","erp","crm",
+  "merise",
+  "uml",
+  "agile",
+  "scrum",
+  "kanban",
+  "devops",
+  "cicd",
+  "mvc",
+  "api",
+  "rest",
+  "graphql",
+  "microservices",
+  "erp",
+  "crm",
   // Outils métier nommés
-  "dolibarr","odoo","sap","salesforce","jira","trello",
-  "powerbi","tableau","excel","word","powerpoint",
+  "dolibarr",
+  "odoo",
+  "sap",
+  "salesforce",
+  "jira",
+  "trello",
+  "powerbi",
+  "tableau",
+  "excel",
+  "word",
+  "powerpoint",
 ]);
 
 // ── Bucket A : Verbes d'action fonctionnels (boostent les n-grammes qui les contiennent)
 const ACTION_VERBS = new Set([
-  "conception","realisation","optimisation","modernisation",
-  "automatisation","numerisation","digitalisation","securisation",
-  "integration","deploiement","migration","refonte",
-  "suivi","traçabilite","tracabilite","gestion","pilotage",
+  "conception",
+  "realisation",
+  "optimisation",
+  "modernisation",
+  "automatisation",
+  "numerisation",
+  "digitalisation",
+  "securisation",
+  "integration",
+  "deploiement",
+  "migration",
+  "refonte",
+  "suivi",
+  "traçabilite",
+  "tracabilite",
+  "gestion",
+  "pilotage",
 ]);
 
 // ── Domaines métier fonctionnels (Bucket A — sujets discriminants) ─────────
 const FUNCTIONAL_DOMAINS = new Set([
-  "facturation","paie","stock","inventaire","commande","commandes",
-  "livraison","approvisionnement","achat","achats","vente","ventes",
-  "medical","sante","patient","patients","consultation","consultations",
-  "rendez","rdv","prescription","pharmacie",
-  "rh","recrutement","conge","conges","salaire","salaires",
-  "logistique","transport","livraison","expedition",
-  "comptabilite","tresorerie","budget","depense","depenses",
-  "securite","authentification","autorisation","acces",
-  "reseau","infrastructure","surveillance","monitoring",
-  "ecommerce","boutique","catalogue","panier",
-  "formation","apprentissage","evaluation","note","notes",
-  "bibliotheque","document","documents","archivage",
-  "election","vote","scrutin","candidat",
-  "agriculture","elevage","recolte","culture",
-  "energie","eau","electricite","solaire",
+  "facturation",
+  "paie",
+  "stock",
+  "inventaire",
+  "commande",
+  "commandes",
+  "livraison",
+  "approvisionnement",
+  "achat",
+  "achats",
+  "vente",
+  "ventes",
+  "medical",
+  "sante",
+  "patient",
+  "patients",
+  "consultation",
+  "consultations",
+  "rendez",
+  "rdv",
+  "prescription",
+  "pharmacie",
+  "rh",
+  "recrutement",
+  "conge",
+  "conges",
+  "salaire",
+  "salaires",
+  "logistique",
+  "transport",
+  "livraison",
+  "expedition",
+  "comptabilite",
+  "tresorerie",
+  "budget",
+  "depense",
+  "depenses",
+  "securite",
+  "authentification",
+  "autorisation",
+  "acces",
+  "reseau",
+  "infrastructure",
+  "surveillance",
+  "monitoring",
+  "ecommerce",
+  "boutique",
+  "catalogue",
+  "panier",
+  "formation",
+  "apprentissage",
+  "evaluation",
+  "note",
+  "notes",
+  "bibliotheque",
+  "document",
+  "documents",
+  "archivage",
+  "election",
+  "vote",
+  "scrutin",
+  "candidat",
+  "agriculture",
+  "elevage",
+  "recolte",
+  "culture",
+  "energie",
+  "eau",
+  "electricite",
+  "solaire",
 ]);
 
 // Boost multiplicateur
-const TECH_BOOST = 2.2;        // Bucket B
-const ACTION_BOOST = 2.8;      // Verbes d'action fonctionnels
-const FUNCTIONAL_BOOST = 2.0;  // Domaines métier
+const TECH_BOOST = 2.2; // Bucket B
+const ACTION_BOOST = 2.8; // Verbes d'action fonctionnels
+const FUNCTIONAL_BOOST = 2.0; // Domaines métier
 const CAPITALIZED_BOOST = 1.5; // NER léger
 
 function stripHTML(text: string): string {
@@ -202,7 +651,10 @@ function normalizeWord(word: string): string {
 function normalize(text: string): string {
   return stripHTML(text)
     .toLowerCase()
-    .replace(/[^\w\s\u00e0\u00e2\u00e9\u00e8\u00ea\u00eb\u00ee\u00ef\u00f4\u00f9\u00fb\u00fc\u00e7]/g, " ")
+    .replace(
+      /[^\w\s\u00e0\u00e2\u00e9\u00e8\u00ea\u00eb\u00ee\u00ef\u00f4\u00f9\u00fb\u00fc\u00e7]/g,
+      " ",
+    )
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -210,7 +662,11 @@ function normalize(text: string): string {
 /** Détecte si un mot commence par une majuscule en milieu de phrase (NER léger) */
 function isCapitalizedMidSentence(rawWord: string, position: number): boolean {
   if (position === 0) return false;
-  return rawWord.length > 2 && rawWord[0] === rawWord[0].toUpperCase() && rawWord[0] !== rawWord[0].toLowerCase();
+  return (
+    rawWord.length > 2 &&
+    rawWord[0] === rawWord[0].toUpperCase() &&
+    rawWord[0] !== rawWord[0].toLowerCase()
+  );
 }
 
 function isValidToken(normalized: string): boolean {
@@ -223,14 +679,13 @@ function isValidToken(normalized: string): boolean {
 }
 
 function tokenize(text: string): string[] {
-  return normalize(text)
-    .split(/\s+/)
-    .map(normalizeWord)
-    .filter(isValidToken);
+  return normalize(text).split(/\s+/).map(normalizeWord).filter(isValidToken);
 }
 
 /** Tokenize en conservant les mots bruts pour la détection NER */
-function tokenizeWithRaw(text: string): Array<{ norm: string; raw: string; pos: number }> {
+function tokenizeWithRaw(
+  text: string,
+): Array<{ norm: string; raw: string; pos: number }> {
   const raw = stripHTML(text).split(/\s+/);
   const result: Array<{ norm: string; raw: string; pos: number }> = [];
   raw.forEach((word, pos) => {
@@ -264,44 +719,87 @@ function extractNgrams(
 
 /**
  * Tente d'extraire le sujet déclaré sur la page de garde.
- * Cherche les patterns : THÈME :, SUJET :, TITRE :, INTITULÉ :
+ * Essaie plusieurs patterns: THÈME, SUJET, TITRE, INTITULÉ, EXPOSÉ
+ * Cherche l'ancre de fin: "Présenté par", "Auteur:", "Par:" ou fin du texte si absent
  */
 function extractCoverPageSubject(text: string): string | null {
-  const flat = text.replace(/\r/g, " ").replace(/\n+/g, " ").replace(/\s+/g, " ").trim();
-  const lower = flat.toLowerCase();
-  const themeAnchors = ["theme :", "thème :", "theme:", "thème:", "sujet :", "sujet:", "intitulé :", "titre :"];
-  const endAnchors = ["présenté par", "presente par", "réalisé par", "encadreur", "directeur", "jury", "année acad"];
-  for (const anchor of themeAnchors) {
-    const idx = lower.indexOf(anchor);
-    if (idx === -1) continue;
-    const start = idx + anchor.length;
-    let end = flat.length;
-    for (const ea of endAnchors) {
-      const ei = lower.indexOf(ea, start);
-      if (ei !== -1 && ei < end) end = ei;
-    }
-    const candidate = flat.slice(start, end).replace(/[^\w\s\u00c0-\u024f'"():,.-]/g, " ").replace(/\s+/g, " ").trim();
-    if (candidate.length >= 10 && candidate.length <= 300) return candidate;
+  const flat = text
+    .replace(/\r/g, " ")
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Essayer plusieurs patterns d'ancre de début (ignore "Suivant" en début de capture)
+  const startPatterns = [
+    /th[eèê]me\s*[:\-]?\s*(?:suivant\s*[:\-]?\s*)?([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /suj[eé]t\s*[:\-]?\s*(?:suivant\s*[:\-]?\s*)?([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /titre\s*[:\-]?\s*(?:suivant\s*[:\-]?\s*)?([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /intitul[eé]\s*[:\-]?\s*(?:suivant\s*[:\-]?\s*)?([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+    /expos[eé]\s*[:\-]?\s*(?:suivant\s*[:\-]?\s*)?([\s\S]+?)(?=pr[eéê]sent[eéê]\s+par|auteur\s*:|par\s*:|$)/i,
+  ];
+
+  for (const pattern of startPatterns) {
+    const match = flat.match(pattern);
+    if (!match?.[1]) continue;
+
+    const candidate = match[1]
+      .replace(/[^\w\s\u00c0-\u024f'"():,.-]/g, " ")
+      .replace(/\s+/g, " ")
+      // Nettoie les résidus de navigation et IBAM
+      .replace(
+        /^(suivant|pr[eé]c[eé]dent|page\s*\d+|chapitre|titre|cliquez|retour|lire|suite)\s*[:\-]?\s*/i,
+        "",
+      )
+      .replace(
+        /(option\s*:?[\s\-]?m\.?i\.?a\.?g\.?e|m\.?i\.?a\.?g\.?e|institut burkinab[eé]|ujkz|universit[eé].*ki\-zerbo)/gi,
+        "",
+      )
+      .trim();
+
+    // Limiter la longueur (ne pas prendre plusieurs paragraphes)
+    const firstSentenceEnd = candidate.search(/\n|\.(?=\s|$)/);
+    const truncated =
+      firstSentenceEnd > 0 ? candidate.slice(0, firstSentenceEnd) : candidate;
+
+    if (truncated.length >= 10 && truncated.length <= 300) return truncated;
   }
+
   return null;
 }
 
 /** Classe un token dans son bucket */
-function classifyToken(norm: string): "tech" | "action" | "functional" | "generic" {
+function classifyToken(
+  norm: string,
+): "tech" | "action" | "functional" | "generic" {
   if (TECH_KEYWORDS.has(norm)) return "tech";
   if (ACTION_VERBS.has(norm)) return "action";
   if (FUNCTIONAL_DOMAINS.has(norm)) return "functional";
   return "generic";
 }
 
-/** Vérifie si un n-gramme contient au moins un token d'action ou fonctionnel */
+/** Vérifie si un n-gramme contient au least un token d'action ou fonctionnel */
 function ngramHasSubjectSignal(words: string[]): boolean {
   return words.some((w) => ACTION_VERBS.has(w) || FUNCTIONAL_DOMAINS.has(w));
 }
 
-/** Vérifie si un n-gramme contient au moins un token tech */
+/** Vérifie si un n-gramme contient au least un token tech */
 function ngramHasTechSignal(words: string[]): boolean {
   return words.some((w) => TECH_KEYWORDS.has(w));
+}
+
+/** Rejette les candidats qui ne sont probablement pas des sujets réels (bruits génériques) */
+function isLikelySubjectCandidate(phrase: string): boolean {
+  const lower = phrase.toLowerCase();
+  // Rejeter s'il ressemble à une liste ou section de document
+  const noisePatterns = [
+    /^(structures?|elements?|items?|membres?|ressources?|moyens?|outils?|materiel)/i,
+    /^(formation|accueil|pedagogie|methode|evaluation|comptabilite)/i,
+    /^(sommaire|introduction|conclusion|resume|abstract|remerciements)/i,
+    /d[''']?accueil$/, // Finit par "d'accueil" (structures formation d'accueil, etc)
+    /^(et|ou|de|du|des)[\s]+/, // Commence par conjonction ou article (indice de liste)
+  ];
+
+  return !noisePatterns.some((pattern) => pattern.test(lower));
 }
 
 function splitSentences(text: string): string[] {
@@ -418,7 +916,9 @@ export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
   const coocMap = computeCooccurrenceScore(tokens);
 
   const freqMap: Record<string, number> = {};
-  tokens.forEach((w) => { freqMap[w] = (freqMap[w] ?? 0) + 1; });
+  tokens.forEach((w) => {
+    freqMap[w] = (freqMap[w] ?? 0) + 1;
+  });
 
   const maxTFIDF = Math.max(...Object.values(tfidfMap), 1);
 
@@ -441,7 +941,13 @@ export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
     else if (bucket === "functional") score *= FUNCTIONAL_BOOST;
     else if (capitalizedMidSentence.has(word)) score *= CAPITALIZED_BOOST;
 
-    scored.push({ word, tfidf, cooccurrence: cooc, score, frequency: freqMap[word] ?? 0 });
+    scored.push({
+      word,
+      tfidf,
+      cooccurrence: cooc,
+      score,
+      frequency: freqMap[word] ?? 0,
+    });
   });
 
   scored.sort((a, b) => b.score - a.score);
@@ -456,21 +962,30 @@ export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
   // Trigrammes tech
   for (const { phrase } of trigrams) {
     if (techStack.length >= 4) break;
-    if (ngramHasTechSignal(phrase.split(" ")) && !ngramHasSubjectSignal(phrase.split(" "))) {
+    if (
+      ngramHasTechSignal(phrase.split(" ")) &&
+      !ngramHasSubjectSignal(phrase.split(" "))
+    ) {
       techStack.push(phrase);
     }
   }
   // Bigrammes tech
   for (const { phrase } of bigrams) {
     if (techStack.length >= 4) break;
-    if (ngramHasTechSignal(phrase.split(" ")) && !ngramHasSubjectSignal(phrase.split(" "))) {
+    if (
+      ngramHasTechSignal(phrase.split(" ")) &&
+      !ngramHasSubjectSignal(phrase.split(" "))
+    ) {
       techStack.push(phrase);
     }
   }
   // Mots tech seuls (fallback)
   for (const kw of keywords) {
     if (techStack.length >= 4) break;
-    if (classifyToken(kw.word) === "tech" && !techStack.some((t) => t.includes(kw.word))) {
+    if (
+      classifyToken(kw.word) === "tech" &&
+      !techStack.some((t) => t.includes(kw.word))
+    ) {
       techStack.push(kw.word);
     }
   }
@@ -499,18 +1014,26 @@ export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
     }
   }
 
-  // Priorité 4 : trigrammes fréquents sans tech (sujet générique)
+  // Priorité 4 : trigrammes fréquents sans tech (sujet générique) - mais DOIT passer isLikelySubjectCandidate
   for (const { phrase } of trigrams) {
     if (subjectCandidates.length >= 3) break;
-    if (!ngramHasTechSignal(phrase.split(" ")) && !subjectCandidates.includes(phrase)) {
+    if (
+      !ngramHasTechSignal(phrase.split(" ")) &&
+      isLikelySubjectCandidate(phrase) &&
+      !subjectCandidates.includes(phrase)
+    ) {
       subjectCandidates.push(phrase);
     }
   }
 
-  // Priorité 5 : bigrammes fréquents sans tech
+  // Priorité 5 : bigrammes fréquents sans tech - mais DOIT passer isLikelySubjectCandidate
   for (const { phrase } of bigrams) {
     if (subjectCandidates.length >= 3) break;
-    if (!ngramHasTechSignal(phrase.split(" ")) && !subjectCandidates.includes(phrase)) {
+    if (
+      !ngramHasTechSignal(phrase.split(" ")) &&
+      isLikelySubjectCandidate(phrase) &&
+      !subjectCandidates.includes(phrase)
+    ) {
       subjectCandidates.push(phrase);
     }
   }
@@ -530,7 +1053,9 @@ export function analyzeTheme(doc: RawDocument, topK = 15): ThemeProfile {
   const dominantTheme = labelParts.join(" | ") || "indéterminé";
 
   const themeVector: Record<string, number> = {};
-  keywords.forEach((kw) => { themeVector[kw.word] = kw.score; });
+  keywords.forEach((kw) => {
+    themeVector[kw.word] = kw.score;
+  });
 
   return {
     documentName: doc.name,

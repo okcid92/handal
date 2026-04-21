@@ -365,13 +365,24 @@ function ReportCard({
               background: "rgba(22,163,74,0.07)",
             }}
           >
-            {isValidating ? "Validation..." : (
-              <><CheckCircle className="h-3.5 w-3.5" /> Valider Mémoire Final</>
+            {isValidating ? (
+              "Validation..."
+            ) : (
+              <>
+                <CheckCircle className="h-3.5 w-3.5" /> Valider Mémoire Final
+              </>
             )}
           </button>
         )}
         {report.isReference && (
-          <span className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold" style={{ borderColor: "rgba(22,163,74,0.35)", color: "#15803d", background: "rgba(22,163,74,0.07)" }}>
+          <span
+            className="inline-flex items-center gap-1 rounded-xl border px-3 py-2 text-xs font-bold"
+            style={{
+              borderColor: "rgba(22,163,74,0.35)",
+              color: "#15803d",
+              background: "rgba(22,163,74,0.07)",
+            }}
+          >
             <CheckCircle className="h-3.5 w-3.5" /> Référence
           </span>
         )}
@@ -444,7 +455,9 @@ export function CDTracker({
   const [loadingDocumentId, setLoadingDocumentId] = useState<string | null>(
     null,
   );
-  const [validatingReportId, setValidatingReportId] = useState<string | null>(null);
+  const [validatingReportId, setValidatingReportId] = useState<string | null>(
+    null,
+  );
 
   // Validation
   const [decision, setDecision] = useState<"approved" | "rejected">("approved");
@@ -527,10 +540,15 @@ export function CDTracker({
     try {
       await apiFetch(`/api/reports/${report.id}/deliberate`, {
         method: "POST",
-        body: JSON.stringify({ decision: "final_validation", notes: "Mémoire validé — promu en référence" }),
+        body: JSON.stringify({
+          decision: "final_validation",
+          notes: "Mémoire validé — promu en référence",
+        }),
       });
       onNotify(`Mémoire #${report.id} validé et promu en référence.`);
-      const refreshed = await apiFetch<{ reports: ReportSummary[] }>("/api/reports");
+      const refreshed = await apiFetch<{ reports: ReportSummary[] }>(
+        "/api/reports",
+      );
       onReportsRefresh(refreshed.reports);
     } catch (err) {
       onNotify(err instanceof Error ? err.message : "Erreur validation", false);
@@ -581,7 +599,7 @@ export function CDTracker({
     <div className="flex flex-col h-full">
       {/* ── Topbar ── */}
       <div
-        className="sticky top-0 z-10 flex items-center gap-4 border-b px-8 py-4"
+        className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b px-4 py-3 sm:px-8 sm:py-4"
         style={{
           borderColor: "var(--line)",
           background: "rgba(247,241,232,0.94)",
@@ -601,7 +619,7 @@ export function CDTracker({
           </h1>
         </div>
         {showSearch && (
-          <div className="relative w-72">
+          <div className="relative w-full sm:w-72">
             <Search
               className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 pointer-events-none"
               style={{ color: "var(--text-soft)" }}
@@ -628,7 +646,7 @@ export function CDTracker({
       </div>
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
         <div className="mx-auto max-w-4xl space-y-6">
           {/* ── Dashboard ── */}
           {view === "dashboard" && (
@@ -636,7 +654,7 @@ export function CDTracker({
               <SectionHeader icon={LayoutDashboard} title="Vue d'ensemble" />
 
               {/* KPIs */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {[
                   {
                     label: "Thèmes en attente",
@@ -1030,9 +1048,7 @@ export function CDTracker({
           )}
 
           {/* ── Catalogue des Thèmes ── */}
-          {view === "catalogue" && (
-            <ThemeCatalogue />
-          )}
+          {view === "catalogue" && <ThemeCatalogue />}
 
           {/* ── Archives ── */}
           {view === "archives" && (
