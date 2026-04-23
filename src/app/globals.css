@@ -20,8 +20,8 @@
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
-  --font-sans: var(--font-display);
-  --font-mono: var(--font-mono);
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-display);
 }
 
 * {
@@ -36,7 +36,7 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-display), "Segoe UI", sans-serif;
+  font-family: var(--font-body), "Segoe UI", sans-serif;
   margin: 0;
   background-image:
     radial-gradient(
