@@ -17,6 +17,29 @@ function getRequestOrigin(request: Request) {
   );
 }
 
+function getEffectiveRequestUrl(request: Request) {
+  const requestUrl = new URL(request.url);
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const host = request.headers.get("host");
+
+  if (forwardedHost) {
+    requestUrl.host = forwardedHost.split(",")[0].trim();
+  } else if (host) {
+    requestUrl.host = host.split(",")[0].trim();
+  }
+
+  if (forwardedProto) {
+    requestUrl.protocol = `${forwardedProto.split(",")[0].trim()}:`;
+  }
+
+  return requestUrl;
+}
+
+function isNgrokHost(hostname: string) {
+  return hostname.endsWith(".ngrok-free.app") || hostname.endsWith(".ngrok.io");
+}
+
 function isLoopbackHost(hostname: string) {
   return hostname === "localhost" || hostname === "127.0.0.1";
 }
@@ -55,10 +78,20 @@ export function assertSameOrigin(request: Request) {
     return;
   }
 
-  const requestUrl = new URL(request.url);
+  const requestUrl = getEffectiveRequestUrl(request);
   const normalizedOrigin = new URL(origin, request.url);
 
   if (hasTrustedOrigin(normalizedOrigin.origin)) {
+    return;
+  }
+
+  // In development behind tunnels/reverse proxies, protocol can differ
+  // (https public tunnel -> http local server) while host remains the same.
+  if (
+    process.env.NODE_ENV !== "production" &&
+    isNgrokHost(normalizedOrigin.hostname) &&
+    normalizedOrigin.hostname === requestUrl.hostname
+  ) {
     return;
   }
 
