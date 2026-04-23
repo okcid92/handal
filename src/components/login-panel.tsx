@@ -15,10 +15,22 @@ type LoginResponse = {
 const DEMO_PASSWORD = "mon926732";
 
 const demoAccounts = {
-  student: { label: "Etudiant", login: "N01331820231", password: DEMO_PASSWORD },
-  teacher: { label: "Enseignant", login: "teacher@handal.local", password: DEMO_PASSWORD },
+  student: {
+    label: "Etudiant",
+    login: "N01331820231",
+    password: DEMO_PASSWORD,
+  },
+  teacher: {
+    label: "Enseignant",
+    login: "teacher@handal.local",
+    password: DEMO_PASSWORD,
+  },
   da: { label: "DA", login: "da@handal.local", password: DEMO_PASSWORD },
-  admin: { label: "Admin", login: "admin@handal.local", password: DEMO_PASSWORD },
+  admin: {
+    label: "Admin",
+    login: "admin@handal.local",
+    password: DEMO_PASSWORD,
+  },
 } as const;
 
 type ApiErrorWithCode = Error & { code?: string; status?: number };
@@ -32,8 +44,10 @@ function mapAuthError(error: unknown): string {
   }
   if (code === "INVALID_LOGIN_CHANNEL") {
     const msg = err?.message ?? "";
-    if (msg.includes("INE")) return "Les étudiants doivent se connecter avec leur INE, pas un email.";
-    if (msg.includes("Student")) return "Ce compte étudiant doit utiliser l\u2019onglet \u00ab\u00a0Etudiant\u00a0\u00bb avec son INE.";
+    if (msg.includes("INE"))
+      return "Les étudiants doivent se connecter avec leur INE, pas un email.";
+    if (msg.includes("Student"))
+      return "Ce compte étudiant doit utiliser l\u2019onglet \u00ab\u00a0Etudiant\u00a0\u00bb avec son INE.";
     return "Canal de connexion incorrect pour ce rôle.";
   }
   if (code === "RATE_LIMIT_EXCEEDED" || status === 429) {
@@ -87,15 +101,15 @@ export function LoginPanel() {
   }
 
   return (
-    <section className="rounded-[24px] border border-[#ddd4c4] bg-white p-6 shadow-[0_4px_16px_rgba(30,20,16,0.08)]">
-      <div className="grid grid-cols-2 gap-1 rounded-lg border border-[#ddd4c4] bg-[#f4efe8] p-1">
+    <section className="w-full rounded-[24px] border border-[#ddd4c4] bg-white p-[1.75rem] shadow-[0_6px_22px_rgba(30,20,16,0.1)]">
+      <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-[#ddd4c4] bg-[#f4efe8] p-1.5">
         <button
           type="button"
           onClick={() => {
             setMode("student");
             setLogin(demoAccounts.student.login);
           }}
-          className={`rounded-md px-3 py-2 text-sm font-medium transition ${mode === "student" ? "bg-[#7d1c2a] text-white shadow-[0_1px_4px_rgba(125,28,42,0.25)]" : "text-[#8a7a6e] hover:text-[#1e1410]"}`}
+          className={`rounded-md px-3 py-2.5 text-[1.1rem] font-medium transition ${mode === "student" ? "bg-[#7d1c2a] !text-white shadow-[0_1px_4px_rgba(125,28,42,0.25)]" : "text-[#8a7a6e] hover:text-[#1e1410]"}`}
         >
           Etudiant
         </button>
@@ -105,21 +119,21 @@ export function LoginPanel() {
             setMode("staff");
             setLogin(demoAccounts.teacher.login);
           }}
-          className={`rounded-md px-3 py-2 text-sm font-medium transition ${mode === "staff" ? "bg-[#7d1c2a] text-white shadow-[0_1px_4px_rgba(125,28,42,0.25)]" : "text-[#8a7a6e] hover:text-[#1e1410]"}`}
+          className={`rounded-md px-3 py-2.5 text-[1.1rem] font-medium transition ${mode === "staff" ? "bg-[#7d1c2a] !text-white shadow-[0_1px_4px_rgba(125,28,42,0.25)]" : "text-[#8a7a6e] hover:text-[#1e1410]"}`}
         >
           Personnel
         </button>
       </div>
 
-      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form className="mt-7 space-y-4.5" onSubmit={handleSubmit}>
         <div>
-          <label className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#8a7a6e]">
+          <label className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#6b5649]">
             {mode === "student" ? "INE" : "Email"}
           </label>
           <input
             value={login}
             onChange={(event) => setLogin(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-2.5 text-sm text-[#1e1410] outline-none transition placeholder:text-[#8a7a6e] focus:border-[#7d1c2a] focus:shadow-[0_0_0_3px_rgba(125,28,42,0.08)]"
+            className="mt-2 w-full rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-[0.95rem] text-[1.1rem] text-[#1e1410] outline-none transition placeholder:text-[#6b5649] focus:border-[#7d1c2a] focus:shadow-[0_0_0_3px_rgba(125,28,42,0.08)]"
             placeholder={
               mode === "student" ? "N01331820231" : "teacher@handal.local"
             }
@@ -128,20 +142,20 @@ export function LoginPanel() {
         </div>
 
         <div>
-          <label className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#8a7a6e]">
+          <label className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#6b5649]">
             Mot de passe
           </label>
           <input
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-2.5 text-sm text-[#1e1410] outline-none transition placeholder:text-[#8a7a6e] focus:border-[#7d1c2a] focus:shadow-[0_0_0_3px_rgba(125,28,42,0.08)]"
+            className="mt-2 w-full rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-[0.95rem] text-[1.1rem] text-[#1e1410] outline-none transition placeholder:text-[#6b5649] focus:border-[#7d1c2a] focus:shadow-[0_0_0_3px_rgba(125,28,42,0.08)]"
             autoComplete="current-password"
           />
         </div>
 
         {message ? (
-          <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-[1.1rem] text-rose-900">
             {message}
           </div>
         ) : null}
@@ -149,14 +163,14 @@ export function LoginPanel() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-[9px] bg-[#7d1c2a] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#5c1220] disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-[9px] bg-[#7d1c2a] px-5 py-[0.95rem] text-[1.1rem] font-medium text-white transition hover:bg-[#5c1220] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading ? "Connexion..." : "Se connecter"}
         </button>
       </form>
 
-      <div className="mt-5">
-        <label className="mb-2 block text-[11px] font-medium uppercase tracking-[0.06em] text-[#8a7a6e]">
+      <div className="mt-6">
+        <label className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.06em] text-[#6b5649]">
           Comptes de demonstration
         </label>
         <select
@@ -164,7 +178,7 @@ export function LoginPanel() {
             const selected = e.target.value as keyof typeof demoAccounts;
             if (selected) fillDemoAccount(selected);
           }}
-          className="w-full cursor-pointer rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-2.5 text-sm text-[#5a4a3a] outline-none transition focus:border-[#7d1c2a]"
+          className="w-full cursor-pointer rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-[0.95rem] text-[1.1rem] text-[#3f2d24] outline-none transition focus:border-[#7d1c2a]"
         >
           <option value="">Choisir un compte...</option>
           {Object.entries(demoAccounts).map(([key, account]) => (
