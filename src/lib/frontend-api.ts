@@ -51,6 +51,12 @@ export async function apiFetch<T>(
     const errorPayload = data as ApiErrorPayload;
     const message = errorPayload.error?.message ?? "Request failed";
     const code = errorPayload.error?.code;
+
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.location.href = "/";
+      await new Promise(() => {});
+    }
+
     const err = new Error(message) as Error & { code?: string; status?: number };
     err.code = code;
     err.status = response.status;

@@ -7,15 +7,17 @@ import {
   LogOut,
   GraduationCap,
   BookOpen,
+  Library,
 } from "lucide-react";
 import { HandalLogo } from "./HandalLogo";
 
-export type DaView = "dashboard" | "reports" | "deliberation";
+export type DaView = "dashboard" | "reports" | "deliberation" | "reference-library";
 
 const NAV: { id: DaView; label: string; icon: React.ElementType }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { id: "reports", label: "Rapports finaux", icon: FileSearch },
   { id: "deliberation", label: "Délibérations", icon: Scale },
+  { id: "reference-library", label: "Base de Référence", icon: Library },
 ];
 
 type Props = {
@@ -48,7 +50,7 @@ export function DALayout({
         }}
       >
         {/* Logo */}
-        <div className="border-b" style={{ borderColor: "var(--line)" }}>
+        <div style={{ borderBottom: "1px solid var(--line)" }}>
           <HandalLogo
             subtitle="Direction Académique"
             href="/da"
@@ -58,12 +60,12 @@ export function DALayout({
 
         {/* Profil */}
         <div
-          className="border-b px-6 py-4"
-          style={{ borderColor: "var(--line)" }}
+          className="px-6 py-4"
+          style={{ borderBottom: "1px solid var(--line)" }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-3">
             <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
               style={{ background: "rgba(123,36,56,0.10)" }}
             >
               <GraduationCap
@@ -73,18 +75,28 @@ export function DALayout({
             </div>
             <div className="min-w-0">
               <p
-                className="truncate text-sm font-bold"
+                className="truncate text-sm font-extrabold"
                 style={{ color: "var(--foreground)" }}
               >
                 {userName}
               </p>
               <p
-                className="text-[10px] font-semibold uppercase tracking-wider"
-                style={{ color: "var(--text-soft)" }}
+                className="text-[10px] font-bold uppercase tracking-wider"
+                style={{ color: "var(--primary)" }}
               >
                 Direction Académique
               </p>
             </div>
+          </div>
+          <div
+            className="rounded-lg px-3 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider"
+            style={{
+              background: "rgba(123,36,56,0.07)",
+              color: "var(--primary)",
+              border: "1px solid rgba(123,36,56,0.18)",
+            }}
+          >
+            Délibération finale
           </div>
           <button
             type="button"
@@ -167,21 +179,27 @@ export function DALayout({
           >
             Ressources
           </p>
-          <a
-            href="/da/reference-library"
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition"
-            style={{ color: "var(--foreground)", background: "transparent" }}
+          <button
+            type="button"
+            onClick={() => onViewChange("reference-library")}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all"
+            style={{
+              color: "var(--foreground)",
+              background: view === "reference-library" ? "var(--primary)" : "transparent",
+              ...(view === "reference-library" ? { color: "#fff", boxShadow: "0 4px 14px rgba(123,36,56,0.22)" } : {}),
+            }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background =
-                "rgba(123,36,56,0.07)";
+              if (view !== "reference-library")
+                (e.currentTarget as HTMLElement).style.background = "rgba(123,36,56,0.07)";
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background = "transparent";
+              if (view !== "reference-library")
+                (e.currentTarget as HTMLElement).style.background = "transparent";
             }}
           >
             <BookOpen className="h-4 w-4 shrink-0" />
             <span className="flex-1 text-left">Base de Référence</span>
-          </a>
+          </button>
         </nav>
 
         {/* Stats */}
@@ -267,22 +285,13 @@ export function DALayout({
                   style={
                     active
                       ? { background: "var(--primary)", color: "#fff" }
-                      : {
-                          background: "rgba(123,36,56,0.08)",
-                          color: "var(--primary)",
-                        }
+                      : { background: "rgba(123,36,56,0.08)", color: "var(--primary)" }
                   }
                 >
                   {label}
                 </button>
               );
             })}
-            <a
-              href="/da/reference-library"
-              className="shrink-0 rounded-lg border border-[#7b2438]/20 bg-[#f8f2e8] px-3 py-1.5 text-xs font-semibold text-[#7b2438]"
-            >
-              Base de Référence
-            </a>
           </div>
         </div>
         {children}

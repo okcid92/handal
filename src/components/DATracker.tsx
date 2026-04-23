@@ -11,9 +11,11 @@ import {
   TrendingUp,
   FileText,
   ChevronRight,
+  BookOpen,
 } from "lucide-react";
 import type { DaView } from "./DALayout";
 import { apiFetch } from "@/lib/frontend-api";
+import { ReferenceLibraryViewer } from "./reference-library-viewer";
 
 type ReportRow = {
   id: string;
@@ -193,6 +195,62 @@ function SectionHeader({
   );
 }
 
+function KpiCard({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "ok" | "warn" | "danger";
+}) {
+  const toneStyles = {
+    neutral: {
+      borderColor: "rgba(123,36,56,0.12)",
+      background: "rgba(123,36,56,0.07)",
+      color: "var(--foreground)",
+    },
+    ok: {
+      borderColor: "rgba(22,163,74,0.24)",
+      background: "rgba(22,163,74,0.08)",
+      color: "#166534",
+    },
+    warn: {
+      borderColor: "rgba(201,138,47,0.28)",
+      background: "rgba(201,138,47,0.14)",
+      color: "#9a6a28",
+    },
+    danger: {
+      borderColor: "rgba(220,38,38,0.22)",
+      background: "rgba(220,38,38,0.10)",
+      color: "#b91c1c",
+    },
+  }[tone];
+
+  return (
+    <div
+      className="rounded-2xl border-2 px-4 py-3"
+      style={{
+        borderColor: toneStyles.borderColor,
+        background: toneStyles.background,
+      }}
+    >
+      <p
+        className="text-[10px] font-bold uppercase tracking-widest"
+        style={{ color: "var(--text-soft)" }}
+      >
+        {label}
+      </p>
+      <p
+        className="mt-1 text-2xl font-extrabold"
+        style={{ color: toneStyles.color }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 // ── Main DATracker ─────────────────────────────────────────────
 export function DATracker({
   view,
@@ -225,6 +283,12 @@ export function DATracker({
     );
   }, [reports, search]);
 
+  const highRiskCount = reports.filter((r) => r.riskLevel === "HIGH").length;
+  const mediumRiskCount = reports.filter(
+    (r) => r.riskLevel === "MEDIUM",
+  ).length;
+  const lowRiskCount = reports.filter((r) => r.riskLevel === "LOW").length;
+
   async function deliberate(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedReport) return;
@@ -252,6 +316,28 @@ export function DATracker({
   }
 
   const showSearch = view === "reports" || view === "dashboard";
+
+  const recentActivity = useMemo(() => {
+    return reports
+      .slice()
+      .sort(
+        (a, b) =>
+          new Date(b.analyzedAt).getTime() - new Date(a.analyzedAt).getTime(),
+      )
+      .slice(0, 5)
+      .map((r) => ({
+        id: r.id,
+        color:
+          r.riskLevel === "HIGH"
+            ? "#7D1C2A"
+            : r.riskLevel === "MEDIUM"
+              ? "#c98a2f"
+              : "#16a34a",
+        text: `Rapport #${r.id} — ${r.student ? `${r.student.firstName} ${r.student.lastName}` : `Doc #${r.documentId}`}`,
+        risk: r.riskLevel,
+        when: new Date(r.analyzedAt),
+      }));
+  }, [reports]);
 
   return (
     <div className="flex flex-col h-full">
@@ -305,53 +391,269 @@ export function DATracker({
         <div className="mx-auto max-w-5xl space-y-6">
           {/* ── Dashboard ── */}
           {view === "dashboard" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  {
-                    label: "Rapports à traiter",
-                    value: reports.length,
-                    urgent: reports.length > 0,
-                  },
-                  {
-                    label: "Résultats filtrés",
-                    value: filtered.length,
-                    urgent: false,
-                  },
-                  { label: "Session", value: "Active", urgent: false },
-                ].map(({ label, value, urgent }) => (
+            <div className="space-y-5">
+              <SectionHeader
+                icon={LayoutDashboard}
+                title="Vue d'ensemble DA"
+                subtitle="Pilotage des rapports et préparation de la délibération finale"
+              />
+
+              {/* Alert banner */}
+              <div
+                className="rounded-2xl px-5 py-4 text-white"
+                style={{ background: "#7D1C2A" }}
+              >
+                <div className="flex flex-col gap-3 md:flex-row md:items-center">
                   <div
-                    key={label}
-                    className="rounded-2xl border-2 bg-white p-5"
-                    style={{ borderColor: "rgba(123,36,56,0.12)" }}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                    style={{ background: "rgba(255,255,255,0.14)" }}
                   >
-                    <p
-                      className="text-xs font-bold uppercase tracking-widest mb-2"
-                      style={{ color: "var(--text-soft)" }}
-                    >
-                      {label}
-                    </p>
-                    <p
-                      className="text-3xl font-extrabold"
-                      style={{
-                        color: urgent ? "var(--primary)" : "var(--foreground)",
-                      }}
-                    >
-                      {value}
+                    <LayoutDashboard className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-sm font-semibold">
+                      {reports.length} rapport{reports.length > 1 ? "s" : ""} en
+                      attente de délibération
+                    </h2>
+                    <p className="text-xs text-white/75">
+                      {highRiskCount} à risque élevé · {mediumRiskCount} à
+                      risque moyen · {lowRiskCount} à risque faible
                     </p>
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReport(filtered[0] ?? null)}
+                    disabled={filtered.length === 0}
+                    className="rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                    style={{
+                      borderColor: "rgba(255,255,255,0.35)",
+                      background: "rgba(255,255,255,0.14)",
+                    }}
+                  >
+                    Délibérer maintenant
+                  </button>
+                </div>
               </div>
-              {filtered.slice(0, 3).map((r) => (
-                <ReportCard
-                  key={r.id}
-                  report={r}
-                  onClick={() => {
-                    setSelectedReport(r);
-                    onNotify("");
-                  }}
+
+              {/* KPIs */}
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <KpiCard
+                  label="Rapports totaux"
+                  value={String(reports.length)}
+                  tone={reports.length > 0 ? "warn" : "ok"}
                 />
-              ))}
+                <KpiCard
+                  label="Risque élevé"
+                  value={String(highRiskCount)}
+                  tone={highRiskCount > 0 ? "danger" : "ok"}
+                />
+                <KpiCard
+                  label="Risque moyen"
+                  value={String(mediumRiskCount)}
+                  tone={mediumRiskCount > 0 ? "warn" : "ok"}
+                />
+                <KpiCard
+                  label="Risque faible"
+                  value={String(lowRiskCount)}
+                  tone="ok"
+                />
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+                {/* Recent reports list */}
+                <div className="space-y-3">
+                  <p
+                    className="text-[10px] font-bold uppercase tracking-widest"
+                    style={{ color: "var(--text-soft)" }}
+                  >
+                    Derniers rapports à vérifier
+                  </p>
+                  {filtered.length === 0 ? (
+                    <div
+                      className="rounded-2xl border-2 bg-white p-8 text-center text-sm"
+                      style={{
+                        borderColor: "rgba(123,36,56,0.10)",
+                        color: "var(--text-soft)",
+                      }}
+                    >
+                      Aucun rapport disponible pour le moment.
+                    </div>
+                  ) : (
+                    filtered.slice(0, 5).map((r) => (
+                      <ReportCard
+                        key={r.id}
+                        report={r}
+                        onClick={() => {
+                          setSelectedReport(r);
+                          onNotify("");
+                        }}
+                      />
+                    ))
+                  )}
+                </div>
+
+                {/* Sidebar panels */}
+                <div className="space-y-4">
+                  {/* Distribution */}
+                  <div
+                    className="rounded-2xl border bg-white"
+                    style={{ borderColor: "#DDD4C8" }}
+                  >
+                    <div
+                      className="border-b px-4 py-3"
+                      style={{ borderColor: "#DDD4C8" }}
+                    >
+                      <h3 className="text-xs font-semibold text-[#2A1A12]">
+                        Distribution des risques
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 px-4 py-3 text-center text-xs">
+                      <div
+                        className="rounded-lg border bg-red-50 p-2"
+                        style={{
+                          borderColor: "rgba(220,38,38,0.22)",
+                          color: "#b91c1c",
+                        }}
+                      >
+                        <p className="text-lg font-semibold">{highRiskCount}</p>
+                        <p>Élevé</p>
+                      </div>
+                      <div
+                        className="rounded-lg border bg-orange-50 p-2"
+                        style={{
+                          borderColor: "rgba(201,138,47,0.28)",
+                          color: "#9a6a28",
+                        }}
+                      >
+                        <p className="text-lg font-semibold">
+                          {mediumRiskCount}
+                        </p>
+                        <p>Moyen</p>
+                      </div>
+                      <div
+                        className="col-span-2 rounded-lg border bg-green-50 p-2"
+                        style={{
+                          borderColor: "rgba(22,163,74,0.24)",
+                          color: "#166534",
+                        }}
+                      >
+                        <p className="text-lg font-semibold">{lowRiskCount}</p>
+                        <p>Faible</p>
+                      </div>
+                    </div>
+                    {reports.length > 0 && (
+                      <div className="px-4 pb-3">
+                        <div
+                          className="flex h-2 overflow-hidden rounded-full"
+                          style={{ background: "rgba(123,36,56,0.08)" }}
+                        >
+                          {highRiskCount > 0 && (
+                            <div
+                              className="h-full bg-red-500"
+                              style={{
+                                width: `${(highRiskCount / reports.length) * 100}%`,
+                              }}
+                            />
+                          )}
+                          {mediumRiskCount > 0 && (
+                            <div
+                              className="h-full bg-orange-400"
+                              style={{
+                                width: `${(mediumRiskCount / reports.length) * 100}%`,
+                              }}
+                            />
+                          )}
+                          {lowRiskCount > 0 && (
+                            <div
+                              className="h-full bg-green-500"
+                              style={{
+                                width: `${(lowRiskCount / reports.length) * 100}%`,
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Activité récente */}
+                  <div
+                    className="rounded-2xl border bg-white"
+                    style={{ borderColor: "#DDD4C8" }}
+                  >
+                    <div
+                      className="border-b px-4 py-3"
+                      style={{ borderColor: "#DDD4C8" }}
+                    >
+                      <h3 className="text-xs font-semibold text-[#2A1A12]">
+                        Activité récente
+                      </h3>
+                    </div>
+                    <div>
+                      {recentActivity.length === 0 ? (
+                        <p className="px-4 py-3 text-xs text-[#8A7A6E]">
+                          Aucune activité récente.
+                        </p>
+                      ) : (
+                        recentActivity.map((entry) => (
+                          <div
+                            key={entry.id}
+                            className="flex items-start gap-2 border-b px-4 py-2.5 last:border-b-0"
+                            style={{ borderColor: "#EEE5DA" }}
+                          >
+                            <span
+                              className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
+                              style={{ background: entry.color }}
+                            />
+                            <p className="flex-1 text-[11px] text-[#5A4A3A]">
+                              {entry.text}
+                            </p>
+                            <span className="text-[10px] text-[#B4A89A]">
+                              {entry.when.toLocaleDateString("fr-FR")}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick action */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReport(null)}
+                    className="flex w-full items-center gap-3 rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+                    style={{ borderColor: "rgba(123,36,56,0.12)" }}
+                  >
+                    <div
+                      className="flex h-9 w-9 items-center justify-center rounded-xl"
+                      style={{ background: "rgba(123,36,56,0.08)" }}
+                    >
+                      <BookOpen
+                        className="h-4 w-4"
+                        style={{ color: "var(--primary)" }}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <p
+                        className="text-sm font-semibold"
+                        style={{ color: "var(--foreground)" }}
+                      >
+                        Base de Référence
+                      </p>
+                      <p
+                        className="text-xs"
+                        style={{ color: "var(--text-soft)" }}
+                      >
+                        Consulter la bibliothèque
+                      </p>
+                    </div>
+                    <ChevronRight
+                      className="h-4 w-4"
+                      style={{ color: "rgba(123,36,56,0.35)" }}
+                    />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -723,7 +1025,17 @@ export function DATracker({
             </div>
           )}
 
-          {/* ── Références (retiré du menu DA) ── */}
+          {/* ── Base de Référence ── */}
+          {view === "reference-library" && (
+            <div className="space-y-5">
+              <SectionHeader
+                icon={BookOpen}
+                title="Base de Référence"
+                subtitle="Bibliothèque des mémoires de référence"
+              />
+              <ReferenceLibraryViewer />
+            </div>
+          )}
         </div>
       </div>
     </div>
