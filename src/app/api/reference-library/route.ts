@@ -16,9 +16,7 @@ export async function GET(request: NextRequest) {
     console.log("[REF-LIBRARY] Fetching reference library");
 
     assertSameOrigin(request);
-    guardRole(request, ["TEACHER", "DA", "ADMIN"]);
-
-    // Parse query parameters
+    guardRole(request, ["STUDENT", "TEACHER", "DA", "ADMIN"]);
     const url = new URL(request.url);
     const search = url.searchParams.get("search") || "";
     const subject = url.searchParams.get("subject") || "";
@@ -33,6 +31,7 @@ export async function GET(request: NextRequest) {
     // Build search query
     const where: any = {
       isReference: true,
+      documentStatus: { not: "PENDING_ADMIN_REVIEW" },
       extractedText: { not: null },
     };
 
@@ -69,6 +68,8 @@ export async function GET(request: NextRequest) {
           extractedText: true,
           createdAt: true,
           documentStatus: true,
+          themeId: true,
+          stagingMetadata: true,
           reports: {
             select: {
               globalSimilarity: true,
@@ -102,20 +103,38 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      documents: documents.map((doc) => ({
-        id: doc.id.toString(),
-        title: doc.originalName,
-        documentId: doc.id.toString(),
-        size: doc.fileSize.toString(),
-        type: doc.mimeType,
-        preview: doc.extractedText ? doc.extractedText.slice(0, 200) : "",
-        uploadedAt: doc.createdAt,
-        status: doc.documentStatus,
-        similarity: doc.reports[0]?.globalSimilarity || null,
-        riskLevel: doc.reports[0]?.riskLevel || null,
-        matchedSources: doc.reports[0]?.matchedSources || [],
-        analyzedAt: doc.reports[0]?.analyzedAt || null,
-      })),
+      documents: documents.map((doc) => {
+        const meta = doc.stagingMetadata as Record<string, unknown> | null;
+        const isAdminUpload = doc.themeId === null;
+        return {
+          id: doc.id.toString(),
+          title: (meta?.subjectLabel as string) || doc.originalName,
+          originalName: doc.originalName,
+          documentId: doc.id.toString(),
+          size: doc.fileSize.toString(),
+          type: doc.mimeType,
+          preview: doc.extractedText ? doc.extractedText.slice(0, 200) : "",
+          uploadedAt: doc.createdAt,
+          status: doc.documentStatus,
+          source: isAdminUpload ? "admin" : "student",
+          authorName: isAdminUpload
+            ? ((meta?.authorName as string) || null)
+            : (doc.student?.name || null),
+          department: isAdminUpload
+            ? ((meta?.department as string) || null)
+            : null,
+          academicYear: isAdminUpload
+            ? ((meta?.academicYear as string) || null)
+            : null,
+          techStack: isAdminUpload
+            ? ((meta?.techStack as string[]) || [])
+            : [],
+          similarity: doc.reports[0]?.globalSimilarity || null,
+          riskLevel: doc.reports[0]?.riskLevel || null,
+          matchedSources: doc.reports[0]?.matchedSources || [],
+          analyzedAt: doc.reports[0]?.analyzedAt || null,
+        };
+      }),
       pagination: {
         page,
         limit,
@@ -136,7 +155,7 @@ export async function GET(request: NextRequest) {
 export async function HEAD(request: NextRequest) {
   // Verify access before returning file
   try {
-    guardRole(request, ["TEACHER", "DA", "ADMIN"]);
+    guardRole(request, ["STUDENT", "TEACHER", "DA", "ADMIN"]);
     return new NextResponse(null, { status: 200 });
   } catch (error) {
     return new NextResponse(null, { status: 403 });

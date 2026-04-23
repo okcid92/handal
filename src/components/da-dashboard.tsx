@@ -19,7 +19,7 @@ type ReportRow = {
     lastName: string;
     department: string | null;
   };
-  document?: { originalName: string };
+  document?: { originalName: string; title: string };
 };
 
 function Banner({
@@ -106,7 +106,16 @@ export function DaDashboard() {
       logoutLoading={logoutLoading}
     >
       {message && <Banner ok={messageOk}>{message}</Banner>}
-      <DATracker view={view} reports={reports} onNotify={notify} />
+      <DATracker
+        view={view}
+        reports={reports}
+        onNotify={notify}
+        onDeliberated={() =>
+          apiFetch<{ reports: ReportRow[] }>("/api/reports")
+            .then((d) => setReports(d.reports))
+            .catch(() => {})
+        }
+      />
     </DALayout>
   );
 }

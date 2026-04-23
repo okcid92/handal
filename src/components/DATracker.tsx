@@ -31,6 +31,7 @@ type ReportRow = {
   };
   document?: {
     originalName: string;
+    title: string;
   };
   uploadAttempts?: number;
 };
@@ -252,17 +253,33 @@ function KpiCard({
 }
 
 // ── Main DATracker ─────────────────────────────────────────────
+
+function reportLabel(r: ReportRow): string {
+  if (r.student) return `${r.student.firstName} ${r.student.lastName}`;
+  if (r.document?.title && r.document.title.length > 3) return r.document.title;
+  if (r.document?.originalName) return r.document.originalName.replace(/\.[^.]+$/, "");
+  return `Rapport #${r.id}`;
+}
+
+function reportSubLabel(r: ReportRow): string {
+  if (r.document?.title && r.document.title !== r.document?.originalName)
+    return r.document.title;
+  return new Date(r.analyzedAt).toLocaleDateString("fr-FR");
+}
 export function DATracker({
   view,
   reports,
   onNotify,
+  onDeliberated,
 }: {
   view: DaView;
   reports: ReportRow[];
   onNotify: (msg: string, ok?: boolean) => void;
+  onDeliberated?: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [selectedReport, setSelectedReport] = useState<ReportRow | null>(null);
+  const [deliberatedIds, setDeliberatedIds] = useState<Set<string>>(new Set());
 
   // Délibération
   const [deliberationDecision, setDeliberationDecision] = useState<
@@ -297,21 +314,19 @@ export function DATracker({
         deliberation: { id: string; decision: string };
       }>(`/api/reports/${selectedReport.id}/deliberate`, {
         method: "POST",
-        body: JSON.stringify({
-          decision: deliberationDecision,
-          committee,
-          notes,
-        }),
+        body: JSON.stringify({ decision: deliberationDecision, committee, notes }),
       });
-      onNotify(`Délibération enregistrée : ${result.deliberation.decision}`);
+      const decisionLabel =
+        deliberationDecision === "final_validation" ? "Validation finale" :
+        deliberationDecision === "sanction" ? "Sanction" : "Réécriture requise";
+      onNotify(`Délibération enregistrée : ${decisionLabel} pour ${reportLabel(selectedReport)}`);
+      setDeliberatedIds((prev) => new Set([...prev, selectedReport.id]));
       setSelectedReport(null);
       setCommittee("");
       setNotes("");
+      onDeliberated?.();
     } catch (err) {
-      onNotify(
-        err instanceof Error ? err.message : "Erreur délibération",
-        false,
-      );
+      onNotify(err instanceof Error ? err.message : "Erreur délibération", false);
     }
   }
 
@@ -333,7 +348,7 @@ export function DATracker({
             : r.riskLevel === "MEDIUM"
               ? "#c98a2f"
               : "#16a34a",
-        text: `Rapport #${r.id} — ${r.student ? `${r.student.firstName} ${r.student.lastName}` : `Doc #${r.documentId}`}`,
+        text: `${r.student ? `${r.student.firstName} ${r.student.lastName}` : r.document?.title ?? r.document?.originalName?.replace(/\.[^.]+$/, "") ?? `Rapport #${r.id}`} — ${r.riskLevel}`,
         risk: r.riskLevel,
         when: new Date(r.analyzedAt),
       }));
@@ -743,19 +758,23 @@ export function DATracker({
                               className="text-sm font-extrabold"
                               style={{ color: "var(--foreground)" }}
                             >
-                              {r.student
-                                ? `${r.student.firstName} ${r.student.lastName}`
-                                : `Rapport #${r.id}`}
+                              {reportLabel(r)}
                             </p>
-                            <p
-                              className="text-xs"
-                              style={{ color: "var(--text-soft)" }}
-                            >
-                              Doc #{r.documentId} ·{" "}
-                              {new Date(r.analyzedAt).toLocaleDateString(
-                                "fr-FR",
+                            <div className="flex items-center gap-2">
+                              <p
+                                className="text-xs"
+                                style={{ color: "var(--text-soft)" }}
+                              >
+                                {r.document?.title && r.document.title !== r.document.originalName
+                                  ? r.document.title
+                                  : new Date(r.analyzedAt).toLocaleDateString("fr-FR")}
+                              </p>
+                              {deliberatedIds.has(r.id) && (
+                                <span className="rounded-full border border-green-300 bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700">
+                                  Délibéré
+                                </span>
                               )}
-                            </p>
+                            </div>
                           </div>
                           {/* Filière */}
                           <div className="hidden md:block">
@@ -836,16 +855,19 @@ export function DATracker({
                         className="text-[10px] font-bold uppercase tracking-widest mb-1"
                         style={{ color: "var(--text-soft)" }}
                       >
-                        Délibération — Rapport #{selectedReport.id}
+                        Délibération
                       </p>
                       <p
                         className="text-base font-extrabold"
                         style={{ color: "var(--foreground)" }}
                       >
-                        {selectedReport.student
-                          ? `${selectedReport.student.firstName} ${selectedReport.student.lastName}`
-                          : `Document #${selectedReport.documentId}`}
+                        {reportLabel(selectedReport)}
                       </p>
+                      {selectedReport.document?.title && selectedReport.student && (
+                        <p className="mt-0.5 text-xs line-clamp-1" style={{ color: "var(--text-soft)" }}>
+                          {selectedReport.document.title}
+                        </p>
+                      )}
                       {selectedReport.student?.department && (
                         <span
                           className="mt-1 inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase"
@@ -1071,10 +1093,13 @@ function ReportCard({
               className="text-sm font-extrabold"
               style={{ color: "var(--foreground)" }}
             >
-              {report.student
-                ? `${report.student.firstName} ${report.student.lastName}`
-                : `Rapport #${report.id}`}
+              {reportLabel(report)}
             </p>
+            {report.document?.title && report.student && (
+              <p className="mt-0.5 text-xs line-clamp-1" style={{ color: "var(--text-soft)" }}>
+                {report.document.title}
+              </p>
+            )}
             {report.student?.department && (
               <span
                 className="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase"

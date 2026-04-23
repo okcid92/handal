@@ -83,6 +83,17 @@ export async function GET(
             theme: { select: { title: true } },
           },
         },
+        deliberations: {
+          orderBy: { decidedAt: "desc" },
+          select: {
+            id: true,
+            decision: true,
+            notes: true,
+            committee: true,
+            decidedAt: true,
+            decider: { select: { name: true, role: true } },
+          },
+        },
       },
     });
 
@@ -106,7 +117,6 @@ export async function GET(
         id: row.id.toString(),
         documentId: row.documentId.toString(),
         globalSimilarity: row.globalSimilarity.toString(),
-        // aiScore intentionnellement omis — Handal se concentre sur la similarité
         riskLevel: row.riskLevel,
         matchedSources: enrichedSources,
         analyzedAt: row.analyzedAt.toISOString(),
@@ -115,6 +125,14 @@ export async function GET(
           originalName: row.document.originalName,
           title: row.document.theme?.title ?? row.document.originalName,
         },
+        deliberations: row.deliberations.map((d) => ({
+          id: d.id.toString(),
+          decision: d.decision,
+          notes: d.notes,
+          committee: d.committee,
+          decidedAt: d.decidedAt.toISOString(),
+          decider: d.decider ? { name: d.decider.name, role: d.decider.role } : null,
+        })),
       },
     });
   } catch (error) {

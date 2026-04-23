@@ -1,21 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { apiFetch } from "@/lib/frontend-api";
 
 interface ReferenceDocument {
   id: string;
   documentId: string;
   title: string;
+  originalName: string;
   size: string;
   type: string;
   preview: string;
   uploadedAt: string;
   status: string;
+  source: "admin" | "student";
+  authorName: string | null;
+  department: string | null;
+  academicYear: string | null;
+  techStack: string[];
   similarity: number | null;
   riskLevel: string | null;
-  matchedSources: any[];
+  matchedSources: unknown[];
   analyzedAt: string | null;
 }
 
@@ -90,14 +95,7 @@ export function ReferenceLibraryViewer() {
     loadDocuments();
   }, [search, subject, page]);
 
-  const getRiskColor = (riskLevel: string | null) => {
-    if (!riskLevel) return "bg-[#f8f2e8] text-[#6c5448]";
-    if (riskLevel === "HIGH") return "bg-red-100 text-red-700";
-    if (riskLevel === "MEDIUM") return "bg-yellow-100 text-yellow-700";
-    return "bg-green-100 text-green-700";
-  };
-
-  const formatFileSize = (bytes: string) => {
+const formatFileSize = (bytes: string) => {
     const size = parseInt(bytes);
     if (size > 1024 * 1024) return (size / (1024 * 1024)).toFixed(1) + " MB";
     if (size > 1024) return (size / 1024).toFixed(1) + " KB";
@@ -113,234 +111,191 @@ export function ReferenceLibraryViewer() {
   };
 
   return (
-    <div className="app-shell min-h-screen px-6 py-8">
-      <div className="mx-auto max-w-6xl">
-        {/* Header with Logo */}
-        <div className="section-frame mb-8 flex items-center gap-4 rounded-2xl p-6">
-          <Image
-            src="/brand/handal-lamp.png"
-            alt="Handal"
-            width={56}
-            height={56}
-            className="h-14 w-auto object-contain"
-            style={{ height: "auto" }}
+    <div className="space-y-4">
+      {/* Search & Filter */}
+      <div
+        className="rounded-2xl border bg-white p-4"
+        style={{ borderColor: "rgba(123,36,56,0.12)" }}
+      >
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <input
+            type="text"
+            placeholder="Rechercher par titre ou nom de fichier..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-10 w-full rounded-xl border-2 bg-white px-4 text-sm outline-none transition"
+            style={{ borderColor: "rgba(123,36,56,0.18)", color: "var(--foreground)" }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(123,36,56,0.18)"; }}
           />
-          <div>
-            <h1 className="font-serif text-4xl font-normal tracking-tight text-[#7b2438]">
-              Bibliothèque de Référence
-            </h1>
-            <p className="text-sm text-[#5f483e]">
-              Consultation des mémoires archivés pour vérification et
-              comparaison
-            </p>
-          </div>
+          <input
+            type="text"
+            placeholder="Filtrer par filière ou sujet..."
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="h-10 w-full rounded-xl border-2 bg-white px-4 text-sm outline-none transition"
+            style={{ borderColor: "rgba(123,36,56,0.18)", color: "var(--foreground)" }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = "var(--primary)"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(123,36,56,0.18)"; }}
+          />
         </div>
-
-        {/* Search & Filter */}
-        <div className="section-frame mb-6 space-y-4 rounded-2xl p-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-[#4f3a30]">
-                Rechercher par titre
-              </label>
-              <input
-                type="text"
-                placeholder="Titre du document..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-[#7b2438]/20 bg-white/90 px-4 py-2 text-[#2b1d16] outline-none focus:border-[#7b2438] focus:ring-1 focus:ring-[#7b2438]"
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-[#4f3a30]">
-                Filtrer par sujet/filière
-              </label>
-              <input
-                type="text"
-                placeholder="Informatique, Sciences..."
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                className="w-full rounded-lg border border-[#7b2438]/20 bg-white/90 px-4 py-2 text-[#2b1d16] outline-none focus:border-[#7b2438] focus:ring-1 focus:ring-[#7b2438]"
-              />
-            </div>
-          </div>
-          {(search || subject) && (
-            <button
-              onClick={() => {
-                setSearch("");
-                setSubject("");
-              }}
-              className="text-sm font-semibold text-[#7b2438] hover:underline"
-            >
-              Réinitialiser les filtres
-            </button>
-          )}
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 rounded-2xl border-l-4 border-red-500 bg-red-50 p-4">
-            <p className="text-red-700">{error}</p>
-          </div>
-        )}
-
-        {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#7b2438]/20 border-t-[#7b2438]" />
-          </div>
-        )}
-
-        {/* Documents Table */}
-        {!loading && documents.length > 0 && (
-          <>
-            <div className="mb-6 overflow-hidden rounded-2xl border border-[#7b2438]/12 bg-white/95 shadow-[0_10px_28px_rgba(81,50,28,0.08)]">
-              <div className="w-full overflow-x-auto">
-                <table className="min-w-[720px] w-full text-sm">
-                  <thead className="border-b border-[#7b2438]/12 bg-[#f8f2e8]">
-                    <tr>
-                      <th className="px-6 py-3 text-left font-bold text-[#5f483e]">
-                        Titre
-                      </th>
-                      <th className="hidden px-6 py-3 text-left font-bold text-[#5f483e] md:table-cell">
-                        Taille
-                      </th>
-                      <th className="hidden px-6 py-3 text-left font-bold text-[#5f483e] md:table-cell">
-                        Date
-                      </th>
-                      <th className="hidden px-6 py-3 text-left font-bold text-[#5f483e] lg:table-cell">
-                        Similarité
-                      </th>
-                      <th className="hidden px-6 py-3 text-left font-bold text-[#5f483e] lg:table-cell">
-                        Risque
-                      </th>
-                      <th className="px-6 py-3 text-left font-bold text-[#5f483e]">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {documents.map((doc) => (
-                      <tr
-                        key={doc.id}
-                        className="border-b border-[#7b2438]/10 transition-colors hover:bg-[#faf5ee]"
-                      >
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-semibold text-[#2b1d16]">
-                              {doc.title}
-                            </p>
-                            {doc.preview && (
-                              <p className="text-xs text-[#6c5448] line-clamp-1">
-                                {doc.preview}...
-                              </p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="hidden px-6 py-4 text-[#6c5448] md:table-cell">
-                          {formatFileSize(doc.size)}
-                        </td>
-                        <td className="hidden px-6 py-4 text-[#6c5448] md:table-cell">
-                          {formatDate(doc.uploadedAt)}
-                        </td>
-                        <td className="hidden px-6 py-4 lg:table-cell">
-                          {(() => {
-                            const similarityValue = toSimilarity(
-                              (doc as { similarity?: unknown }).similarity,
-                            );
-
-                            if (similarityValue === null) {
-                              return <span className="text-[#6c5448]">-</span>;
-                            }
-
-                            return (
-                              <span className="font-semibold text-[#2b1d16]">
-                                {similarityValue.toFixed(1)}%
-                              </span>
-                            );
-                          })()}
-                        </td>
-                        <td className="hidden px-6 py-4 lg:table-cell">
-                          {doc.riskLevel && (
-                            <span
-                              className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${getRiskColor(
-                                doc.riskLevel,
-                              )}`}
-                            >
-                              {doc.riskLevel === "HIGH"
-                                ? "Élevé"
-                                : doc.riskLevel === "MEDIUM"
-                                  ? "Moyen"
-                                  : "Faible"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <a
-                            href={`/api/documents/${doc.documentId}/view`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-semibold text-[#7b2438] transition-colors hover:text-[#5f1b2a] hover:underline"
-                          >
-                            Consulter
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Pagination */}
-            {pagination && pagination.pages > 1 && (
-              <div className="flex items-center justify-center gap-2">
-                <button
-                  onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1}
-                  className="rounded-lg border border-[#7b2438]/20 bg-white px-4 py-2 font-semibold text-[#7b2438] transition-all disabled:opacity-50 hover:bg-[#f8f2e8]"
-                >
-                  Précédent
-                </button>
-                <div className="text-sm font-semibold text-[#5f483e]">
-                  Page {page} / {pagination.pages}
-                </div>
-                <button
-                  onClick={() => setPage(Math.min(pagination.pages, page + 1))}
-                  disabled={page === pagination.pages}
-                  className="rounded-lg border border-[#7b2438]/20 bg-white px-4 py-2 font-semibold text-[#7b2438] transition-all disabled:opacity-50 hover:bg-[#f8f2e8]"
-                >
-                  Suivant
-                </button>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Empty State */}
-        {!loading && documents.length === 0 && (
-          <div className="section-frame rounded-2xl p-12 text-center">
-            <svg
-              className="mx-auto mb-4 h-16 w-16 text-[#c7b6a3]"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <p className="text-[#6c5448]">
-              {search || subject
-                ? "Aucun document ne correspond à vos critères"
-                : "Aucun document de référence disponible"}
-            </p>
-          </div>
+        {(search || subject) && (
+          <button
+            type="button"
+            onClick={() => { setSearch(""); setSubject(""); }}
+            className="mt-2 text-xs font-semibold"
+            style={{ color: "var(--primary)" }}
+          >
+            Réinitialiser les filtres
+          </button>
         )}
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#7b2438]/20 border-t-[#7b2438]" />
+        </div>
+      )}
+
+      {/* Table */}
+      {!loading && documents.length > 0 && (
+        <>
+          <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: "rgba(123,36,56,0.12)" }}>
+            <div className="w-full overflow-x-auto">
+              <table className="min-w-[640px] w-full text-sm">
+                <thead>
+                  <tr style={{ background: "rgba(123,36,56,0.04)", borderBottom: "1px solid rgba(123,36,56,0.10)" }}>
+                    {["Titre / Fichier", "Source", "Auteur", "Filière", "Taille", "Date", ""].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((doc, i) => (
+                    <tr
+                      key={doc.id}
+                      style={{ borderBottom: i < documents.length - 1 ? "1px solid rgba(123,36,56,0.07)" : "none" }}
+                      className="transition hover:bg-[rgba(123,36,56,0.02)]"
+                    >
+                      <td className="px-4 py-3">
+                        <p className="font-semibold" style={{ color: "var(--foreground)" }}>
+                          {doc.title}
+                        </p>
+                        {doc.title !== doc.originalName && (
+                          <p className="text-[11px]" style={{ color: "var(--text-soft)" }}>
+                            {doc.originalName}
+                          </p>
+                        )}
+                        {doc.techStack.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {doc.techStack.slice(0, 3).map((t) => (
+                              <span key={t} className="rounded-full border px-1.5 py-0.5 text-[10px] font-medium" style={{ borderColor: "rgba(123,36,56,0.15)", color: "var(--text-soft)" }}>
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {doc.source === "admin" ? (
+                          <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-bold" style={{ borderColor: "rgba(123,36,56,0.22)", background: "rgba(123,36,56,0.07)", color: "var(--primary)" }}>
+                            Admin
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2.5 py-0.5 text-[11px] font-bold text-blue-700">
+                            Étudiant
+                          </span>
+                        )}
+                        {doc.academicYear && (
+                          <p className="mt-1 text-[10px]" style={{ color: "var(--text-soft)" }}>{doc.academicYear}</p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs" style={{ color: "var(--text-soft)" }}>
+                        {doc.authorName || "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {doc.department ? (
+                          <span className="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ borderColor: "rgba(123,36,56,0.22)", background: "rgba(123,36,56,0.07)", color: "var(--primary)" }}>
+                            {doc.department}
+                          </span>
+                        ) : (
+                          <span className="text-xs" style={{ color: "var(--text-soft)" }}>—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs" style={{ color: "var(--text-soft)" }}>
+                        {formatFileSize(doc.size)}
+                      </td>
+                      <td className="px-4 py-3 text-xs" style={{ color: "var(--text-soft)" }}>
+                        {formatDate(doc.uploadedAt)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <a
+                          href={`/api/documents/${doc.documentId}/view`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-semibold transition hover:underline"
+                          style={{ color: "var(--primary)" }}
+                        >
+                          Consulter
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Pagination */}
+          {pagination && pagination.pages > 1 && (
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-40 hover:opacity-75"
+                style={{ borderColor: "rgba(123,36,56,0.22)", color: "var(--primary)" }}
+              >
+                Précédent
+              </button>
+              <span className="text-sm font-semibold" style={{ color: "var(--text-soft)" }}>
+                Page {page} / {pagination.pages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(Math.min(pagination.pages, page + 1))}
+                disabled={page === pagination.pages}
+                className="rounded-xl border px-4 py-2 text-sm font-semibold transition disabled:opacity-40 hover:opacity-75"
+                style={{ borderColor: "rgba(123,36,56,0.22)", color: "var(--primary)" }}
+              >
+                Suivant
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Empty */}
+      {!loading && documents.length === 0 && (
+        <div
+          className="rounded-2xl border-2 bg-white p-12 text-center text-sm"
+          style={{ borderColor: "rgba(123,36,56,0.10)", color: "var(--text-soft)" }}
+        >
+          {search || subject
+            ? `Aucun document ne correspond à vos critères`
+            : "Aucun document de référence disponible"}
+        </div>
+      )}
     </div>
   );
 }

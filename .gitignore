@@ -46,5 +46,5 @@ __pycache__/
 
 storage/references/*
 storage/tmp/
-stitch_*/
+storage/final/*
 prompt.txt

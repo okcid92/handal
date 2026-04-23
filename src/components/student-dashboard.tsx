@@ -75,6 +75,14 @@ type ReportDetail = {
     originalName: string;
     title: string;
   };
+  deliberations: Array<{
+    id: string;
+    decision: string;
+    notes: string | null;
+    committee: string | null;
+    decidedAt: string;
+    decider: { name: string; role: string } | null;
+  }>;
 };
 
 const VALIDATED_STATUSES = [
@@ -176,6 +184,7 @@ export function StudentDashboard() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [activeStep, setActiveStep] = useState(1);
 
   const [themeTitle, setThemeTitle] = useState("");
   const [themeDescription, setThemeDescription] = useState("");
@@ -211,60 +220,63 @@ export function StudentDashboard() {
   } | null>(null);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisEntry[]>([]);
   const [reportModal, setReportModal] = useState<ReportDetail | null>(null);
-  const [reportModalLoading, setReportModalLoading] = useState<string | null>(
-    null,
-  );
+  const [reportModalLoading, setReportModalLoading] = useState<string | null>(null);
   const [reportModalError, setReportModalError] = useState<string | null>(null);
+  const [lastDeliberation, setLastDeliberation] = useState<ReportDetail["deliberations"][0] | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
-      "/api/me/analysis-history",
-    )
-      .then((r) => {
-        if (mounted) setAnalysisHistory(r.history ?? []);
-      })
-      .catch(() => {});
-    apiFetch<OverviewResponse>("/api/me/overview")
-      .then((r) => {
+    Promise.all([
+      apiFetch<{ ok: boolean; history: AnalysisEntry[] }>("/api/me/analysis-history"),
+      apiFetch<OverviewResponse>("/api/me/overview"),
+    ])
+      .then(([historyData, overviewData]) => {
         if (!mounted) return;
-        setOverview(r);
-        const t = r.activeTheme;
-        if (!t) return;
-        // Thème soumis dès qu'il existe
-        setThemeSubmitted(true);
-        // Validation algorithmique
-        const algoApproved = ALGO_APPROVED_STATUSES.includes(t.status);
-        setAlgoStatus(algoApproved ? "approved" : "pending");
-        // Statut Chef de département
-        const daApproved =
-          t.daApproval === true ||
-          t.validatedDa ||
-          VALIDATED_STATUSES.includes(t.status);
-        // Chef de Département est le seul validateur : VALIDATED suffit
-        const cdApproved =
-          t.teacherApproval === true ||
-          t.validatedCd ||
-          VALIDATED_STATUSES.includes(t.status);
-        const cdRejected = t.teacherApproval === false;
-        setCdStatus(
-          cdApproved ? "approved" : cdRejected ? "rejected" : "pending",
-        );
-        const daRejected = t.daApproval === false;
-        setDaStatus(
-          daApproved ? "approved" : daRejected ? "rejected" : "pending",
-        );
+
+        const history = historyData.history ?? [];
+        setAnalysisHistory(history);
+        setOverview(overviewData);
+
+        const t = overviewData.activeTheme;
+        if (t) {
+          setThemeSubmitted(true);
+          setAlgoStatus(ALGO_APPROVED_STATUSES.includes(t.status) ? "approved" : "pending");
+          const cdApproved = t.teacherApproval === true || t.validatedCd || VALIDATED_STATUSES.includes(t.status);
+          const cdRejected = t.teacherApproval === false;
+          setCdStatus(cdApproved ? "approved" : cdRejected ? "rejected" : "pending");
+          const daApproved = t.daApproval === true || t.validatedDa || VALIDATED_STATUSES.includes(t.status);
+          const daRejected = t.daApproval === false;
+          setDaStatus(daApproved ? "approved" : daRejected ? "rejected" : "pending");
+        }
+
+        // Calcul de l'étape : 4 si rapport existe, sinon selon CD
+        const hasReport = history.some((a) => a.reportId);
+        if (hasReport) {
+          setActiveStep(4);
+          // Charger automatiquement la délibération du dernier rapport
+          const latestReportId = history.find((a) => a.reportId)?.reportId;
+          if (latestReportId) {
+            apiFetch<{ ok: boolean; report: ReportDetail }>(`/api/me/reports/${latestReportId}`)
+              .then((d) => {
+                if (d.report.deliberations?.length > 0) {
+                  setLastDeliberation(d.report.deliberations[0]);
+                }
+              })
+              .catch(() => {});
+          }
+        } else if (t) {
+          const cdApproved = t.teacherApproval === true || t.validatedCd || VALIDATED_STATUSES.includes(t.status);
+          const cdRejected = t.teacherApproval === false;
+          setActiveStep(getActiveStep(true, cdApproved ? "approved" : cdRejected ? "rejected" : "pending"));
+        }
       })
       .catch((e) => {
-        if (mounted)
-          setErrorMsg(e instanceof Error ? e.message : "Erreur de chargement");
+        if (mounted) setErrorMsg(e instanceof Error ? e.message : "Erreur de chargement");
       })
       .finally(() => {
         if (mounted) setLoading(false);
       });
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   async function proposeTheme(e: React.FormEvent<HTMLFormElement>) {
@@ -334,10 +346,11 @@ export function StudentDashboard() {
         );
         // Rafraîchir l'historique après un délai pour laisser le serveur terminer
         setTimeout(() => {
-          apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
-            "/api/me/analysis-history",
-          )
-            .then((r) => setAnalysisHistory(r.history ?? []))
+          apiFetch<{ ok: boolean; history: AnalysisEntry[] }>("/api/me/analysis-history")
+            .then((r) => {
+              setAnalysisHistory(r.history ?? []);
+              if ((r.history ?? []).some((a) => a.reportId)) setActiveStep(4);
+            })
             .catch(() => {});
         }, 8000);
         return;
@@ -377,15 +390,14 @@ export function StudentDashboard() {
       } else {
         setDocumentMessage(`✓ Document déposé : ${data.document?.id}`);
       }
-      // Rafraichir l'historique
-      apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
-        "/api/me/analysis-history",
-      )
-        .then((r) => setAnalysisHistory(r.history ?? []))
+      apiFetch<{ ok: boolean; history: AnalysisEntry[] }>("/api/me/analysis-history")
+        .then((r) => {
+          setAnalysisHistory(r.history ?? []);
+          if ((r.history ?? []).some((a) => a.reportId)) setActiveStep(4);
+        })
         .catch(() => {});
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Erreur upload";
-      // Distinguer erreur réseau d'une erreur métier
       const isNetworkError =
         msg.toLowerCase().includes("failed to fetch") ||
         msg.toLowerCase().includes("network") ||
@@ -397,10 +409,11 @@ export function StudentDashboard() {
       );
       if (isNetworkError) {
         setTimeout(() => {
-          apiFetch<{ ok: boolean; history: AnalysisEntry[] }>(
-            "/api/me/analysis-history",
-          )
-            .then((r) => setAnalysisHistory(r.history ?? []))
+          apiFetch<{ ok: boolean; history: AnalysisEntry[] }>("/api/me/analysis-history")
+            .then((r) => {
+              setAnalysisHistory(r.history ?? []);
+              if ((r.history ?? []).some((a) => a.reportId)) setActiveStep(4);
+            })
             .catch(() => {});
         }, 8000);
       }
@@ -443,13 +456,195 @@ export function StudentDashboard() {
 
   const fullName = overview?.user.name?.trim() ?? "";
   const [firstName = "Étudiant"] = fullName.split(/\s+/).filter(Boolean);
-  const activeStep = getActiveStep(themeSubmitted, cdStatus);
   const depositUnlocked = cdStatus === "approved";
+  const showFinalResult = lastDeliberation !== null;
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#7b2438]/20 border-t-[#7b2438]" />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#7b2438]/20 border-t-[#7b2438]" />
+      </div>
+    );
+  }
+
+  // ── Vue finale après délibération ─────────────────────────────────────────────
+  if (showFinalResult && lastDeliberation) {
+    const isValidation = lastDeliberation.decision === "FINAL_VALIDATION";
+    const isSanction = lastDeliberation.decision === "SANCTION";
+
+    return (
+      <div className="app-shell min-h-screen px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl">
+          {/* Header */}
+          <header className="section-frame mb-8 rounded-2xl p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Image src="/brand/handal-lamp.png" alt="Handal" width={36} height={36} className="h-9 w-auto object-contain" />
+                <div>
+                  <p className="text-lg font-black uppercase tracking-widest leading-none" style={{ color: "var(--primary)" }}>HANDAL</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-soft)" }}>Plateforme d&apos;analyse IBAM</p>
+                </div>
+              </div>
+              <button type="button" onClick={handleLogout} disabled={logoutLoading}
+                className="btn-secondary inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:opacity-50">
+                <LogOut className="h-4 w-4" />{logoutLoading ? "..." : "Déconnexion"}
+              </button>
+            </div>
+          </header>
+
+          {isValidation ? (
+            /* ── SUCCÈS ── */
+            <section className="section-frame rounded-2xl p-10 text-center">
+              <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-100">
+                <CheckCircle className="h-12 w-12 text-green-600" strokeWidth={2.5} />
+              </div>
+              <h1 className="mb-3 text-3xl font-black text-[#2b1d16]">Félicitations, {firstName} !</h1>
+              <p className="mb-2 text-base font-medium text-[#6c5448]">
+                Votre mémoire a été officiellement validé par la Direction Académique.
+              </p>
+              {lastDeliberation.notes && (
+                <p className="mb-6 text-sm italic text-[#6c5448]/80">&laquo; {lastDeliberation.notes} &raquo;</p>
+              )}
+
+              <div className="mb-8 rounded-2xl border-2 border-dashed border-[#7b2438]/20 bg-[#faf7f4] p-6 text-left">
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#6c5448]">Instructions de dépôt physique</p>
+                <ul className="space-y-2 text-sm text-[#5f483e]">
+                  <li className="flex items-start gap-2"><CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />Imprimez votre rapport en <strong>3 exemplaires</strong> (reliure spirale).</li>
+                  <li className="flex items-start gap-2"><CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />Joignez l&apos;attestation de succès générée par Handal.</li>
+                  <li className="flex items-start gap-2"><CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />Déposez les documents au <strong>secrétariat de l&apos;IBAM</strong> avant la date limite.</li>
+                </ul>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <div className="inline-flex items-center gap-2 rounded-xl border-2 border-green-300 bg-green-50 px-5 py-2.5 text-sm font-bold text-green-800">
+                  <CheckCircle className="h-4 w-4" />
+                  Validé par {lastDeliberation.decider?.name ?? "Direction Académique"}
+                </div>
+                <button type="button"
+                  onClick={() => {
+                    const entry = analysisHistory.find((a) => a.reportId);
+                    if (entry?.reportId) openReport(entry.reportId);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border-2 border-[#7b2438]/20 px-5 py-2.5 text-sm font-bold text-[#7b2438] transition hover:bg-[#f2d9e0]">
+                  Voir le rapport détaillé
+                </button>
+              </div>
+            </section>
+          ) : isSanction ? (
+            /* ── SANCTION ── */
+            <section className="section-frame rounded-2xl p-10 text-center">
+              <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-red-100">
+                <XCircle className="h-12 w-12 text-red-600" strokeWidth={2.5} />
+              </div>
+              <h1 className="mb-3 text-3xl font-black text-red-700">Sanction prononcée</h1>
+              <p className="mb-6 text-base font-medium text-[#6c5448]">
+                La Direction Académique a prononcé une sanction suite à l&apos;analyse de votre mémoire.
+              </p>
+              {lastDeliberation.notes && (
+                <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-left">
+                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-red-700">Motif</p>
+                  <p className="text-sm italic text-red-800">&laquo; {lastDeliberation.notes} &raquo;</p>
+                </div>
+              )}
+              <p className="text-sm text-[#6c5448]">Contactez votre encadrant ou le secrétariat pour la suite de la procédure.</p>
+            </section>
+          ) : (
+            /* ── RÉÉCRITURE ── */
+            <section className="section-frame rounded-2xl p-10 text-center">
+              <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-orange-100">
+                <Clock className="h-12 w-12 text-orange-500" strokeWidth={2.5} />
+              </div>
+              <h1 className="mb-3 text-3xl font-black text-[#9a6a28]">Réécriture requise</h1>
+              <p className="mb-6 text-base font-medium text-[#6c5448]">
+                La Direction Académique demande des corrections avant validation finale.
+              </p>
+              {lastDeliberation.notes && (
+                <div className="mb-6 rounded-2xl border border-orange-200 bg-orange-50 p-5 text-left">
+                  <p className="mb-1 text-xs font-bold uppercase tracking-widest text-orange-700">Observations</p>
+                  <p className="text-sm italic text-orange-800">&laquo; {lastDeliberation.notes} &raquo;</p>
+                </div>
+              )}
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <button type="button"
+                  onClick={() => {
+                    setLastDeliberation(null);
+                    setActiveStep(3);
+                    setAnalysisResult(null);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#7b2438] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#5f1b2a]">
+                  <UploadCloud className="h-4 w-4" /> Déposer une nouvelle version
+                </button>
+                <button type="button"
+                  onClick={() => {
+                    const entry = analysisHistory.find((a) => a.reportId);
+                    if (entry?.reportId) openReport(entry.reportId);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-xl border-2 border-[#7b2438]/20 px-5 py-2.5 text-sm font-bold text-[#7b2438] transition hover:bg-[#f2d9e0]">
+                  Voir le rapport
+                </button>
+              </div>
+            </section>
+          )}
+        </div>
+
+        {/* Modal rapport */}
+        {(reportModal || reportModalError) && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+            onClick={() => { setReportModal(null); setReportModalError(null); }}>
+            <div className="relative flex w-[95%] max-w-2xl flex-col max-h-[90vh] rounded-2xl bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}>
+              <div className="flex shrink-0 items-center justify-between border-b border-[#7b2438]/10 px-6 py-4">
+                <span className="text-sm font-bold text-[#2b1d16]">Rapport d&apos;analyse</span>
+                <button type="button" onClick={() => { setReportModal(null); setReportModalError(null); }}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-[#6c5448] transition hover:bg-[#f2d9e0]">
+                  <XCircle className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                {reportModalError ? (
+                  <p className="text-sm text-red-700">{reportModalError}</p>
+                ) : reportModal ? (
+                  <div className="space-y-4">
+                    <p className="font-semibold text-[#2b1d16]">{reportModal.document.title || reportModal.document.originalName}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[{ label: "Similarité", value: `${parseFloat(reportModal.globalSimilarity).toFixed(1)}%`, color: parseFloat(reportModal.globalSimilarity) >= 50 ? "#b91c1c" : parseFloat(reportModal.globalSimilarity) >= 20 ? "#c98a2f" : "#16a34a" },
+                        { label: "Risque", value: reportModal.riskLevel === "LOW" ? "Faible" : reportModal.riskLevel === "MEDIUM" ? "Moyen" : "Élevé", color: reportModal.riskLevel === "LOW" ? "#16a34a" : reportModal.riskLevel === "MEDIUM" ? "#c98a2f" : "#b91c1c" }]
+                        .map(({ label, value, color }) => (
+                          <div key={label} className="rounded-xl border-2 border-[#7b2438]/10 bg-[#faf7f4] p-3 text-center">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-[#6c5448]">{label}</p>
+                            <p className="mt-1 text-base font-extrabold" style={{ color }}>{value}</p>
+                          </div>
+                        ))}
+                    </div>
+                    {reportModal.deliberations?.map((d) => {
+                      const isV = d.decision === "FINAL_VALIDATION";
+                      const isS = d.decision === "SANCTION";
+                      return (
+                        <div key={d.id} className="rounded-xl border-2 px-4 py-3"
+                          style={{ borderColor: isV ? "rgba(22,163,74,0.35)" : isS ? "rgba(220,38,38,0.35)" : "rgba(201,138,47,0.35)", background: isV ? "rgba(22,163,74,0.06)" : isS ? "rgba(220,38,38,0.06)" : "rgba(201,138,47,0.08)" }}>
+                          <p className="text-sm font-bold" style={{ color: isV ? "#166534" : isS ? "#b91c1c" : "#9a6a28" }}>
+                            {isV ? "Validation finale" : isS ? "Sanction" : "Réécriture requise"}
+                          </p>
+                          {d.notes && <p className="mt-1 text-xs text-[#5f483e]">{d.notes}</p>}
+                          <p className="mt-1 text-[10px] text-[#6c5448]/70">{d.decider?.name ?? "DA"} · {new Date(d.decidedAt).toLocaleDateString("fr-FR")}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1142,9 +1337,18 @@ export function StudentDashboard() {
                         </p>
                         <div className="space-y-2">
                           {reportModal.matchedSources
+                            .filter((src) =>
+                              !src.name.toLowerCase().includes("commission") &&
+                              !src.name.toLowerCase().includes("jury")
+                            )
                             .slice(0, 6)
                             .map((src, i) => {
-                              const label = src.sourceLabel ?? src.name ?? `Source #${i + 1}`;
+                              const label = src.sourceLabel && src.sourceLabel.length > 3
+                                ? src.sourceLabel
+                                : src.name
+                                    .replace(/rapport\s*#?\d*/gi, "Document d'archive")
+                                    .replace(/^(reference|validated):\d+:/, "")
+                                    .trim() || `Source #${i + 1}`;
                               const pct = Math.min(src.similarity, 100);
                               const scoreColor =
                                 pct >= 50 ? "#b91c1c" : pct >= 20 ? "#c98a2f" : "#16a34a";
@@ -1163,13 +1367,12 @@ export function StudentDashboard() {
                                           target="_blank"
                                           rel="noopener noreferrer"
                                           className="flex items-center gap-1 text-xs font-bold text-[#7b2438] underline decoration-dotted hover:decoration-solid break-words"
-                                          title="Ouvrir le document source"
                                         >
                                           <ExternalLink className="h-3 w-3 shrink-0 mt-0.5" />
-                                          <span className="break-words">{label}</span>
+                                          <span className="break-words line-clamp-2">{label}</span>
                                         </a>
                                       ) : (
-                                        <p className="break-words text-xs font-semibold text-[#2b1d16]">
+                                        <p className="break-words text-xs font-semibold text-[#2b1d16] line-clamp-2">
                                           {label}
                                         </p>
                                       )}
@@ -1184,7 +1387,6 @@ export function StudentDashboard() {
                                       {pct.toFixed(1)}%
                                     </span>
                                   </div>
-                                  {/* Barre de progression */}
                                   <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[#7b2438]/10">
                                     <div
                                       className={`h-full rounded-full ${barColor}`}
@@ -1197,6 +1399,54 @@ export function StudentDashboard() {
                         </div>
                       </div>
                     )}
+
+                  {/* Délibérations */}
+                  {Array.isArray(reportModal.deliberations) && reportModal.deliberations.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
+                        Décision de délibération
+                      </p>
+                      <div className="space-y-2">
+                        {reportModal.deliberations.map((d) => {
+                          const isValidation = d.decision === "FINAL_VALIDATION";
+                          const isSanction = d.decision === "SANCTION";
+                          return (
+                            <div
+                              key={d.id}
+                              className="rounded-xl border-2 px-4 py-3"
+                              style={{
+                                borderColor: isValidation ? "rgba(22,163,74,0.35)" : isSanction ? "rgba(220,38,38,0.35)" : "rgba(201,138,47,0.35)",
+                                background: isValidation ? "rgba(22,163,74,0.06)" : isSanction ? "rgba(220,38,38,0.06)" : "rgba(201,138,47,0.08)",
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                {isValidation
+                                  ? <CheckCircle className="h-4 w-4 text-green-600" />
+                                  : isSanction
+                                    ? <XCircle className="h-4 w-4 text-red-600" />
+                                    : <Clock className="h-4 w-4 text-[#c98a2f]" />
+                                }
+                                <p className="text-sm font-bold" style={{ color: isValidation ? "#166534" : isSanction ? "#b91c1c" : "#9a6a28" }}>
+                                  {isValidation ? "Validation finale" : isSanction ? "Sanction" : "Réécriture requise"}
+                                </p>
+                              </div>
+                              {d.notes && (
+                                <p className="mt-2 text-xs text-[#5f483e]">{d.notes}</p>
+                              )}
+                              {d.committee && (
+                                <p className="mt-1 text-[10px] text-[#6c5448]">
+                                  Commission : {d.committee}
+                                </p>
+                              )}
+                              <p className="mt-1 text-[10px] text-[#6c5448]/70">
+                                {d.decider?.name ?? "Direction Académique"} · {new Date(d.decidedAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   <p className="text-[10px] text-[#6c5448]/60 text-right">
                     Analysé le{" "}

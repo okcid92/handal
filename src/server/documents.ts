@@ -859,7 +859,7 @@ export async function createDocument(
     );
   }
 
-  const storagePath = `/storage/final/${themeId.toString()}/${Date.now()}-${payload.originalName}`;
+  const storagePath = `storage/final/${themeId.toString()}/${Date.now()}-${payload.originalName}`;
 
   // Compter les tentatives précédentes pour ce thème
   const previousCount = await prisma.document.count({

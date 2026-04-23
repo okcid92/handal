@@ -168,7 +168,9 @@ function AttemptCard({
               whiteSpace: "nowrap",
             }}
           >
-            {fileName}
+            {detectedTitle && detectedTitle.length > 5
+              ? detectedTitle
+              : fileName.replace(/\.[^.]+$/, "")}
           </span>
         </div>
 
