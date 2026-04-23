@@ -238,7 +238,7 @@ export function DALayout({
       <main className="app-shell flex-1 overflow-y-auto">
         <div className="sticky top-0 z-20 border-b bg-white/95 px-3 py-2 backdrop-blur md:hidden">
           <div className="mb-2 flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#6c5448]">
               Navigation DA
             </p>
             <button
@@ -279,7 +279,7 @@ export function DALayout({
             })}
             <a
               href="/da/reference-library"
-              className="shrink-0 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700"
+              className="shrink-0 rounded-lg border border-[#7b2438]/20 bg-[#f8f2e8] px-3 py-1.5 text-xs font-semibold text-[#7b2438]"
             >
               Base de Référence
             </a>

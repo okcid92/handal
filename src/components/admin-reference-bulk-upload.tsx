@@ -29,7 +29,9 @@ interface UploadProgress {
   message?: string;
 }
 
-export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () => void } = {}) {
+export function AdminReferenceBulkUpload({
+  onUploadDone,
+}: { onUploadDone?: () => void } = {}) {
   const [isUploading, setIsUploading] = useState(false);
   const [results, setResults] = useState<UploadResult[]>([]);
   const [errors, setErrors] = useState<UploadError[]>([]);
@@ -228,23 +230,23 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#faf8f3] to-[#f5f1e8] px-6 py-8">
+    <div className="app-shell min-h-screen px-6 py-8">
       <div className="mx-auto max-w-4xl">
         {/* Header with Handal Logo */}
-        <div className="mb-8 flex items-center gap-4 rounded-2xl bg-white p-6 shadow-sm">
+        <div className="section-frame mb-8 flex items-center gap-4 rounded-2xl p-6">
           <Image
             src="/brand/handal-lamp.png"
             alt="Handal"
-            width={48}
-            height={48}
-            className="h-12 w-auto object-contain"
+            width={56}
+            height={56}
+            className="h-14 w-auto object-contain"
             style={{ height: "auto" }}
           />
           <div>
-            <h1 className="text-3xl font-black uppercase tracking-wider text-[#7b2438]">
+            <h1 className="font-serif text-4xl font-normal tracking-tight text-[#7b2438]">
               Base de Référence
             </h1>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-[#5f483e]">
               Importez les mémoires des années précédentes pour enrichir
               l'algorithme Handal
             </p>
@@ -258,13 +260,13 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
           onDrop={handleDrop}
           className={`mb-6 rounded-2xl border-2 border-dashed px-8 py-12 text-center transition-colors ${
             isDragOver
-              ? "border-[#7b2438] bg-[#7b2438]/5"
-              : "border-[#7b2438]/30 bg-white hover:border-[#7b2438]/50"
+              ? "border-[#7b2438] bg-[#f6e7ea]"
+              : "border-[#7b2438]/30 bg-white/90 hover:border-[#7b2438]/50"
           }`}
         >
           <div className="mb-4 flex justify-center">
             <svg
-              className="h-16 w-16 text-[#7b2438]/40"
+              className="h-16 w-16 text-[#7b2438]/45"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -280,12 +282,12 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
           <p className="mb-2 text-lg font-semibold text-[#7b2438]">
             Glissez-déposez vos fichiers PDF ici
           </p>
-          <p className="mb-4 text-sm text-gray-600">
+          <p className="mb-4 text-sm text-[#6c5448]">
             ou cliquez pour parcourir votre ordinateur
           </p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-lg bg-[#7b2438] px-6 py-2 font-bold text-white transition-all hover:bg-[#5f1b2a] active:scale-95"
+            className="btn-primary rounded-lg px-6 py-2 font-bold text-white transition-all active:scale-95"
           >
             Sélectionner des fichiers
           </button>
@@ -297,7 +299,7 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
             onChange={handleFileChange}
             className="hidden"
           />
-          <p className="mt-3 text-xs text-gray-500">
+          <p className="mt-3 text-xs text-[#6c5448]">
             PDF, DOCX ou TXT · Maximum 50 MB par fichier
           </p>
         </div>
@@ -310,15 +312,15 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
         )}
 
         {isUploading && (
-          <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+          <div className="section-frame mb-6 rounded-2xl p-6">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#7b2438]/20 border-t-[#7b2438]" />
               <div>
-                <p className="font-semibold text-gray-700">
+                <p className="font-semibold text-[#4f3a30]">
                   Indexation en cours...
                 </p>
                 {progress?.fileName && (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-[#6c5448]">
                     Document [{progress.fileName}]
                     {progress.fileIndex && progress.totalFiles
                       ? ` · ${progress.fileIndex}/${progress.totalFiles}`
@@ -329,8 +331,9 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
                   </p>
                 )}
                 {progress?.extractedCharacters !== undefined && (
-                  <p className="text-xs text-gray-500">
-                    {progress.extractedCharacters.toLocaleString()} caractères extraits
+                  <p className="text-xs text-[#6c5448]">
+                    {progress.extractedCharacters.toLocaleString()} caractères
+                    extraits
                   </p>
                 )}
               </div>
@@ -340,7 +343,7 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
 
         {/* Success Results */}
         {results.length > 0 && (
-          <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+          <div className="section-frame mb-6 rounded-2xl p-6">
             <h2 className="mb-4 text-lg font-bold text-[#7b2438]">
               ✓ {results.length} document{results.length > 1 ? "s" : ""} importé
               {results.length > 1 ? "s" : ""}
@@ -352,8 +355,10 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
                   className="rounded-lg bg-green-50 p-3 border-l-4 border-green-500"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="font-medium text-gray-800">{result.fileName}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="font-medium text-[#2b1d16]">
+                      {result.fileName}
+                    </p>
+                    <p className="text-xs text-[#6c5448]">
                       ID: {result.documentId.slice(0, 8)}...
                     </p>
                   </div>
@@ -361,35 +366,43 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
                     ✓ Indexé comme référence Handal
                   </p>
                   {result.subjectLabel && (
-                    <p className="mt-1 text-xs text-gray-700">
-                      <span className="font-semibold text-[#7b2438]">Sujet :</span>{" "}
+                    <p className="mt-1 text-xs text-[#4f3a30]">
+                      <span className="font-semibold text-[#7b2438]">
+                        Sujet :
+                      </span>{" "}
                       {result.subjectLabel}
                     </p>
                   )}
                   {result.techStack && result.techStack.length > 0 && (
-                    <p className="mt-0.5 text-xs text-gray-600">
+                    <p className="mt-0.5 text-xs text-[#6c5448]">
                       <span className="font-semibold">Stack :</span>{" "}
                       {result.techStack.slice(0, 3).join(" · ")}
                     </p>
                   )}
-                  {!result.subjectLabel && result.dominantTheme && result.dominantTheme !== "indéterminé" && (
-                    <p className="mt-0.5 text-xs text-gray-600">
-                      <span className="font-semibold">Thème :</span>{" "}
-                      {result.dominantTheme}
-                    </p>
-                  )}
+                  {!result.subjectLabel &&
+                    result.dominantTheme &&
+                    result.dominantTheme !== "indéterminé" && (
+                      <p className="mt-0.5 text-xs text-[#6c5448]">
+                        <span className="font-semibold">Thème :</span>{" "}
+                        {result.dominantTheme}
+                      </p>
+                    )}
                   {result.topKeywords && result.topKeywords.length > 0 && (
-                    <p className="mt-0.5 text-xs text-gray-400">
+                    <p className="mt-0.5 text-xs text-[#7a6559]">
                       {result.topKeywords.join(" · ")}
                     </p>
                   )}
-                  {result.excludedRatio !== undefined && result.excludedRatio > 5 && (
-                    <p className="mt-0.5 text-[10px] text-gray-400">
-                      {result.excludedRatio}% de contenu institutionnel exclu de l’index
-                    </p>
-                  )}
+                  {result.excludedRatio !== undefined &&
+                    result.excludedRatio > 5 && (
+                      <p className="mt-0.5 text-[10px] text-[#7a6559]">
+                        {result.excludedRatio}% de contenu institutionnel exclu
+                        de l’index
+                      </p>
+                    )}
                   {result.warning && (
-                    <p className="mt-0.5 text-xs text-yellow-700">{result.warning}</p>
+                    <p className="mt-0.5 text-xs text-yellow-700">
+                      {result.warning}
+                    </p>
                   )}
                 </div>
               ))}
@@ -399,7 +412,7 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
 
         {/* Error Results */}
         {errors.length > 0 && (
-          <div className="mb-6 rounded-2xl bg-white p-6 shadow-sm">
+          <div className="section-frame mb-6 rounded-2xl p-6">
             <h2 className="mb-4 text-lg font-bold text-red-700">
               ✗ {errors.length} erreur{errors.length > 1 ? "s" : ""}
             </h2>
@@ -410,7 +423,7 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
                   className="flex items-center justify-between rounded-lg bg-red-50 p-3 border-l-4 border-red-500"
                 >
                   <div>
-                    <p className="font-medium text-gray-800">
+                    <p className="font-medium text-[#2b1d16]">
                       {error.fileName}
                     </p>
                     <p className="text-sm text-red-700">{error.error}</p>
@@ -423,8 +436,8 @@ export function AdminReferenceBulkUpload({ onUploadDone }: { onUploadDone?: () =
 
         {/* Summary */}
         {(results.length > 0 || errors.length > 0) && (
-          <div className="rounded-2xl bg-[#7b2438]/5 p-4 text-center">
-            <p className="text-sm text-gray-700">
+          <div className="rounded-2xl border border-[#7b2438]/15 bg-[#f6e7ea] p-4 text-center">
+            <p className="text-sm text-[#4f3a30]">
               <span className="font-bold text-[#7b2438]">
                 {results.length} succès
               </span>{" "}

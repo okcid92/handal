@@ -44,7 +44,7 @@ next-env.d.ts
 
 __pycache__/
 
-storage/references/
+storage/references/*
 storeage/tmp/
 
 prompt.txt

@@ -24,7 +24,7 @@ export function AdminDashboard() {
   return (
     <section className="grid gap-6 xl:grid-cols-2">
       <Card title="Supervision globale" icon={Globe}>
-        <div className="text-sm text-slate-600">
+        <div className="text-sm text-[#5f483e]">
           {overview?.user.name} · {overview?.user.role}
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -60,7 +60,7 @@ export function AdminDashboard() {
         {message ? (
           <Banner>{message}</Banner>
         ) : (
-          <div className="text-sm text-slate-500">Console admin prête.</div>
+          <div className="text-sm text-[#6c5448]">Console admin prête.</div>
         )}
       </Card>
     </section>
@@ -78,7 +78,7 @@ function Card({
 }) {
   return (
     <section className="section-frame rounded-[1.75rem] p-5">
-      <h2 className="mb-4 text-lg font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+      <h2 className="mb-4 flex items-center gap-2 font-serif text-2xl font-normal tracking-tight text-[#2b1d16]">
         {Icon ? <Icon className="w-5 h-5 text-accent" /> : null} {title}
       </h2>
       {children}
@@ -106,13 +106,13 @@ function Shortcut({
   return (
     <a
       href={href}
-      className="rounded-2xl border border-[#7b2438]/14 bg-white/88 p-4 transition hover:-translate-y-0.5 hover:border-[#c98a2f]/55 hover:bg-slate-50 group flex items-start justify-between"
+      className="group flex items-start justify-between rounded-2xl border border-[#7b2438]/14 bg-white/88 p-4 transition hover:-translate-y-0.5 hover:border-[#c98a2f]/55 hover:bg-[#fffaf2]"
     >
       <div>
-        <div className="font-semibold text-slate-900">{title}</div>
-        <div className="mt-1 text-sm text-slate-500">{description}</div>
+        <div className="font-semibold text-[#2b1d16]">{title}</div>
+        <div className="mt-1 text-sm text-[#6c5448]">{description}</div>
       </div>
-      <ChevronRight className="w-4 h-4 text-slate-500 transition group-hover:text-[#7b2438] group-hover:translate-x-1" />
+      <ChevronRight className="h-4 w-4 text-[#6c5448] transition group-hover:translate-x-1 group-hover:text-[#7b2438]" />
     </a>
   );
 }

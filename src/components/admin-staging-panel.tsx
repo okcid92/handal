@@ -45,7 +45,15 @@ type EditState = {
 };
 
 const DEPARTMENTS = [
-  "", "MIAGE", "CCA", "AGRO", "GI", "GC", "GM", "GE", "Autre",
+  "",
+  "MIAGE",
+  "CCA",
+  "AGRO",
+  "GI",
+  "GC",
+  "GM",
+  "GE",
+  "Autre",
 ];
 
 function StagingCard({
@@ -170,9 +178,7 @@ function StagingCard({
                     onClick={() =>
                       setEdit((s) => ({
                         ...s,
-                        techStack: s.techStack
-                          ? `${s.techStack}, ${t}`
-                          : t,
+                        techStack: s.techStack ? `${s.techStack}, ${t}` : t,
                       }))
                     }
                     className="rounded-full border border-[#7b2438]/20 bg-[#f2d9e0] px-2 py-0.5 text-[10px] font-semibold text-[#7b2438] hover:bg-[#7b2438] hover:text-white transition"
@@ -190,7 +196,9 @@ function StagingCard({
               <label className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
                 <User className="h-3 w-3" /> Auteur
                 {meta?.authorName && (
-                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">auto</span>
+                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">
+                    auto
+                  </span>
                 )}
               </label>
               <input
@@ -207,7 +215,9 @@ function StagingCard({
               <label className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
                 <GraduationCap className="h-3 w-3" /> Filière
                 {meta?.department && (
-                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">auto</span>
+                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">
+                    auto
+                  </span>
                 )}
               </label>
               <select
@@ -228,7 +238,9 @@ function StagingCard({
               <label className="mb-1.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
                 <Calendar className="h-3 w-3" /> Année
                 {meta?.academicYear && (
-                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">auto</span>
+                  <span className="ml-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">
+                    auto
+                  </span>
                 )}
               </label>
               <input
@@ -383,7 +395,10 @@ export function AdminStagingPanel() {
         academicYear: edit.academicYear || null,
       }),
     });
-    setNotice({ msg: "Document approuvé et indexé comme référence.", ok: true });
+    setNotice({
+      msg: "Document approuvé et indexé comme référence.",
+      ok: true,
+    });
     setDocs((prev) => prev.filter((d) => d.id !== id));
     setTimeout(() => setNotice(null), 4000);
   }
@@ -404,10 +419,10 @@ export function AdminStagingPanel() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-extrabold text-[#2b1d16]">
+          <h2 className="font-serif text-3xl font-normal tracking-tight text-[#2b1d16]">
             Staging Area
           </h2>
-          <p className="text-xs font-medium text-[#6c5448]">
+          <p className="text-sm font-medium text-[#6c5448]">
             Vérifiez et corrigez les métadonnées avant indexation définitive
           </p>
         </div>
@@ -415,9 +430,11 @@ export function AdminStagingPanel() {
           type="button"
           onClick={load}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-xl border-2 border-[#7b2438]/20 px-3 py-2 text-xs font-bold text-[#7b2438] transition hover:bg-[#f2d9e0] disabled:opacity-50"
+          className="btn-secondary inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold text-[#7b2438] transition disabled:opacity-50"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+          />
           Actualiser
         </button>
       </div>
@@ -439,7 +456,7 @@ export function AdminStagingPanel() {
           <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#7b2438]/20 border-t-[#7b2438]" />
         </div>
       ) : docs.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[#7b2438]/15 bg-white py-16 text-center">
+        <div className="section-frame flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[#7b2438]/15 py-16 text-center">
           <CheckCircle className="h-10 w-10 text-green-500/60" />
           <div>
             <p className="text-sm font-bold text-[#2b1d16]">

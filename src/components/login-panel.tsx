@@ -101,7 +101,7 @@ export function LoginPanel() {
   }
 
   return (
-    <section className="w-full rounded-[24px] border border-[#ddd4c4] bg-white p-[1.75rem] shadow-[0_6px_22px_rgba(30,20,16,0.1)]">
+    <section className="w-full rounded-[22px] border border-[#ddd4c4] bg-white p-5 shadow-[0_6px_22px_rgba(30,20,16,0.1)] sm:rounded-[24px] sm:p-[1.75rem]">
       <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-[#ddd4c4] bg-[#f4efe8] p-1.5">
         <button
           type="button"
@@ -109,7 +109,7 @@ export function LoginPanel() {
             setMode("student");
             setLogin(demoAccounts.student.login);
           }}
-          className={`rounded-md px-3 py-2.5 text-[1.1rem] font-medium transition ${mode === "student" ? "bg-[#7d1c2a] !text-white shadow-[0_1px_4px_rgba(125,28,42,0.25)]" : "text-[#8a7a6e] hover:text-[#1e1410]"}`}
+          className={`rounded-md px-3 py-2 text-[1rem] font-medium transition sm:py-2.5 sm:text-[1.1rem] ${mode === "student" ? "bg-[#7d1c2a] !text-white shadow-[0_1px_4px_rgba(125,28,42,0.25)]" : "text-[#8a7a6e] hover:text-[#1e1410]"}`}
         >
           Etudiant
         </button>
@@ -119,21 +119,24 @@ export function LoginPanel() {
             setMode("staff");
             setLogin(demoAccounts.teacher.login);
           }}
-          className={`rounded-md px-3 py-2.5 text-[1.1rem] font-medium transition ${mode === "staff" ? "bg-[#7d1c2a] !text-white shadow-[0_1px_4px_rgba(125,28,42,0.25)]" : "text-[#8a7a6e] hover:text-[#1e1410]"}`}
+          className={`rounded-md px-3 py-2 text-[1rem] font-medium transition sm:py-2.5 sm:text-[1.1rem] ${mode === "staff" ? "bg-[#7d1c2a] !text-white shadow-[0_1px_4px_rgba(125,28,42,0.25)]" : "text-[#8a7a6e] hover:text-[#1e1410]"}`}
         >
           Personnel
         </button>
       </div>
 
-      <form className="mt-7 space-y-4.5" onSubmit={handleSubmit}>
+      <form
+        className="mt-5 space-y-4 sm:mt-7 sm:space-y-4.5"
+        onSubmit={handleSubmit}
+      >
         <div>
-          <label className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#6b5649]">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6b5649] sm:text-[13px]">
             {mode === "student" ? "INE" : "Email"}
           </label>
           <input
             value={login}
             onChange={(event) => setLogin(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-[0.95rem] text-[1.1rem] text-[#1e1410] outline-none transition placeholder:text-[#6b5649] focus:border-[#7d1c2a] focus:shadow-[0_0_0_3px_rgba(125,28,42,0.08)]"
+            className="mt-2 w-full rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-[0.8rem] text-[1rem] text-[#1e1410] outline-none transition placeholder:text-[#6b5649] focus:border-[#7d1c2a] focus:shadow-[0_0_0_3px_rgba(125,28,42,0.08)] sm:py-[0.95rem] sm:text-[1.1rem]"
             placeholder={
               mode === "student" ? "N01331820231" : "teacher@handal.local"
             }
@@ -142,20 +145,20 @@ export function LoginPanel() {
         </div>
 
         <div>
-          <label className="text-[13px] font-semibold uppercase tracking-[0.06em] text-[#6b5649]">
+          <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6b5649] sm:text-[13px]">
             Mot de passe
           </label>
           <input
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="mt-2 w-full rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-[0.95rem] text-[1.1rem] text-[#1e1410] outline-none transition placeholder:text-[#6b5649] focus:border-[#7d1c2a] focus:shadow-[0_0_0_3px_rgba(125,28,42,0.08)]"
+            className="mt-2 w-full rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-[0.8rem] text-[1rem] text-[#1e1410] outline-none transition placeholder:text-[#6b5649] focus:border-[#7d1c2a] focus:shadow-[0_0_0_3px_rgba(125,28,42,0.08)] sm:py-[0.95rem] sm:text-[1.1rem]"
             autoComplete="current-password"
           />
         </div>
 
         {message ? (
-          <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-[1.1rem] text-rose-900">
+          <div className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-3 text-[1rem] text-rose-900 sm:text-[1.1rem]">
             {message}
           </div>
         ) : null}
@@ -163,14 +166,14 @@ export function LoginPanel() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-[9px] bg-[#7d1c2a] px-5 py-[0.95rem] text-[1.1rem] font-medium text-white transition hover:bg-[#5c1220] disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-[9px] bg-[#7d1c2a] px-5 py-[0.8rem] text-[1rem] font-medium text-white transition hover:bg-[#5c1220] disabled:cursor-not-allowed disabled:opacity-60 sm:py-[0.95rem] sm:text-[1.1rem]"
         >
           {loading ? "Connexion..." : "Se connecter"}
         </button>
       </form>
 
-      <div className="mt-6">
-        <label className="mb-2 block text-[13px] font-semibold uppercase tracking-[0.06em] text-[#6b5649]">
+      <div className="mt-5 sm:mt-6">
+        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6b5649] sm:text-[13px]">
           Comptes de demonstration
         </label>
         <select
@@ -178,7 +181,7 @@ export function LoginPanel() {
             const selected = e.target.value as keyof typeof demoAccounts;
             if (selected) fillDemoAccount(selected);
           }}
-          className="w-full cursor-pointer rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-[0.95rem] text-[1.1rem] text-[#3f2d24] outline-none transition focus:border-[#7d1c2a]"
+          className="w-full cursor-pointer rounded-lg border border-[#ddd4c4] bg-[#f4efe8] px-4 py-[0.8rem] text-[1rem] text-[#3f2d24] outline-none transition focus:border-[#7d1c2a] sm:py-[0.95rem] sm:text-[1.1rem]"
         >
           <option value="">Choisir un compte...</option>
           {Object.entries(demoAccounts).map(([key, account]) => (

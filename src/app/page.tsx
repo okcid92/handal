@@ -146,50 +146,50 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#f4efe8] text-[#1e1410] text-[1.05rem]">
       {/* NAVBAR */}
-      <nav className="sticky top-0 z-100 bg-[rgba(244,239,232,0.88)] backdrop-blur-[12px] border-b border-[#ddd4c4]">
-        <div className="max-w-[1040px] mx-auto px-6 h-[82px] flex items-center gap-7">
+      <nav className="sticky top-0 z-100 border-b border-[#ddd4c4] bg-[rgba(244,239,232,0.88)] backdrop-blur-[12px]">
+        <div className="mx-auto flex h-[68px] max-w-[1040px] items-center gap-3 px-4 sm:h-[74px] sm:px-6 md:h-[82px] md:gap-7">
           <a href="#" className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-[80px] h-[80px] flex items-center justify-center overflow-hidden">
+            <div className="flex h-[56px] w-[56px] items-center justify-center overflow-hidden sm:h-[64px] sm:w-[64px] md:h-[80px] md:w-[80px]">
               <Image
                 src="/brand/origina-logo.png"
                 alt="Handal"
                 width={80}
                 height={80}
-                className="h-[80px] w-auto object-contain"
+                className="h-[56px] w-auto object-contain sm:h-[64px] md:h-[80px]"
                 style={{ width: "auto", height: "auto" }}
               />
             </div>
             <div>
-              <strong className="block text-[1.05rem] font-medium tracking-[0.01em] text-[#1e1410]">
+              <strong className="block text-[0.95rem] font-medium tracking-[0.01em] text-[#1e1410] sm:text-[1rem] md:text-[1.05rem]">
                 HANDAL
               </strong>
-              <span className="block text-[12px] text-[#6b5649] tracking-[0.03em]">
+              <span className="hidden text-[12px] tracking-[0.03em] text-[#6b5649] sm:block">
                 Academic Integrity Platform
               </span>
             </div>
           </a>
-          <div className="flex-1 flex gap-1 items-center justify-end">
+          <div className="flex flex-1 items-center justify-end gap-1">
             <a
               href="#features"
-              className="text-[1.05rem] font-medium text-[#3f2d24] px-3 py-1.25 rounded-md transition hover:bg-[#eae2d6] hover:text-[#1e1410]"
+              className="hidden rounded-md px-3 py-1.25 text-[1.05rem] font-medium text-[#3f2d24] transition hover:bg-[#eae2d6] hover:text-[#1e1410] md:inline-flex"
             >
               Solutions
             </a>
             <a
               href="#workflow"
-              className="text-[1.05rem] font-medium text-[#3f2d24] px-3 py-1.25 rounded-md transition hover:bg-[#eae2d6] hover:text-[#1e1410]"
+              className="hidden rounded-md px-3 py-1.25 text-[1.05rem] font-medium text-[#3f2d24] transition hover:bg-[#eae2d6] hover:text-[#1e1410] md:inline-flex"
             >
               Workflow
             </a>
             <a
               href="#security"
-              className="text-[1.05rem] font-medium text-[#3f2d24] px-3 py-1.25 rounded-md transition hover:bg-[#eae2d6] hover:text-[#1e1410]"
+              className="hidden rounded-md px-3 py-1.25 text-[1.05rem] font-medium text-[#3f2d24] transition hover:bg-[#eae2d6] hover:text-[#1e1410] md:inline-flex"
             >
               Sécurité
             </a>
             <a
               href="#connexion"
-              className="bg-[#7d1c2a] !text-white text-[1.05rem] font-medium px-4 py-1.25 rounded-lg transition hover:bg-[#5c1220]"
+              className="rounded-lg bg-[#7d1c2a] px-3 py-2 text-sm font-medium !text-white transition hover:bg-[#5c1220] sm:px-4 sm:py-1.25 sm:text-[1.05rem]"
             >
               Connexion
             </a>
@@ -198,26 +198,26 @@ export default function Home() {
       </nav>
 
       {/* HERO */}
-      <section className="py-[56px] lg:py-[64px]">
-        <div className="max-w-[1040px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-[1fr_430px] gap-12 xl:gap-14 items-center">
+      <section className="py-9 sm:py-[56px] lg:py-[64px]">
+        <div className="mx-auto grid max-w-[1040px] grid-cols-1 items-center gap-8 px-4 sm:gap-12 sm:px-6 lg:grid-cols-[1fr_430px] xl:gap-14">
           <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#f5ece8] px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-[#7d1c2a] border border-[#ddd4c4] mb-4">
+            <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-[#ddd4c4] bg-[#f5ece8] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#7d1c2a] sm:text-[12px]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#7d1c2a] animate-pulse"></span>
               Plateforme académique
             </div>
-            <h1 className="font-serif text-[clamp(42px,5.4vw,60px)] font-normal leading-[1.06] text-[#1e1410] mb-4 tracking-[-0.01em]">
+            <h1 className="mb-4 font-serif text-[clamp(33px,10vw,60px)] font-normal leading-[1.08] tracking-[-0.01em] text-[#1e1410] sm:text-[clamp(42px,5.4vw,60px)] sm:leading-[1.06]">
               Handal orchestre la détection, la validation
               <br /> et la <em className="text-[#7d1c2a]">délibération</em> des
               mémoires.
             </h1>
-            <p className="text-[1.1rem] font-normal leading-[1.72] text-[#3f2d24] mb-7 max-w-[520px]">
+            <p className="mb-7 max-w-[520px] text-[1rem] font-normal leading-[1.68] text-[#3f2d24] sm:text-[1.1rem] sm:leading-[1.72]">
               Un flux académique structuré en trois phases — thème, document,
-              verdict — pour chaque acteur de l'institution.
+              verdict — pour chaque acteur de l&apos;institution.
             </p>
             <div className="flex gap-2.5 flex-wrap">
               <a
                 href="#features"
-                className="inline-flex items-center gap-1.75 rounded-[10px] bg-[#7d1c2a] border border-[#7d1c2a] px-[1.375rem] py-[0.6875rem] text-[1.05rem] !text-white transition hover:bg-[#5c1220] hover:border-[#5c1220]"
+                className="inline-flex items-center gap-1.75 rounded-[10px] border border-[#7d1c2a] bg-[#7d1c2a] px-5 py-2 text-[0.98rem] !text-white transition hover:border-[#5c1220] hover:bg-[#5c1220] sm:px-[1.375rem] sm:py-[0.6875rem] sm:text-[1.05rem]"
               >
                 Explorer la plateforme
               </a>
@@ -226,7 +226,7 @@ export default function Home() {
 
           <div
             id="connexion"
-            className="scroll-mt-24 w-full max-w-[430px] justify-self-end"
+            className="scroll-mt-24 w-full max-w-[430px] justify-self-stretch lg:justify-self-end"
           >
             <LoginPanel />
           </div>
@@ -235,16 +235,16 @@ export default function Home() {
 
       {/* FEATURES */}
       <section id="features" className="bg-white py-16 lg:py-18">
-        <div className="max-w-[1040px] mx-auto px-6">
+        <div className="max-w-[1040px] mx-auto px-4 sm:px-6">
           <div className="text-center mb-10">
             <div className="inline-block text-[9px] font-semibold text-[#7d1c2a] uppercase tracking-[0.1em] bg-[#f5ece8] px-2.5 py-1 rounded-full border border-[rgba(125,28,42,0.15)] mb-3.5">
               Moteur
             </div>
-            <h2 className="font-serif text-[clamp(32px,3.6vw,44px)] font-normal leading-[1.16] text-[#1e1410] mb-3">
+            <h2 className="font-serif text-[clamp(28px,8vw,44px)] font-normal leading-[1.16] text-[#1e1410] mb-3">
               Tout ce dont une institution a besoin
             </h2>
             <p className="text-[1.1rem] font-normal text-[#3f2d24] max-w-[580px] mx-auto leading-[1.72]">
-              Six modules intégrés couvrent l'intégralité du parcours
+              Six modules intégrés couvrent l&apos;intégralité du parcours
               académique, de la proposition du thème à la délibération finale.
             </p>
           </div>
@@ -252,7 +252,7 @@ export default function Home() {
             {featureCards.map((card) => (
               <div
                 key={card.title}
-                className="bg-[#f4efe8] border border-[#ddd4c4] rounded-[16px] p-6 transition hover:shadow-[0_4px_16px_rgba(30,20,16,0.08)] hover:-translate-y-0.5"
+                className="bg-[#f4efe8] border border-[#ddd4c4] rounded-[16px] p-5 sm:p-6 transition hover:shadow-[0_4px_16px_rgba(30,20,16,0.08)] hover:-translate-y-0.5"
               >
                 <div className="w-9 h-9 bg-[#f5ece8] rounded-lg flex items-center justify-center mb-1">
                   {card.icon}
@@ -274,20 +274,20 @@ export default function Home() {
 
       {/* WORKFLOW */}
       <section id="workflow" className="py-16 lg:py-18">
-        <div className="max-w-[1040px] mx-auto px-6">
+        <div className="max-w-[1040px] mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
             <div className="space-y-5">
               <div className="inline-block text-[9px] font-semibold text-[#7d1c2a] uppercase tracking-[0.1em] bg-[#f5ece8] px-2.5 py-1 rounded-full border border-[rgba(125,28,42,0.15)] mb-3.5">
                 Pourquoi Handal
               </div>
-              <h2 className="font-serif text-[clamp(32px,3.6vw,44px)] font-normal leading-[1.16] text-[#1e1410] mb-4">
+              <h2 className="font-serif text-[clamp(28px,8vw,44px)] font-normal leading-[1.16] text-[#1e1410] mb-4">
                 Conçu pour les institutions qui veulent du contrôle sans
                 surcharge
               </h2>
               <p className="text-[1.05rem] font-normal text-[#3f2d24] leading-[1.72] mb-5">
-                Chaque rôle reste dans son corridor d'action, avec des
+                Chaque rôle reste dans son corridor d&apos;action, avec des
                 checkpoints explicites et une gouvernance lisible pour
-                l'administration et la DA.
+                l&apos;administration et la DA.
               </p>
               <div className="space-y-2">
                 {highlights.map((item) => (
@@ -326,14 +326,14 @@ export default function Home() {
 
       {/* SECURITY */}
       <section id="security" className="bg-white py-16 lg:py-18">
-        <div className="max-w-[1040px] mx-auto px-6">
+        <div className="max-w-[1040px] mx-auto px-4 sm:px-6">
           <div className="bg-white border border-[#ddd4c4] rounded-[24px] p-7 sm:p-9">
             <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 items-center">
               <div>
                 <div className="inline-block text-[9px] font-semibold text-[#7d1c2a] uppercase tracking-[0.1em] bg-[#f5ece8] px-2.5 py-1 rounded-full border border-[rgba(125,28,42,0.15)] mb-3.5">
                   Sécurité & Exploitation
                 </div>
-                <h2 className="font-serif text-[clamp(32px,3.4vw,40px)] font-normal leading-[1.14] text-[#1e1410] mb-3.5">
+                <h2 className="font-serif text-[clamp(28px,7.8vw,40px)] font-normal leading-[1.14] text-[#1e1410] mb-3.5">
                   Une base visuelle robuste et prête pour les parcours critiques
                 </h2>
                 <p className="text-[1.1rem] font-normal text-[#3f2d24] leading-[1.72]">
@@ -375,8 +375,8 @@ export default function Home() {
                     Évolution
                   </h4>
                   <p className="text-[1.05rem] font-normal text-[#3f2d24] leading-[1.55]">
-                    Base prête pour l'ajout de nouveaux écrans et workflows sans
-                    refonte.
+                    Base prête pour l&apos;ajout de nouveaux écrans et workflows
+                    sans refonte.
                   </p>
                 </div>
               </div>
@@ -386,20 +386,20 @@ export default function Home() {
       </section>
 
       {/* CTA BAND */}
-      <div className="bg-[#7d1c2a] py-12 lg:py-13">
-        <div className="max-w-[1040px] mx-auto px-6 flex items-center justify-between gap-8">
+      <div className="bg-[#7d1c2a] py-10 sm:py-12 lg:py-13">
+        <div className="max-w-[1040px] mx-auto flex flex-col items-start justify-between gap-6 px-4 sm:px-6 md:flex-row md:items-center md:gap-8">
           <div>
-            <h2 className="font-serif text-[36px] lg:text-[38px] font-normal leading-[1.1] text-white mb-1.5">
+            <h2 className="mb-1.5 font-serif text-[30px] font-normal leading-[1.12] text-white sm:text-[36px] lg:text-[38px]">
               Prêt à moderniser votre processus académique ?
             </h2>
-            <p className="text-[1.1rem] font-normal text-white/92">
+            <p className="text-[1rem] font-normal text-white/92 sm:text-[1.1rem]">
               Rejoignez les institutions qui ont choisi Handal pour la rigueur
               et la traçabilité.
             </p>
           </div>
           <a
             href="#"
-            className="bg-white text-[#7d1c2a] font-sans text-[1.1rem] font-medium px-6 py-[0.6875rem] rounded-lg transition hover:opacity-90 hover:-translate-y-0.5 whitespace-nowrap flex-shrink-0"
+            className="w-full rounded-lg bg-white px-5 py-[0.6875rem] text-center font-sans text-[1rem] font-medium text-[#7d1c2a] transition hover:-translate-y-0.5 hover:opacity-90 sm:w-auto sm:px-6 sm:text-[1.1rem]"
           >
             Accéder à la plateforme →
           </a>
@@ -408,7 +408,7 @@ export default function Home() {
 
       {/* FOOTER */}
       <footer className="bg-white border-t border-[#ddd4c4] py-6">
-        <div className="max-w-[1040px] mx-auto px-6 flex items-center justify-between gap-4 flex-wrap">
+        <div className="max-w-[1040px] mx-auto flex flex-col items-start justify-between gap-4 px-4 sm:flex-row sm:items-center sm:px-6">
           <div>
             <div className="text-[1.1rem] font-medium text-[#1e1410]">
               Handal
@@ -417,7 +417,7 @@ export default function Home() {
               2026 Handal Academic Systems. Tous droits réservés.
             </div>
           </div>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             <a
               className="text-[1.05rem] font-medium text-[#6b5649] uppercase tracking-[0.06em] px-2.5 py-1.25 rounded-md border border-[#ddd4c4] transition hover:bg-[#f4efe8] hover:text-[#1e1410]"
               href="#"
