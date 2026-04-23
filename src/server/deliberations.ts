@@ -1,4 +1,7 @@
 import { DeliberationDecision } from "@prisma/client";
+import { constants } from "node:fs";
+import { access, copyFile, mkdir } from "node:fs/promises";
+import path from "node:path";
 
 import { ApiError } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
@@ -87,6 +90,45 @@ function buildReferenceStagingMetadata(extractedText: string, fallbackTitle?: st
     approvedAt: new Date().toISOString(),
     source: "cd_final_validation",
   };
+}
+
+function normalizeStoredPath(storagePath: string) {
+  const trimmed = storagePath.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  if (path.isAbsolute(trimmed)) {
+    return trimmed;
+  }
+
+  return path.join(process.cwd(), trimmed.replace(/^\/+/, ""));
+}
+
+function sanitizeReferenceName(name: string) {
+  return name
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+async function moveToReferenceStorage(document: {
+  storagePath: string;
+  originalName: string;
+  checksum: string;
+}) {
+  const sourcePath = normalizeStoredPath(document.storagePath);
+  await access(sourcePath, constants.R_OK);
+
+  const checksumToken = document.checksum.replace(/^sha256:/, "").slice(0, 10);
+  const safeName = sanitizeReferenceName(document.originalName);
+  const targetRelativePath = `storage/references/${Date.now()}-${checksumToken}-${safeName}`;
+  const targetAbsolutePath = path.join(process.cwd(), targetRelativePath);
+
+  await mkdir(path.dirname(targetAbsolutePath), { recursive: true });
+  await copyFile(sourcePath, targetAbsolutePath);
+
+  return targetRelativePath;
 }
 
 function serializeDeliberation(deliberation: {
@@ -197,11 +239,32 @@ export async function validateReportByChefDept(
       themeId = await findOrCreateReferenceTheme(metadata.subjectLabel, decidedBy);
     }
 
+    let promotedStoragePath: string | null = null;
+    try {
+      promotedStoragePath = await moveToReferenceStorage({
+        storagePath: loadedReport.document.storagePath,
+        originalName: loadedReport.document.originalName,
+        checksum: loadedReport.document.checksum,
+      });
+    } catch (error) {
+      logger.warn(
+        "report.reference_copy_failed",
+        "unable to copy approved document into storage/references",
+        {
+          reportId: result.report.id,
+          documentId: result.report.documentId,
+          sourceStoragePath: loadedReport.document.storagePath,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
+
     await prisma.document.update({
       where: { id: BigInt(result.report.documentId) },
       data: {
         documentStatus: "APPROVED",
         isReference: true,
+        ...(promotedStoragePath ? { storagePath: promotedStoragePath } : {}),
         ...(themeId ? { themeId } : {}),
         ...(metadata
           ? {

@@ -22,6 +22,7 @@ type ReportSummary = {
   id: string;
   documentId: string;
   globalSimilarity: string;
+  aiScore?: string | null;
   riskLevel: string;
   analyzedAt: string;
   document: {
@@ -126,6 +127,7 @@ export function TeacherDashboard() {
       {message && <Banner ok={messageOk}>{message}</Banner>}
       <CDTracker
         view={view}
+        onViewChange={setView}
         themes={themes}
         reports={reports}
         onThemesRefresh={setThemes}

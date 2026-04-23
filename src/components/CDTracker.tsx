@@ -38,6 +38,7 @@ type ReportSummary = {
   id: string;
   documentId: string;
   globalSimilarity: string;
+  aiScore?: string | null;
   riskLevel: string;
   analyzedAt: string;
   uploadAttempts?: number;
@@ -437,6 +438,7 @@ function ReportCard({
 // ── Main CDTracker ─────────────────────────────────────────────
 export function CDTracker({
   view,
+  onViewChange,
   themes,
   reports,
   onThemesRefresh,
@@ -444,6 +446,7 @@ export function CDTracker({
   onNotify,
 }: {
   view: CdView;
+  onViewChange: (v: CdView) => void;
   themes: ThemeSummary[];
   reports: ReportSummary[];
   onThemesRefresh: (t: ThemeSummary[]) => void;
@@ -467,6 +470,9 @@ export function CDTracker({
   // Analyse
   const [analysisDocId, setAnalysisDocId] = useState("");
   const [analysisMsg, setAnalysisMsg] = useState<string | null>(null);
+  const [dashboardFilter, setDashboardFilter] = useState<
+    "all" | "urgent" | "active" | "done"
+  >("all");
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -479,6 +485,122 @@ export function CDTracker({
         t.theme_title.toLowerCase().includes(q),
     );
   }, [themes, search]);
+
+  const dashboardRows = useMemo(() => {
+    const themeRows = filtered.map((theme) => {
+      const score = parseFloat(theme.similarity_score) || 0;
+      const initials = `${theme.student_firstname.charAt(0)}${theme.student_name.charAt(0)}`.toUpperCase();
+      const urgent = score >= 35;
+
+      return {
+        id: `theme-${theme.theme_id}`,
+        kind: "theme" as const,
+        initials,
+        name: `${theme.student_firstname} ${theme.student_name}`,
+        filiere: theme.student_department || "Sans filiere",
+        subject: theme.theme_title,
+        phase: [1, 0, 0] as [number, number, number],
+        status: "pending" as const,
+        scorePlagiarism: score,
+        scoreAi: null as number | null,
+        urgent,
+        actionLabel: "Voter",
+        action: () => onViewChange("themes"),
+      };
+    });
+
+    const reportRows = reports.slice(0, 8).map((report) => {
+      const pScore = parseFloat(report.globalSimilarity) || 0;
+      const aiScore = report.aiScore ? parseFloat(report.aiScore) : null;
+      const status = report.isReference
+        ? "approved"
+        : pScore >= 20
+          ? "flagged"
+          : "clean";
+      const urgent = pScore >= 20;
+
+      return {
+        id: `report-${report.id}`,
+        kind: "report" as const,
+        initials: "RP",
+        name: `Rapport #${report.id}`,
+        filiere: "Memoire",
+        subject: report.document.title,
+        phase: [1, 1, 1] as [number, number, number],
+        status,
+        scorePlagiarism: pScore,
+        scoreAi: aiScore,
+        urgent,
+        actionLabel: report.isReference ? "Consulter" : "Examiner",
+        action: () => openDocument(report),
+      };
+    });
+
+    const rows = [...themeRows, ...reportRows];
+
+    if (dashboardFilter === "urgent") {
+      return rows.filter((row) => row.urgent);
+    }
+
+    if (dashboardFilter === "active") {
+      return rows.filter((row) => ["pending", "clean", "flagged"].includes(row.status));
+    }
+
+    if (dashboardFilter === "done") {
+      return rows.filter((row) => row.status === "approved");
+    }
+
+    return rows;
+  }, [filtered, reports, dashboardFilter, onViewChange]);
+
+  const dashboardStats = useMemo(() => {
+    const votesRequired = themes.length;
+    const toAppreciate = reports.filter(
+      (report) => !report.isReference && (parseFloat(report.globalSimilarity) || 0) < 20,
+    ).length;
+    const flagged = reports.filter(
+      (report) => (parseFloat(report.globalSimilarity) || 0) >= 20,
+    ).length;
+    const approved = reports.filter((report) => report.isReference).length;
+    const managed = new Set(
+      themes.map((theme) => `${theme.student_firstname} ${theme.student_name}`),
+    ).size;
+    const globalProgress =
+      managed > 0 ? Math.min(100, Math.round(((approved + toAppreciate) / managed) * 100)) : 0;
+
+    return {
+      votesRequired,
+      toAppreciate,
+      flagged,
+      approved,
+      managed,
+      globalProgress,
+    };
+  }, [themes, reports]);
+
+  const recentActivity = useMemo(() => {
+    const themeEvents = themes.map((theme) => ({
+      id: `activity-theme-${theme.theme_id}`,
+      color: "#c08010",
+      text: `Nouveau theme de ${theme.student_firstname} ${theme.student_name}`,
+      when: new Date(theme.submitted_at),
+    }));
+
+    const reportEvents = reports.map((report) => {
+      const score = parseFloat(report.globalSimilarity) || 0;
+      const risky = score >= 20;
+      return {
+        id: `activity-report-${report.id}`,
+        color: risky ? "#7D1C2A" : "#1A6A3E",
+        text: `${risky ? "Rapport flagge" : "Rapport clean"} - ${report.document.title}`,
+        when: new Date(report.analyzedAt),
+      };
+    });
+
+    return [...themeEvents, ...reportEvents]
+      .sort((a, b) => b.when.getTime() - a.when.getTime())
+      .slice(0, 5);
+  }, [themes, reports]);
 
   function selectTheme(t: ThemeSummary) {
     setSelectedTheme(t);
@@ -650,92 +772,353 @@ export function CDTracker({
         <div className="mx-auto max-w-4xl space-y-6">
           {/* ── Dashboard ── */}
           {view === "dashboard" && (
-            <div className="space-y-6">
-              <SectionHeader icon={LayoutDashboard} title="Vue d'ensemble" />
-
-              {/* KPIs */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[
-                  {
-                    label: "Thèmes en attente",
-                    value: themes.length,
-                    urgent: themes.length > 0,
-                  },
-                  {
-                    label: "Rapports disponibles",
-                    value: reports.length,
-                    urgent: false,
-                  },
-                  { label: "Session", value: "Active", urgent: false },
-                ].map(({ label, value, urgent }) => (
+            <div className="space-y-4">
+              <div
+                className="rounded-2xl px-5 py-4 text-white"
+                style={{ background: "#7D1C2A" }}
+              >
+                <div className="flex flex-col gap-3 md:flex-row md:items-center">
                   <div
-                    key={label}
-                    className="rounded-2xl border-2 bg-white p-5"
-                    style={{ borderColor: "rgba(123,36,56,0.12)" }}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                    style={{ background: "rgba(255,255,255,0.14)" }}
                   >
-                    <p
-                      className="text-xs font-bold uppercase tracking-widest mb-2"
-                      style={{ color: "var(--text-soft)" }}
-                    >
-                      {label}
-                    </p>
-                    <p
-                      className="text-3xl font-extrabold"
-                      style={{
-                        color: urgent ? "var(--primary)" : "var(--foreground)",
-                      }}
-                    >
-                      {value}
+                    <LayoutDashboard className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <h2 className="text-sm font-semibold">
+                      {dashboardStats.votesRequired + dashboardStats.toAppreciate + dashboardStats.flagged} element(s)
+                      necessitent votre attention immediate
+                    </h2>
+                    <p className="text-xs text-white/75">
+                      {dashboardStats.votesRequired} themes a voter • {dashboardStats.toAppreciate} rapports a apprecier • {dashboardStats.flagged} alertes plagiat
                     </p>
                   </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => setDashboardFilter("urgent")}
+                    className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
+                    style={{
+                      borderColor: "rgba(255,255,255,0.35)",
+                      background: "rgba(255,255,255,0.14)",
+                    }}
+                  >
+                    Filtrer les urgences
+                  </button>
+                </div>
               </div>
 
-              {/* Thèmes récents */}
-              {filtered.length > 0 && (
-                <div className="space-y-3">
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest"
-                    style={{ color: "var(--text-soft)" }}
-                  >
-                    Thèmes récents
+              <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+                <div className="rounded-xl border bg-white p-3" style={{ borderColor: "#DDD4C8" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8A7A6E]">
+                    Etudiants geres
                   </p>
-                  <div className="relative grid gap-3">
-                    {filtered.slice(0, 3).map((t) => (
-                      <ThemeCard
-                        key={t.theme_id}
-                        theme={t}
-                        selected={selectedTheme?.theme_id === t.theme_id}
-                        onClick={() => selectTheme(t)}
-                      />
-                    ))}
-                  </div>
+                  <p className="mt-1 text-2xl font-semibold text-[#2A1A12]">{dashboardStats.managed}</p>
                 </div>
-              )}
+                <div className="rounded-xl border bg-[#FEF5E0] p-3" style={{ borderColor: "#E8C870" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7A5010]">Votes requis</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#7A5010]">{dashboardStats.votesRequired}</p>
+                </div>
+                <div className="rounded-xl border bg-[#EAF5EE] p-3" style={{ borderColor: "#96D4B0" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#1A6A3E]">A apprecier</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#1A6A3E]">{dashboardStats.toAppreciate}</p>
+                </div>
+                <div className="rounded-xl border bg-[#F5ECE8] p-3" style={{ borderColor: "#E8C8C0" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#7D1C2A]">Alertes plagiat</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#7D1C2A]">{dashboardStats.flagged}</p>
+                </div>
+                <div className="rounded-xl border bg-[#EAF5EE] p-3" style={{ borderColor: "#96D4B0" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#1A6A3E]">Approuves</p>
+                  <p className="mt-1 text-2xl font-semibold text-[#1A6A3E]">{dashboardStats.approved}</p>
+                </div>
+              </div>
 
-              {/* Rapports récents */}
-              {reports.length > 0 && (
-                <div className="space-y-3">
-                  <p
-                    className="text-xs font-bold uppercase tracking-widest"
-                    style={{ color: "var(--text-soft)" }}
+              <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+                <div className="rounded-2xl border bg-white" style={{ borderColor: "#DDD4C8" }}>
+                  <div
+                    className="flex flex-col gap-2 border-b px-4 py-3 md:flex-row md:items-center"
+                    style={{ borderColor: "#DDD4C8" }}
                   >
-                    Derniers rapports
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {reports.slice(0, 2).map((r) => (
-                      <ReportCard
-                        key={r.id}
-                        report={r}
-                        onOpen={openDocument}
-                        isOpening={loadingDocumentId === r.id}
-                        onValidate={validateFinalReport}
-                        isValidating={validatingReportId === r.id}
-                      />
-                    ))}
+                    <h3 className="flex-1 text-sm font-semibold text-[#2A1A12]">
+                      Vue consolidée themes et rapports ({dashboardRows.length})
+                    </h3>
+                    <div className="flex gap-1.5 text-xs">
+                      {[
+                        { id: "all", label: "Tous" },
+                        { id: "urgent", label: "Urgents" },
+                        { id: "active", label: "En cours" },
+                        { id: "done", label: "Termines" },
+                      ].map((f) => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() =>
+                            setDashboardFilter(
+                              f.id as "all" | "urgent" | "active" | "done",
+                            )
+                          }
+                          className="rounded-md border px-2.5 py-1"
+                          style={
+                            dashboardFilter === f.id
+                              ? {
+                                  background: "#7D1C2A",
+                                  color: "#fff",
+                                  borderColor: "#7D1C2A",
+                                }
+                              : {
+                                  background: "#fff",
+                                  color: "#8A7A6E",
+                                  borderColor: "#DDD4C8",
+                                }
+                          }
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-collapse">
+                      <thead>
+                        <tr style={{ background: "#F7F3EE" }}>
+                          <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#8A7A6E]">Profil</th>
+                          <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#8A7A6E]">Sujet</th>
+                          <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#8A7A6E]">Phase</th>
+                          <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#8A7A6E]">Statut</th>
+                          <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#8A7A6E]">Plagiat / IA</th>
+                          <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[#8A7A6E]">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboardRows.length === 0 && (
+                          <tr>
+                            <td
+                              colSpan={6}
+                              className="px-3 py-6 text-center text-sm text-[#8A7A6E]"
+                            >
+                              Aucun element pour ce filtre
+                            </td>
+                          </tr>
+                        )}
+                        {dashboardRows.map((row) => {
+                          const statusConfig: Record<
+                            string,
+                            { label: string; bg: string; color: string; border: string }
+                          > = {
+                            pending: {
+                              label: "Vote requis",
+                              bg: "#FEF5E0",
+                              color: "#7A5010",
+                              border: "#E8C870",
+                            },
+                            clean: {
+                              label: "Rapport CLEAN",
+                              bg: "#EAF5EE",
+                              color: "#1A6A3E",
+                              border: "#96D4B0",
+                            },
+                            flagged: {
+                              label: "FLAGGE >= 20%",
+                              bg: "#F5ECE8",
+                              color: "#7D1C2A",
+                              border: "#E8C8C0",
+                            },
+                            approved: {
+                              label: "Approuve",
+                              bg: "#E8F0FA",
+                              color: "#1A4A7A",
+                              border: "#90B4E0",
+                            },
+                          };
+
+                          const status = statusConfig[row.status] || statusConfig.pending;
+                          const p = Math.min(100, Math.max(0, row.scorePlagiarism));
+                          const ai = row.scoreAi == null ? null : Math.min(100, Math.max(0, row.scoreAi));
+
+                          return (
+                            <tr key={row.id} className="border-t" style={{ borderColor: "#EEE5DA" }}>
+                              <td className="px-3 py-2">
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold"
+                                    style={{
+                                      background: row.kind === "theme" ? "#F5ECE8" : "#E8F0FA",
+                                      color: row.kind === "theme" ? "#7D1C2A" : "#1A4A7A",
+                                    }}
+                                  >
+                                    {row.initials}
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-semibold text-[#2A1A12]">{row.name}</p>
+                                    <p className="text-[10px] text-[#8A7A6E]">{row.filiere}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="max-w-[280px] truncate px-3 py-2 text-xs text-[#2A1A12]" title={row.subject}>
+                                {row.subject}
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="flex gap-1">
+                                  {row.phase.map((step, idx) => (
+                                    <span
+                                      key={`${row.id}-phase-${idx}`}
+                                      className="h-1.5 w-5 rounded"
+                                      style={{
+                                        background: step
+                                          ? idx === 0
+                                            ? "#C8B8A8"
+                                            : idx === 1
+                                              ? "#1A4A7A"
+                                              : "#1A6A3E"
+                                          : "#E8E0D8",
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2">
+                                <span
+                                  className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold"
+                                  style={{
+                                    background: status.bg,
+                                    color: status.color,
+                                    borderColor: status.border,
+                                  }}
+                                >
+                                  {status.label}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1">
+                                    <div className="h-1.5 w-12 overflow-hidden rounded bg-[#EDE6DC]">
+                                      <div
+                                        className="h-full rounded"
+                                        style={{
+                                          width: `${p}%`,
+                                          background: p >= 20 ? "#7D1C2A" : "#1A6A3E",
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-[10px] text-[#8A7A6E]">{p.toFixed(1)}%</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <div className="h-1.5 w-12 overflow-hidden rounded bg-[#EDE6DC]">
+                                      <div
+                                        className="h-full rounded"
+                                        style={{
+                                          width: `${ai ?? 0}%`,
+                                          background: ai != null && ai >= 15 ? "#7A5010" : "#1A6A3E",
+                                        }}
+                                      />
+                                    </div>
+                                    <span className="text-[10px] text-[#8A7A6E]">{ai != null ? `${ai.toFixed(1)}% IA` : "-"}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-3 py-2">
+                                <button
+                                  type="button"
+                                  onClick={row.action}
+                                  className="rounded-md border px-2.5 py-1 text-[11px] font-semibold"
+                                  style={{
+                                    background:
+                                      row.kind === "theme" ? "#F5ECE8" : "#EDE6DC",
+                                    color: row.kind === "theme" ? "#7D1C2A" : "#5A4A3A",
+                                    borderColor:
+                                      row.kind === "theme" ? "#E8C8C0" : "#DDD4C8",
+                                  }}
+                                >
+                                  {row.actionLabel}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              )}
+
+                <div className="space-y-4">
+                  <div className="rounded-2xl border bg-white" style={{ borderColor: "#DDD4C8" }}>
+                    <div className="border-b px-4 py-3" style={{ borderColor: "#DDD4C8" }}>
+                      <h3 className="text-xs font-semibold text-[#2A1A12]">Pipeline</h3>
+                    </div>
+                    <div className="space-y-3 px-4 py-3 text-xs">
+                      <p className="text-[#5A4A3A]"><strong>Phase 1 - Themes</strong><br />{dashboardStats.votesRequired} en validation CD</p>
+                      <p className="text-[#5A4A3A]"><strong>Phase 2 - Rapports</strong><br />{reports.length} analyses disponibles</p>
+                      <p className="text-[#5A4A3A]"><strong>Phase 3 - Verdicts</strong><br />{dashboardStats.toAppreciate} a apprecier • {dashboardStats.flagged} flagges</p>
+                      <div>
+                        <div className="mb-1 flex justify-between text-[10px] text-[#8A7A6E]">
+                          <span>Avancement global</span>
+                          <span>{dashboardStats.globalProgress}%</span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded bg-[#EDE6DC]">
+                          <div
+                            className="h-full rounded"
+                            style={{
+                              width: `${dashboardStats.globalProgress}%`,
+                              background: "#7D1C2A",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border bg-white" style={{ borderColor: "#DDD4C8" }}>
+                    <div className="border-b px-4 py-3" style={{ borderColor: "#DDD4C8" }}>
+                      <h3 className="text-xs font-semibold text-[#2A1A12]">Distribution des statuts</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 px-4 py-3 text-center text-xs">
+                      <div className="rounded-lg border bg-[#FEF5E0] p-2" style={{ borderColor: "#E8C870", color: "#7A5010" }}>
+                        <p className="text-lg font-semibold">{dashboardStats.votesRequired}</p>
+                        <p>Vote requis</p>
+                      </div>
+                      <div className="rounded-lg border bg-[#E8F0FA] p-2" style={{ borderColor: "#90B4E0", color: "#1A4A7A" }}>
+                        <p className="text-lg font-semibold">{reports.length}</p>
+                        <p>En cours</p>
+                      </div>
+                      <div className="rounded-lg border bg-[#F5ECE8] p-2" style={{ borderColor: "#E8C8C0", color: "#7D1C2A" }}>
+                        <p className="text-lg font-semibold">{dashboardStats.flagged}</p>
+                        <p>Flagges</p>
+                      </div>
+                      <div className="rounded-lg border bg-[#EAF5EE] p-2" style={{ borderColor: "#96D4B0", color: "#1A6A3E" }}>
+                        <p className="text-lg font-semibold">{dashboardStats.approved}</p>
+                        <p>Approuves</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border bg-white" style={{ borderColor: "#DDD4C8" }}>
+                    <div className="border-b px-4 py-3" style={{ borderColor: "#DDD4C8" }}>
+                      <h3 className="text-xs font-semibold text-[#2A1A12]">Activite recente</h3>
+                    </div>
+                    <div>
+                      {recentActivity.length === 0 && (
+                        <p className="px-4 py-3 text-xs text-[#8A7A6E]">Aucune activite recente.</p>
+                      )}
+                      {recentActivity.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className="flex items-start gap-2 border-b px-4 py-2.5 last:border-b-0"
+                          style={{ borderColor: "#EEE5DA" }}
+                        >
+                          <span
+                            className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
+                            style={{ background: entry.color }}
+                          />
+                          <p className="flex-1 text-[11px] text-[#5A4A3A]">{entry.text}</p>
+                          <span className="text-[10px] text-[#B4A89A]">
+                            {entry.when.toLocaleDateString("fr-FR")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

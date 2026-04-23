@@ -17,8 +17,46 @@ function escapeFileName(name: string) {
 }
 
 function resolveAbsoluteDocumentPath(storagePath: string) {
+  if (path.isAbsolute(storagePath)) {
+    return storagePath;
+  }
+
   const normalizedStoragePath = storagePath.trim().replace(/^\/+/, "");
   return path.join(process.cwd(), normalizedStoragePath);
+}
+
+async function firstReadablePath(candidates: string[]) {
+  for (const candidate of candidates) {
+    try {
+      await access(candidate, constants.R_OK);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function buildStorageCandidates(storagePath: string) {
+  const normalized = storagePath.trim().replace(/\\/g, "/");
+  const baseName = path.basename(normalized);
+
+  const rawCandidates = [
+    resolveAbsoluteDocumentPath(storagePath),
+    path.join(process.cwd(), "storage", "references", baseName),
+    path.join(process.cwd(), "storage", "tmp", baseName),
+  ];
+
+  if (/^\/?storage\/final\//.test(normalized)) {
+    const asReference = normalized.replace(
+      /^\/?storage\/final\/[^/]+\//,
+      "storage/references/",
+    );
+    rawCandidates.push(resolveAbsoluteDocumentPath(asReference));
+  }
+
+  return [...new Set(rawCandidates)];
 }
 
 export async function GET(
@@ -36,6 +74,8 @@ export async function GET(
         originalName: true,
         mimeType: true,
         storagePath: true,
+        checksum: true,
+        isReference: true,
       },
     });
 
@@ -43,10 +83,29 @@ export async function GET(
       throw new ApiError("Document not found", 404, "DOCUMENT_NOT_FOUND");
     }
 
-    const absoluteFilePath = resolveAbsoluteDocumentPath(record.storagePath);
-    try {
-      await access(absoluteFilePath, constants.R_OK);
-    } catch {
+    const candidates = buildStorageCandidates(record.storagePath);
+    let absoluteFilePath = await firstReadablePath(candidates);
+
+    // Legacy fallback: reuse an equivalent reference doc with same checksum.
+    if (!absoluteFilePath && record.isReference && record.checksum) {
+      const sibling = await prisma.document.findFirst({
+        where: {
+          id: { not: record.id },
+          isReference: true,
+          checksum: record.checksum,
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { storagePath: true },
+      });
+
+      if (sibling?.storagePath) {
+        absoluteFilePath = await firstReadablePath(
+          buildStorageCandidates(sibling.storagePath),
+        );
+      }
+    }
+
+    if (!absoluteFilePath) {
       return NextResponse.json(
         { error: "Fichier introuvable sur le stockage Handal" },
         { status: 404 },
