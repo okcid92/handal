@@ -280,7 +280,7 @@ export default function Home() {
               <p className="mt-2 text-sm text-white/75">
                 Rejoignez les institutions qui ont choisi Handal pour la
                 rigueur et la traçabilité.
-              </div>
+              </p>
             </div>
             <a
               href="#connexion"
