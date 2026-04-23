@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { errorResponse } from "@/lib/api-errors";
+import { type AppRole } from "@/lib/authz";
 import { guardRole } from "@/lib/route-guards";
 import { assertSameOrigin } from "@/lib/security";
 import {
@@ -24,7 +25,7 @@ export async function POST(
     const { report } = await params;
     const payload = payloadSchema.parse(await request.json());
 
-    const allowedRoles =
+    const allowedRoles: AppRole[] =
       payload.decision === "final_validation"
         ? ["TEACHER", "DA", "ADMIN"]
         : ["DA", "ADMIN"];

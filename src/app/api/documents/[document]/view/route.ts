@@ -12,6 +12,11 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+const STORAGE_ROOT = path.join(
+  /*turbopackIgnore: true*/ process.cwd(),
+  "storage",
+);
+
 function escapeFileName(name: string) {
   return name.replace(/["\\\r\n]/g, "_");
 }
@@ -22,7 +27,10 @@ function resolveAbsoluteDocumentPath(storagePath: string) {
   }
 
   const normalizedStoragePath = storagePath.trim().replace(/^\/+/, "");
-  return path.join(process.cwd(), normalizedStoragePath);
+  return path.join(
+    STORAGE_ROOT,
+    normalizedStoragePath.replace(/^storage\//, ""),
+  );
 }
 
 async function firstReadablePath(candidates: string[]) {
@@ -44,8 +52,8 @@ function buildStorageCandidates(storagePath: string) {
 
   const rawCandidates = [
     resolveAbsoluteDocumentPath(storagePath),
-    path.join(process.cwd(), "storage", "references", baseName),
-    path.join(process.cwd(), "storage", "tmp", baseName),
+    path.join(STORAGE_ROOT, "references", baseName),
+    path.join(STORAGE_ROOT, "tmp", baseName),
   ];
 
   if (/^\/?storage\/final\//.test(normalized)) {

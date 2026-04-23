@@ -24,11 +24,24 @@ import {
 } from "@/server/text-extraction";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
 const TITLE_MATCH_THRESHOLD = 80;
+
+const STORAGE_ROOT = path.join(
+  /*turbopackIgnore: true*/ process.cwd(),
+  "storage",
+);
 
 function resolveAbsoluteDocumentPath(storagePath: string) {
   const normalizedStoragePath = storagePath.trim().replace(/^\/+/, "");
-  return path.join(process.cwd(), normalizedStoragePath);
+  if (path.isAbsolute(storagePath)) {
+    return storagePath;
+  }
+
+  return path.join(
+    STORAGE_ROOT,
+    normalizedStoragePath.replace(/^storage\//, ""),
+  );
 }
 
 function cleanDetectedTitle(text: string): string {
@@ -281,7 +294,9 @@ export async function POST(request: NextRequest) {
       console.log("[UPLOAD] Document created:", { documentId: document.id });
 
       // Persister le binaire sur disque pour l'endpoint /api/documents/[id]/view.
-      const absoluteFilePath = resolveAbsoluteDocumentPath(document.storagePath);
+      const absoluteFilePath = resolveAbsoluteDocumentPath(
+        document.storagePath,
+      );
       await mkdir(path.dirname(absoluteFilePath), { recursive: true });
       await writeFile(absoluteFilePath, buffer);
       console.log("[UPLOAD] File persisted:", { absoluteFilePath });
