@@ -45,6 +45,6 @@ next-env.d.ts
 __pycache__/
 
 storage/references/*
-storeage/tmp/
-
+storage/tmp/
+stitch_*/
 prompt.txt

@@ -24,6 +24,7 @@ const TMP_STORAGE_DIR = path.join(process.cwd(), "storage", "tmp");
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
+export const dynamic = "force-dynamic";
 
 function sanitizeFileName(fileName: string) {
   return (
