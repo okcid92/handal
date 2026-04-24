@@ -1,144 +1,141 @@
 # Selenium Test Summary
 
-- Generated at: 2026-04-23T13:31:13.736270+00:00
+- Generated at: 2026-04-24T13:02:07.234647+00:00
 - Base URL: http://localhost:3000
 - Browser: chrome
 - Headless: true
-- Duration (s): 104.15
+- Duration (s): 115.37
 
 ## Totals
 
 - Total: 16
-- Passed: 7
-- Failed: 1
-- Errors: 2
-- Skipped: 6
+- Passed: 9
+- Failed: 0
+- Errors: 4
+- Skipped: 3
 
 ## Details
 
 - PASSED - test_01_home_page_shows_login_panel (tests.selenium.test_home.HomePageSeleniumTests.test_01_home_page_shows_login_panel)
-- FAILED - test_02_invalid_login_shows_error (tests.selenium.test_home.HomePageSeleniumTests.test_02_invalid_login_shows_error)
+- PASSED - test_02_invalid_login_shows_error (tests.selenium.test_home.HomePageSeleniumTests.test_02_invalid_login_shows_error)
+- PASSED - test_03_student_theme_submission_success_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_03_student_theme_submission_success_and_errors)
+- ERROR - test_04_teacher_validates_cd_with_options_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_04_teacher_validates_cd_with_options_and_errors)
 
 ```text
 Traceback (most recent call last):
-  File [35m"/home/okcid/Documents/handal/tests/selenium/test_home.py"[0m, line [35m91[0m, in [35mwait_for_text[0m
-    [31mself.wait.until[0m[1;31m([0m
-    [31m~~~~~~~~~~~~~~~[0m[1;31m^[0m
-        [1;31mEC.text_to_be_present_in_element((By.TAG_NAME, "body"), text_fragment)[0m
-        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
-    [1;31m)[0m
-    [1;31m^[0m
-  File [35m"/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py"[0m, line [35m121[0m, in [35muntil[0m
-    raise TimeoutException(message, screen, stacktrace)
-[1;35mselenium.common.exceptions.TimeoutException[0m: [35mMessage: 
-[0m
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File [35m"/home/okcid/Documents/handal/tests/selenium/test_home.py"[0m, line [35m183[0m, in [35mtest_02_invalid_login_shows_error[0m
-    [31mself.wait_for_text[0m[1;31m("Invalid credentials")[0m
-    [31m~~~~~~~~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^^^[0m
-  File [35m"/home/okcid/Documents/handal/tests/selenium/test_home.py"[0m, line [35m96[0m, in [35mwait_for_text[0m
-    raise AssertionError(
-        f"Text fragment not found: {text_fragment}. body_excerpt={body_text[:1200]}"
-    ) from error
-[1;35mAssertionError[0m: [35mText fragment not found: Invalid credentials. body_excerpt=HANDAL
-Academic Integrity Platform
-Solutions
-Workflow
-Sécurité
-Connexion
-PLATEFORME ACADÉMIQUE
-Handal orchestre la détection, la validation
-et la délibération des mémoires.
-Un flux académique structuré en trois phases — thème, document, verdict — pour chaque acteur de l'institution.
-Explorer la plateforme
-Etudiant
-Personnel
-INE
-MOT DE PASSE
-Se connecter
-COMPTES DE DEMONSTRATION
-Choisir un compte...
-Etudiant - N01331820231
-Enseignant - teacher@handal.local
-DA - da@handal.local
-Admin - admin@handal.local
-MOTEUR
-Tout ce dont une institution a besoin
-Six modules intégrés couvrent l'intégralité du parcours académique, de la proposition du thème à la délibération finale.
-MOTEUR
-Détection multi-niveaux
-Analyse du plagiat direct, de la paraphrase et des reformulations issues de traduction automatique sur un seul parcours.
-REPORTING
-Rapports exploitables
-Résultats structurés, scores, décisions et traces d'analyse pour suivre un mémoire de bout en bout.
-PROTECTION
-Sécurité active
-Contrôles same-origin, cookies signés et garde-fous serveur pour protéger les actions sensibles.
-WORKFLOW
-Flux par rôle
-Espaces dédiés aux étudiants, enseignants, DA et administrateurs avec des étapes claires et con[0m
-```
-
-- ERROR - test_03_student_theme_submission_success_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_03_student_theme_submission_success_and_errors)
-
-```text
-Traceback (most recent call last):
-  File [35m"/home/okcid/Documents/handal/tests/selenium/test_home.py"[0m, line [35m193[0m, in [35mtest_03_student_theme_submission_success_and_errors[0m
-    title_input = [31mself.panel_input[0m[1;31m("Proposer un thème", "Titre")[0m
-                  [31m~~~~~~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
-  File [35m"/home/okcid/Documents/handal/tests/selenium/test_home.py"[0m, line [35m49[0m, in [35mpanel_input[0m
-    return [31mself.wait.until[0m[1;31m([0m
-           [31m~~~~~~~~~~~~~~~[0m[1;31m^[0m
-        [1;31mEC.presence_of_element_located([0m
-        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File "/home/okcid/Documents/handal/tests/selenium/test_home.py", line 253, in test_04_teacher_validates_cd_with_options_and_errors
+    theme_id = self.panel_input("Validation locale / Analyse", "Theme ID")
+  File "/home/okcid/Documents/handal/tests/selenium/test_home.py", line 49, in panel_input
+    return self.wait.until(
+           ~~~~~~~~~~~~~~~^
+        EC.presence_of_element_located(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     ...<4 lines>...
-        [1;31m)[0m
-        [1;31m^[0m
-    [1;31m)[0m
-    [1;31m^[0m
-  File [35m"/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py"[0m, line [35m121[0m, in [35muntil[0m
+        )
+        ^
+    )
+    ^
+  File "/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py", line 121, in until
     raise TimeoutException(message, screen, stacktrace)
-[1;35mselenium.common.exceptions.TimeoutException[0m: [35mMessage: 
+selenium.common.exceptions.TimeoutException: Message: 
 Stacktrace:
-#0 0x564f10f5c79a <unknown>
-#1 0x564f10958215 <unknown>
-#2 0x564f109aaf06 <unknown>
-#3 0x564f109ab141 <unknown>
-#4 0x564f109f6634 <unknown>
-#5 0x564f109f37d0 <unknown>
-#6 0x564f1099e55f <unknown>
-#7 0x564f1099f321 <unknown>
-#8 0x564f10f2006b <unknown>
-#9 0x564f10f2301d <unknown>
-#10 0x564f10f0c718 <unknown>
-#11 0x564f10f23bb0 <unknown>
-#12 0x564f10ef3150 <unknown>
-#13 0x564f10f495e8 <unknown>
-#14 0x564f10f497b8 <unknown>
-#15 0x564f10f5b1de <unknown>
-#16 0x7f72827fbb7b <unknown>
-[0m
+#0 0x55816d6b479a <unknown>
+#1 0x55816d0b0215 <unknown>
+#2 0x55816d102f06 <unknown>
+#3 0x55816d103141 <unknown>
+#4 0x55816d14e634 <unknown>
+#5 0x55816d14b7d0 <unknown>
+#6 0x55816d0f655f <unknown>
+#7 0x55816d0f7321 <unknown>
+#8 0x55816d67806b <unknown>
+#9 0x55816d67b01d <unknown>
+#10 0x55816d664718 <unknown>
+#11 0x55816d67bbb0 <unknown>
+#12 0x55816d64b150 <unknown>
+#13 0x55816d6a15e8 <unknown>
+#14 0x55816d6a17b8 <unknown>
+#15 0x55816d6b31de <unknown>
+#16 0x7f9554f6bb7b <unknown>
 ```
 
-- SKIPPED - test_04_teacher_validates_cd_with_options_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_04_teacher_validates_cd_with_options_and_errors)
+- ERROR - test_05_da_validation_options_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_05_da_validation_options_and_errors)
 
 ```text
-Missing prerequisite state: approved_theme_id
+Traceback (most recent call last):
+  File "/home/okcid/Documents/handal/tests/selenium/test_home.py", line 294, in test_05_da_validation_options_and_errors
+    theme_id = self.panel_input("Validation académique", "Theme ID")
+               ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/okcid/Documents/handal/tests/selenium/test_home.py", line 49, in panel_input
+    return self.wait.until(
+           ~~~~~~~~~~~~~~~^
+        EC.presence_of_element_located(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+        )
+        ^
+    )
+    ^
+  File "/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py", line 121, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+#0 0x55816d6b479a <unknown>
+#1 0x55816d0b0215 <unknown>
+#2 0x55816d102f06 <unknown>
+#3 0x55816d103141 <unknown>
+#4 0x55816d14e634 <unknown>
+#5 0x55816d14b7d0 <unknown>
+#6 0x55816d0f655f <unknown>
+#7 0x55816d0f7321 <unknown>
+#8 0x55816d67806b <unknown>
+#9 0x55816d67b01d <unknown>
+#10 0x55816d664718 <unknown>
+#11 0x55816d67bbb0 <unknown>
+#12 0x55816d64b150 <unknown>
+#13 0x55816d6a15e8 <unknown>
+#14 0x55816d6a17b8 <unknown>
+#15 0x55816d6b31de <unknown>
+#16 0x7f9554f6bb7b <unknown>
 ```
 
-- SKIPPED - test_05_da_validation_options_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_05_da_validation_options_and_errors)
+- ERROR - test_06_student_upload_and_auto_test (tests.selenium.test_home.HomePageSeleniumTests.test_06_student_upload_and_auto_test)
 
 ```text
-Missing prerequisite state: approved_theme_id
-```
-
-- SKIPPED - test_06_student_upload_and_auto_test (tests.selenium.test_home.HomePageSeleniumTests.test_06_student_upload_and_auto_test)
-
-```text
-Missing prerequisite state: approved_theme_id
+Traceback (most recent call last):
+  File "/home/okcid/Documents/handal/tests/selenium/test_home.py", line 371, in test_06_student_upload_and_auto_test
+    doc_theme = self.panel_input("Dépôt du mémoire", "Theme ID")
+                ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/okcid/Documents/handal/tests/selenium/test_home.py", line 49, in panel_input
+    return self.wait.until(
+           ~~~~~~~~~~~~~~~^
+        EC.presence_of_element_located(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+        )
+        ^
+    )
+    ^
+  File "/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py", line 121, in until
+    raise TimeoutException(message, screen, stacktrace)
+selenium.common.exceptions.TimeoutException: Message: 
+Stacktrace:
+#0 0x55816d6b479a <unknown>
+#1 0x55816d0b0215 <unknown>
+#2 0x55816d102f06 <unknown>
+#3 0x55816d103141 <unknown>
+#4 0x55816d14e634 <unknown>
+#5 0x55816d14b7d0 <unknown>
+#6 0x55816d0f655f <unknown>
+#7 0x55816d0f7321 <unknown>
+#8 0x55816d67806b <unknown>
+#9 0x55816d67b01d <unknown>
+#10 0x55816d664718 <unknown>
+#11 0x55816d67bbb0 <unknown>
+#12 0x55816d64b150 <unknown>
+#13 0x55816d6a15e8 <unknown>
+#14 0x55816d6a17b8 <unknown>
+#15 0x55816d6b31de <unknown>
+#16 0x7f9554f6bb7b <unknown>
 ```
 
 - SKIPPED - test_07_teacher_analyzes_document (tests.selenium.test_home.HomePageSeleniumTests.test_07_teacher_analyzes_document)
@@ -161,39 +158,38 @@ Missing prerequisite state: report_id
 
 ```text
 Traceback (most recent call last):
-  File [35m"/home/okcid/Documents/handal/tests/selenium/test_home.py"[0m, line [35m546[0m, in [35mtest_13_admin_sidebar_navigation[0m
-    [31mself.wait.until[0m[1;31m([0m
-    [31m~~~~~~~~~~~~~~~[0m[1;31m^[0m
-        [1;31mEC.element_to_be_clickable([0m
-        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
-            [1;31m(By.XPATH, '//button[.//span[contains(text(),"Staging")]]')[0m
-            [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
-        [1;31m)[0m
-        [1;31m^[0m
-    [1;31m)[0m.click()
-    [1;31m^[0m
-  File [35m"/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py"[0m, line [35m121[0m, in [35muntil[0m
+  File "/home/okcid/Documents/handal/tests/selenium/test_home.py", line 522, in test_13_admin_sidebar_navigation
+    self.wait.until(
+    ~~~~~~~~~~~~~~~^
+        EC.element_to_be_clickable(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            (By.XPATH, '//button[.//span[normalize-space()="Documents de référence"]]')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+        ^
+    ).click()
+    ^
+  File "/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py", line 121, in until
     raise TimeoutException(message, screen, stacktrace)
-[1;35mselenium.common.exceptions.TimeoutException[0m: [35mMessage: 
+selenium.common.exceptions.TimeoutException: Message: 
 Stacktrace:
-#0 0x564f10f5c79a <unknown>
-#1 0x564f10958215 <unknown>
-#2 0x564f109aaf06 <unknown>
-#3 0x564f109ab141 <unknown>
-#4 0x564f109f6634 <unknown>
-#5 0x564f109f37d0 <unknown>
-#6 0x564f1099e55f <unknown>
-#7 0x564f1099f321 <unknown>
-#8 0x564f10f2006b <unknown>
-#9 0x564f10f2301d <unknown>
-#10 0x564f10f0c718 <unknown>
-#11 0x564f10f23bb0 <unknown>
-#12 0x564f10ef3150 <unknown>
-#13 0x564f10f495e8 <unknown>
-#14 0x564f10f497b8 <unknown>
-#15 0x564f10f5b1de <unknown>
-#16 0x7f72827fbb7b <unknown>
-[0m
+#0 0x55816d6b479a <unknown>
+#1 0x55816d0b0215 <unknown>
+#2 0x55816d102f06 <unknown>
+#3 0x55816d103141 <unknown>
+#4 0x55816d14e634 <unknown>
+#5 0x55816d14b7d0 <unknown>
+#6 0x55816d0f655f <unknown>
+#7 0x55816d0f7321 <unknown>
+#8 0x55816d67806b <unknown>
+#9 0x55816d67b01d <unknown>
+#10 0x55816d664718 <unknown>
+#11 0x55816d67bbb0 <unknown>
+#12 0x55816d64b150 <unknown>
+#13 0x55816d6a15e8 <unknown>
+#14 0x55816d6a17b8 <unknown>
+#15 0x55816d6b31de <unknown>
+#16 0x7f9554f6bb7b <unknown>
 ```
 
 - SKIPPED - test_14_student_verdict_rewrite_flow (tests.selenium.test_home.HomePageSeleniumTests.test_14_student_verdict_rewrite_flow)
