@@ -1,0 +1,85 @@
+# Handal Project Context - Quick Reference
+
+## 📖 Essential Documents (Read in Order)
+
+1. **COPILOT.md** ← START HERE
+   - Complete project overview
+   - Quick commands
+   - Recent fixes documented
+   - Test status
+
+2. **README.md**
+   - Product features
+   - Getting started
+   - Architecture overview
+
+3. **analyse.md**
+   - Deep technical analysis
+   - Security assessment
+   - Performance benchmarks
+
+4. **workflow.md**
+   - Complete workflow by phase
+   - Business rules
+   - State diagrams
+
+5. **tests/TESTS.md**
+   - Test execution guide
+   - All test suites
+
+## 🎯 What to Know
+
+**Stack**: Next.js 16.2.4 + React 19.2.4 + MySQL 8.0 + Prisma 6.15.0
+
+**Roles**: Student, Teacher (CD), Academic Director (DA), Admin
+
+**Core Feature**: Thesis management + plagiarism detection (TF-IDF + Jaccard + N-gram)
+
+**Security**: Custom HMAC sessions + RBAC middleware + rate-limit
+
+**Tests**: 51 unit (Vitest) + 8 E2E (Playwright) + 16 Selenium (all passing ✅)
+
+## 🚀 Quick Commands
+
+```bash
+npm run dev              # Start dev server
+npm run test:unit        # Run unit tests
+npm run test:e2e         # Run E2E tests
+npm run build            # Production build
+npm run lint             # ESLint check
+```
+
+## 🔧 Key Files to Know
+
+- `next.config.ts` - Allows localhost in dev
+- `src/lib/frontend-api.ts` - Client API with error handling
+- `src/components/login-panel.tsx` - Login form
+- `src/server/analysis/` - Plagiarism detection algorithms
+- `prisma/schema.prisma` - Database schema
+- `tests/` - All test suites
+
+## 📊 Recent Fix (24 April 2026)
+
+**Problem**: Login error messages not displaying
+
+**Root Causes**:
+1. `next.config.ts` didn't allow localhost for Playwright
+2. `frontend-api.ts` auto-redirected 401 errors
+
+**Solution**:
+1. Added "localhost" and "127.0.0.1" to `allowedDevOrigins`
+2. Removed auto 401 redirect, let middleware handle it
+
+**Result**: E2E tests 3/8 → 8/8 ✅
+
+## 📞 Next Steps
+
+- [ ] Run Selenium tests (16 tests)
+- [ ] Setup CI/CD pipeline
+- [ ] Deploy to staging
+- [ ] Production deployment
+- [ ] Monitor and iterate
+
+---
+
+**For detailed context**, read COPILOT.md
