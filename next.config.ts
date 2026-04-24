@@ -3,7 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   outputFileTracingRoot: __dirname,
-  allowedDevOrigins: ["d40c-102-180-110-135.ngrok-free.app"],
+  allowedDevOrigins: [
+    "localhost",
+    "127.0.0.1",
+    "d40c-102-180-110-135.ngrok-free.app",
+  ],
   async headers() {
     return [
       {
