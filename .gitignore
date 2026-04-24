@@ -48,4 +48,4 @@ storage/references/*
 storage/tmp/
 storage/final/*
 prompt.txt
-test-results/*
+test-results/
