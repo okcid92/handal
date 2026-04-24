@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: home.spec.ts >> home page exposes the login panel
-- Location: tests/e2e/home.spec.ts:3:5
+- Name: home.spec.ts >> login mode toggle switches placeholder
+- Location: tests/e2e/home.spec.ts:14:5
 
 # Error details
 

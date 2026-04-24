@@ -47,7 +47,9 @@ describe("login route", () => {
       email: null,
       ine: "N01331820231",
       role: "STUDENT",
-      passwordHash: "$2b$10$demo",
+      password: "$2b$10$demo",
+      department: null,
+      emailVerifiedAt: null,
     });
     compare.mockResolvedValue(true);
 
@@ -60,7 +62,7 @@ describe("login route", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("set-cookie")).toContain("origina_session=");
+    expect(response.headers.get("set-cookie")).toContain("handal_session=");
 
     const body = (await response.json()) as {
       ok: boolean;

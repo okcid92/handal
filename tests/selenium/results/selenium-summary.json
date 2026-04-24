@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-04-18T21:34:06.072407+00:00",
-  "baseUrl": "http://localhost:3001",
+  "generatedAt": "2026-04-23T13:31:13.736270+00:00",
+  "baseUrl": "http://localhost:3000",
   "browser": "chrome",
   "headless": "true",
-  "durationSeconds": 38.33,
-  "total": 9,
-  "failed": 0,
-  "errors": 0,
-  "skipped": 0,
-  "passed": 9,
+  "durationSeconds": 104.15,
+  "total": 16,
+  "failed": 1,
+  "errors": 2,
+  "skipped": 6,
+  "passed": 7,
   "records": [
     {
       "test": "test_01_home_page_shows_login_panel (tests.selenium.test_home.HomePageSeleniumTests.test_01_home_page_shows_login_panel)",
@@ -17,41 +17,76 @@
     },
     {
       "test": "test_02_invalid_login_shows_error (tests.selenium.test_home.HomePageSeleniumTests.test_02_invalid_login_shows_error)",
-      "status": "passed",
-      "details": ""
+      "status": "failed",
+      "details": "Traceback (most recent call last):\n  File \u001b[35m\"/home/okcid/Documents/handal/tests/selenium/test_home.py\"\u001b[0m, line \u001b[35m91\u001b[0m, in \u001b[35mwait_for_text\u001b[0m\n    \u001b[31mself.wait.until\u001b[0m\u001b[1;31m(\u001b[0m\n    \u001b[31m~~~~~~~~~~~~~~~\u001b[0m\u001b[1;31m^\u001b[0m\n        \u001b[1;31mEC.text_to_be_present_in_element((By.TAG_NAME, \"body\"), text_fragment)\u001b[0m\n        \u001b[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\u001b[0m\n    \u001b[1;31m)\u001b[0m\n    \u001b[1;31m^\u001b[0m\n  File \u001b[35m\"/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py\"\u001b[0m, line \u001b[35m121\u001b[0m, in \u001b[35muntil\u001b[0m\n    raise TimeoutException(message, screen, stacktrace)\n\u001b[1;35mselenium.common.exceptions.TimeoutException\u001b[0m: \u001b[35mMessage: \n\u001b[0m\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \u001b[35m\"/home/okcid/Documents/handal/tests/selenium/test_home.py\"\u001b[0m, line \u001b[35m183\u001b[0m, in \u001b[35mtest_02_invalid_login_shows_error\u001b[0m\n    \u001b[31mself.wait_for_text\u001b[0m\u001b[1;31m(\"Invalid credentials\")\u001b[0m\n    \u001b[31m~~~~~~~~~~~~~~~~~~\u001b[0m\u001b[1;31m^^^^^^^^^^^^^^^^^^^^^^^\u001b[0m\n  File \u001b[35m\"/home/okcid/Documents/handal/tests/selenium/test_home.py\"\u001b[0m, line \u001b[35m96\u001b[0m, in \u001b[35mwait_for_text\u001b[0m\n    raise AssertionError(\n        f\"Text fragment not found: {text_fragment}. body_excerpt={body_text[:1200]}\"\n    ) from error\n\u001b[1;35mAssertionError\u001b[0m: \u001b[35mText fragment not found: Invalid credentials. body_excerpt=HANDAL\nAcademic Integrity Platform\nSolutions\nWorkflow\nS\u00e9curit\u00e9\nConnexion\nPLATEFORME ACAD\u00c9MIQUE\nHandal orchestre la d\u00e9tection, la validation\net la d\u00e9lib\u00e9ration des m\u00e9moires.\nUn flux acad\u00e9mique structur\u00e9 en trois phases \u2014 th\u00e8me, document, verdict \u2014 pour chaque acteur de l'institution.\nExplorer la plateforme\nEtudiant\nPersonnel\nINE\nMOT DE PASSE\nSe connecter\nCOMPTES DE DEMONSTRATION\nChoisir un compte...\nEtudiant - N01331820231\nEnseignant - teacher@handal.local\nDA - da@handal.local\nAdmin - admin@handal.local\nMOTEUR\nTout ce dont une institution a besoin\nSix modules int\u00e9gr\u00e9s couvrent l'int\u00e9gralit\u00e9 du parcours acad\u00e9mique, de la proposition du th\u00e8me \u00e0 la d\u00e9lib\u00e9ration finale.\nMOTEUR\nD\u00e9tection multi-niveaux\nAnalyse du plagiat direct, de la paraphrase et des reformulations issues de traduction automatique sur un seul parcours.\nREPORTING\nRapports exploitables\nR\u00e9sultats structur\u00e9s, scores, d\u00e9cisions et traces d'analyse pour suivre un m\u00e9moire de bout en bout.\nPROTECTION\nS\u00e9curit\u00e9 active\nContr\u00f4les same-origin, cookies sign\u00e9s et garde-fous serveur pour prot\u00e9ger les actions sensibles.\nWORKFLOW\nFlux par r\u00f4le\nEspaces d\u00e9di\u00e9s aux \u00e9tudiants, enseignants, DA et administrateurs avec des \u00e9tapes claires et con\u001b[0m\n"
     },
     {
       "test": "test_03_student_theme_submission_success_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_03_student_theme_submission_success_and_errors)",
-      "status": "passed",
-      "details": ""
+      "status": "error",
+      "details": "Traceback (most recent call last):\n  File \u001b[35m\"/home/okcid/Documents/handal/tests/selenium/test_home.py\"\u001b[0m, line \u001b[35m193\u001b[0m, in \u001b[35mtest_03_student_theme_submission_success_and_errors\u001b[0m\n    title_input = \u001b[31mself.panel_input\u001b[0m\u001b[1;31m(\"Proposer un th\u00e8me\", \"Titre\")\u001b[0m\n                  \u001b[31m~~~~~~~~~~~~~~~~\u001b[0m\u001b[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\u001b[0m\n  File \u001b[35m\"/home/okcid/Documents/handal/tests/selenium/test_home.py\"\u001b[0m, line \u001b[35m49\u001b[0m, in \u001b[35mpanel_input\u001b[0m\n    return \u001b[31mself.wait.until\u001b[0m\u001b[1;31m(\u001b[0m\n           \u001b[31m~~~~~~~~~~~~~~~\u001b[0m\u001b[1;31m^\u001b[0m\n        \u001b[1;31mEC.presence_of_element_located(\u001b[0m\n        \u001b[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\u001b[0m\n    ...<4 lines>...\n        \u001b[1;31m)\u001b[0m\n        \u001b[1;31m^\u001b[0m\n    \u001b[1;31m)\u001b[0m\n    \u001b[1;31m^\u001b[0m\n  File \u001b[35m\"/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py\"\u001b[0m, line \u001b[35m121\u001b[0m, in \u001b[35muntil\u001b[0m\n    raise TimeoutException(message, screen, stacktrace)\n\u001b[1;35mselenium.common.exceptions.TimeoutException\u001b[0m: \u001b[35mMessage: \nStacktrace:\n#0 0x564f10f5c79a <unknown>\n#1 0x564f10958215 <unknown>\n#2 0x564f109aaf06 <unknown>\n#3 0x564f109ab141 <unknown>\n#4 0x564f109f6634 <unknown>\n#5 0x564f109f37d0 <unknown>\n#6 0x564f1099e55f <unknown>\n#7 0x564f1099f321 <unknown>\n#8 0x564f10f2006b <unknown>\n#9 0x564f10f2301d <unknown>\n#10 0x564f10f0c718 <unknown>\n#11 0x564f10f23bb0 <unknown>\n#12 0x564f10ef3150 <unknown>\n#13 0x564f10f495e8 <unknown>\n#14 0x564f10f497b8 <unknown>\n#15 0x564f10f5b1de <unknown>\n#16 0x7f72827fbb7b <unknown>\n\u001b[0m\n"
     },
     {
       "test": "test_04_teacher_validates_cd_with_options_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_04_teacher_validates_cd_with_options_and_errors)",
-      "status": "passed",
-      "details": ""
+      "status": "skipped",
+      "details": "Missing prerequisite state: approved_theme_id"
     },
     {
       "test": "test_05_da_validation_options_and_errors (tests.selenium.test_home.HomePageSeleniumTests.test_05_da_validation_options_and_errors)",
-      "status": "passed",
-      "details": ""
+      "status": "skipped",
+      "details": "Missing prerequisite state: approved_theme_id"
     },
     {
       "test": "test_06_student_upload_and_auto_test (tests.selenium.test_home.HomePageSeleniumTests.test_06_student_upload_and_auto_test)",
-      "status": "passed",
-      "details": ""
+      "status": "skipped",
+      "details": "Missing prerequisite state: approved_theme_id"
     },
     {
       "test": "test_07_teacher_analyzes_document (tests.selenium.test_home.HomePageSeleniumTests.test_07_teacher_analyzes_document)",
-      "status": "passed",
-      "details": ""
+      "status": "skipped",
+      "details": "Missing prerequisite state: document_id"
     },
     {
       "test": "test_08_da_creates_deliberation (tests.selenium.test_home.HomePageSeleniumTests.test_08_da_creates_deliberation)",
+      "status": "skipped",
+      "details": "Missing prerequisite state: report_id"
+    },
+    {
+      "test": "test_09_other_role_logins_work (tests.selenium.test_home.HomePageSeleniumTests.test_09_other_role_logins_work)",
       "status": "passed",
       "details": ""
     },
     {
-      "test": "test_09_other_role_logins_work (tests.selenium.test_home.HomePageSeleniumTests.test_09_other_role_logins_work)",
+      "test": "test_10_logout_redirects_to_home (tests.selenium.test_home.HomePageSeleniumTests.test_10_logout_redirects_to_home)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_11_teacher_sidebar_navigation (tests.selenium.test_home.HomePageSeleniumTests.test_11_teacher_sidebar_navigation)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_12_da_sidebar_navigation (tests.selenium.test_home.HomePageSeleniumTests.test_12_da_sidebar_navigation)",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_13_admin_sidebar_navigation (tests.selenium.test_home.HomePageSeleniumTests.test_13_admin_sidebar_navigation)",
+      "status": "error",
+      "details": "Traceback (most recent call last):\n  File \u001b[35m\"/home/okcid/Documents/handal/tests/selenium/test_home.py\"\u001b[0m, line \u001b[35m546\u001b[0m, in \u001b[35mtest_13_admin_sidebar_navigation\u001b[0m\n    \u001b[31mself.wait.until\u001b[0m\u001b[1;31m(\u001b[0m\n    \u001b[31m~~~~~~~~~~~~~~~\u001b[0m\u001b[1;31m^\u001b[0m\n        \u001b[1;31mEC.element_to_be_clickable(\u001b[0m\n        \u001b[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^\u001b[0m\n            \u001b[1;31m(By.XPATH, '//button[.//span[contains(text(),\"Staging\")]]')\u001b[0m\n            \u001b[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\u001b[0m\n        \u001b[1;31m)\u001b[0m\n        \u001b[1;31m^\u001b[0m\n    \u001b[1;31m)\u001b[0m.click()\n    \u001b[1;31m^\u001b[0m\n  File \u001b[35m\"/home/okcid/.pyenv/versions/3.14.3/lib/python3.14/site-packages/selenium/webdriver/support/wait.py\"\u001b[0m, line \u001b[35m121\u001b[0m, in \u001b[35muntil\u001b[0m\n    raise TimeoutException(message, screen, stacktrace)\n\u001b[1;35mselenium.common.exceptions.TimeoutException\u001b[0m: \u001b[35mMessage: \nStacktrace:\n#0 0x564f10f5c79a <unknown>\n#1 0x564f10958215 <unknown>\n#2 0x564f109aaf06 <unknown>\n#3 0x564f109ab141 <unknown>\n#4 0x564f109f6634 <unknown>\n#5 0x564f109f37d0 <unknown>\n#6 0x564f1099e55f <unknown>\n#7 0x564f1099f321 <unknown>\n#8 0x564f10f2006b <unknown>\n#9 0x564f10f2301d <unknown>\n#10 0x564f10f0c718 <unknown>\n#11 0x564f10f23bb0 <unknown>\n#12 0x564f10ef3150 <unknown>\n#13 0x564f10f495e8 <unknown>\n#14 0x564f10f497b8 <unknown>\n#15 0x564f10f5b1de <unknown>\n#16 0x7f72827fbb7b <unknown>\n\u001b[0m\n"
+    },
+    {
+      "test": "test_14_student_verdict_rewrite_flow (tests.selenium.test_home.HomePageSeleniumTests.test_14_student_verdict_rewrite_flow)\nV\u00e9rifie que la vue r\u00e9\u00e9criture s'affiche si une d\u00e9lib\u00e9ration REWRITE_REQUIRED existe.",
+      "status": "skipped",
+      "details": "Missing prerequisite state: report_id"
+    },
+    {
+      "test": "test_15_login_mode_toggle (tests.selenium.test_home.HomePageSeleniumTests.test_15_login_mode_toggle)\nV\u00e9rifie que le toggle Etudiant/Personnel change le placeholder du champ login.",
+      "status": "passed",
+      "details": ""
+    },
+    {
+      "test": "test_16_demo_account_selector_fills_form (tests.selenium.test_home.HomePageSeleniumTests.test_16_demo_account_selector_fills_form)\nV\u00e9rifie que le s\u00e9lecteur de comptes de d\u00e9mo pr\u00e9-remplit les champs.",
       "status": "passed",
       "details": ""
     }
