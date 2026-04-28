@@ -206,9 +206,13 @@ export default function Home() {
               Plateforme académique
             </div>
             <h1 className="mb-4 font-serif text-[clamp(33px,10vw,60px)] font-normal leading-[1.08] tracking-[-0.01em] text-[#1e1410] sm:text-[clamp(42px,5.4vw,60px)] sm:leading-[1.06]">
-              Handal orchestre la détection, la validation
-              <br /> et la <em className="text-[#7d1c2a]">délibération</em> des
-              mémoires.
+              <span className="hero-title-line block">
+                Handal orchestre la détection, la validation
+              </span>
+              <span className="hero-title-line hero-title-line-delay block">
+                et la <em className="text-[#7d1c2a]">délibération</em> des
+                mémoires.
+              </span>
             </h1>
             <p className="mb-7 max-w-[520px] text-[1rem] font-normal leading-[1.68] text-[#3f2d24] sm:text-[1.1rem] sm:leading-[1.72]">
               Un flux académique structuré en trois phases — thème, document,

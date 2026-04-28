@@ -144,10 +144,41 @@ a {
   animation-delay: 0.21s;
 }
 
+.hero-title-line {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: hero-title-line-appear 0.85s cubic-bezier(0.2, 0.65, 0.25, 1)
+    0.08s 1 forwards;
+}
+
+.hero-title-line-delay {
+  animation-delay: 0.18s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-title-line {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+}
+
 @keyframes fade-up {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes hero-title-line-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.995);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
