@@ -15,7 +15,7 @@ import { prisma } from "@/lib/prisma";
 import {
   analyzePlagiarismReport,
   type SimilarityResult,
-} from "@/server/analysis/plagiadetectoralgo";
+} from "@/server/analysis/plagiat-detector";
 import { analyzeTheme } from "@/server/analysis/themeanalysor";
 
 type DocumentPayload = {

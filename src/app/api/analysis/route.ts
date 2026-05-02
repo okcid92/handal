@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
-import { analyzePlagiarism } from "@/server/analysis/plagiadetectoralgo";
+import { analyzePlagiarism } from "@/server/analysis/plagiat-detector";
 import { getSemanticScore } from "@/server/analysis/semantic-client";
 
 const analysisSchema = z.object({

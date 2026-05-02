@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { analyzePlagiarism } from "@/server/analysis/plagiadetectoralgo";
+import { analyzePlagiarism } from "@/server/analysis/plagiat-detector";
 
 describe("plagiat-detector", () => {
   it("detects exact copy with very high combined score", async () => {
