@@ -13,7 +13,7 @@
 - 🎓 Proposition et validation des thèmes
 - 📄 Dépôt et analyse anti-plagiat des mémoires
 - 👥 Workflows multi-rôles (Étudiant, Chef de Département, Directeur Académique, Admin)
-- 📊 Rapports détaillés et délibération finale
+- 📊 Rapports détaillés et appréciation finale
 - 🔐 Sécurité robuste avec RBAC et audit complet
 
 **Statut**: ✅ Production-Ready (tous les tests passent)

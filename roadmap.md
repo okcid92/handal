@@ -7,7 +7,7 @@ Objectif: livrer une application 100% Next.js (frontend + backend API) sur MySQL
 - Full stack dans une seule base de code Next.js.
 - Contrat metier preserve, meme si l implementation backend change.
 - Migration par increment avec validation fonctionnelle continue.
-- Priorite aux workflows critiques: theme, validation, depot, analyse, deliberation.
+- Priorite aux workflows critiques: theme, validation, depot, analyse, appreciation finale.
 - Securite et observabilite traitees des le socle.
 
 ## 2. Cible technique full Next.js
@@ -206,7 +206,7 @@ Validation:
 2. Auth session + RBAC.
 3. Endpoints themes.
 4. Endpoints documents/analyses.
-5. Endpoints rapports/deliberations.
+5. Endpoints rapports/appreciations finales.
 6. UI role-based complete.
 7. Test e2e + securite + observabilite.
 
@@ -236,8 +236,8 @@ Validation:
 ## 8. Checklist recette minimale
 
 - Student propose un theme unique et suit son statut.
-- Teacher valide/rejette un theme PENDING uniquement.
-- DA valide un theme VALIDATED_CD avec note finale obligatoire.
-- Student depose un document final apres validation DA.
+- Teacher vote sur un theme PENDING_VALIDATION.
+- DA vote sur un theme PENDING_VALIDATION.
+- Student depose un document final apres theme VALIDATED.
 - Teacher lance analyse officielle sur document final valide.
-- DA enregistre une deliberation valide sur un rapport existant.
+- DA enregistre une appreciation finale sur un document analyse.

@@ -71,7 +71,7 @@ flowchart TD
 | **Note/Score**          | Assignée par DA lors du thème  | Remplacée par appréciation finale après analyse   |
 | **Critère de Passage**  | Aucun seuil automatique        | Seuil strict de 20% de similarité                 |
 | **Analyse Document**    | Auto-test + analyse officielle | Plagiat sémantique + détection IA                 |
-| **Décision Finale**     | Délibération DA seule          | Appréciation conjointe Chef + DA                  |
+| **Décision Finale**     | Délibération DA seule          | Appréciation conjointe Teacher + DA              |
 
 ---
 
@@ -605,7 +605,7 @@ Soutenance autorisée         Révision ou fin
     {
       "id": "12",
       "title": "Détection de plagiat multilingue",
-      "status": "PENDING",
+      "status": "PENDING_VALIDATION",
       "description": "...",
       "student": {
         "name": "Jean Dupont",
@@ -904,7 +904,7 @@ Thème VALIDATED                             Thème REJECTED
 
 - Accès exclusif à `/da`
 - Accès en lecture aux thèmes en attente de validation académique
-- Accès en lecture/écriture aux rapports et délibérations
+- Accès en lecture/écriture aux rapports et appréciations finales
 - Consultation profiles étudiants/enseignants
 
 ---
@@ -1094,14 +1094,14 @@ L'admin peut effectuer **toutes les actions** des trois rôles:
 
 #### Actions TEACHER:
 
-- Modérer les thèmes (validation locale CD)
+- Voter les thèmes (validation conjointe)
 - Lancer l'analyse officielle sur documents
 - Consulter rapports
 
 #### Actions DA:
 
-- Valider les thèmes académiquement (validation DA)
-- Enregistrer délibérations
+- Voter les thèmes académiquement (validation conjointe)
+- Enregistrer appréciations finales
 - Consulter rapports
 
 #### Actions STUDENT:
@@ -1149,19 +1149,19 @@ Le dashboard admin affiche:
 ┌─────────────────────────────────────────────────────────────────┐
 │ 2. ACCÈS CENTRALISÉ À TOUS LES ESPACES                          │
 │    ├─ Lien → /student (agir comme étudiant)                     │
-│    ├─ Lien → /teacher (modérer thèmes + analyses)               │
-│    ├─ Lien → /da (validation académique + délibération)         │
+│    ├─ Lien → /teacher (votes thèmes + analyses)                 │
+│    ├─ Lien → /da (votes thèmes + appréciation finale)           │
 │    └─ Lien → /api/reports (JSON rapports)                       │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐
 │ 3. ACTIONS POSSIBLES (SUPER-UTILISATEUR)                        │
 │    ├─ Créer/proposer des thèmes de test                         │
-│    ├─ Modérer thèmes (approve/reject comme TEACHER)             │
-│    ├─ Valider académiquement (approve/reject comme DA)          │
+│    ├─ Voter thèmes (approve/reject comme TEACHER)               │
+│    ├─ Voter académiquement (approve/reject comme DA)            │
 │    ├─ Déposer documents                                          │
 │    ├─ Lancer analyses officielles                                │
-│    ├─ Enregistrer délibérations                                  │
+│    ├─ Enregistrer appréciations finales                          │
 │    └─ Consulter tous les rapports et états                      │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
