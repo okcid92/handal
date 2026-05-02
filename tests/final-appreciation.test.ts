@@ -67,9 +67,6 @@ describe("final appreciation route", () => {
     );
 
     const body = await response.json();
-    if (!body.ok) {
-      console.log(body);
-    }
     expect(body.ok).toBe(true);
     expect(body.data.teacherDecision).toBe("APPROVED");
   });
@@ -105,9 +102,6 @@ describe("final appreciation route", () => {
     );
 
     const body = await response.json();
-    if (!body.ok) {
-      console.log(body);
-    }
     expect(body.ok).toBe(true);
     expect(body.data.finalDecision).toBe("APPROVED");
     expect(updateDocument).toHaveBeenCalled();
