@@ -1,0 +1,526 @@
+Tu es un expert Next.js/TypeScript travaillant sur le projet Handal,
+une plateforme académique de détection de plagiat pour l'IBAM.
+
+═══════════════════════════════════════════════════════════════
+CONTEXTE
+═══════════════════════════════════════════════════════════════
+
+Quand un étudiant soumet son document PDF, le système analyse
+la similarité avec les documents de référence existants.
+
+ACTUELLEMENT :
+- L'analyse retourne un score global (ex: 73%)
+- On sait QUELS documents sont similaires
+- Mais on ne montre PAS visuellement les passages copiés
+
+OBJECTIF :
+Après l'analyse, afficher côte à côte :
+- Le texte de l'étudiant avec les passages suspects surlignés en rouge
+- Le texte source (document de référence) avec les passages 
+  correspondants surlignés en jaune
+- Un pourcentage de similarité par passage
+
+Résultat visuel attendu :
+
+┌─────────────────────────────┬─────────────────────────────┐
+│   Document Étudiant         │   Source : Mémoire #12      │
+│   Similarité globale: 73%   │   "Détection de plagiat..." │
+├─────────────────────────────┼─────────────────────────────┤
+│ Introduction                │ Introduction                │
+│                             │                             │
+│ Le machine learning est     │ Le machine learning est     │
+│ ████████████████████████    │ ████████████████████████    │
+│ une technologie qui permet  │ une technologie qui permet  │
+│ ████████████████████████    │ ████████████████████████    │
+│ d'automatiser les tâches.   │ d'automatiser les tâches.   │
+│                 [95% match] │                             │
+│                             │                             │
+│ Ce travail présente une     │ ...                         │
+│ approche novatrice pour...  │                             │
+└─────────────────────────────┴─────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 0 — GIT : CRÉER UNE BRANCHE
+═══════════════════════════════════════════════════════════════
+
+AVANT tout code, exécute :
+
+  git checkout main
+  git pull origin main
+  git checkout -b feature/highlight-similarities
+  git push -u origin feature/highlight-similarities
+
+Confirme la création avant de continuer.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 1 — ALGORITHME : DÉTECTER LES PASSAGES SIMILAIRES
+═══════════════════════════════════════════════════════════════
+
+Crée le fichier :
+src/server/analysis/segment-matcher.ts
+
+Ce fichier doit exporter une fonction principale :
+
+  findMatchingSegments(
+    studentText: string,
+    referenceText: string,
+    options?: MatchOptions
+  ): MatchResult
+
+Avec ces types :
+
+  interface MatchOptions {
+    minSegmentLength?: number   // défaut: 20 mots
+    similarityThreshold?: number // défaut: 0.75 (75%)
+    windowSize?: number          // défaut: 50 mots (fenêtre glissante)
+  }
+
+  interface TextSegment {
+    text: string          // le texte du passage
+    startIndex: number    // position de début dans le texte original
+    endIndex: number      // position de fin dans le texte original
+    similarity: number    // score 0-1
+    matchedSegmentId?: string // ID du segment correspondant dans la source
+  }
+
+  interface MatchResult {
+    studentSegments: TextSegment[]   // passages suspects dans le doc étudiant
+    referenceSegments: TextSegment[] // passages correspondants dans la source
+    overallSimilarity: number        // score global 0-1
+    totalMatchedWords: number        // nombre de mots copiés
+  }
+
+ALGORITHME À IMPLÉMENTER :
+
+  Méthode 1 — N-gram sliding window (obligatoire) :
+  
+    1. Découper studentText en fenêtres de windowSize mots
+       ex: fenêtre 1 = mots 0-49, fenêtre 2 = mots 5-54, etc.
+    
+    2. Pour chaque fenêtre du texte étudiant :
+       a. Générer les n-grammes (trigrammes) de la fenêtre
+       b. Comparer avec toutes les fenêtres du texte référence
+       c. Calculer le score Jaccard entre les deux ensembles de trigrammes
+       d. Si score >= similarityThreshold : marquer comme passage suspect
+    
+    3. Fusionner les fenêtres consécutives qui se chevauchent
+       ex: si fenêtres 3,4,5 sont toutes suspectes → un seul segment
+    
+    4. Filtrer les segments trop courts (< minSegmentLength mots)
+
+  Méthode 2 — LCS (Longest Common Subsequence) pour affiner :
+  
+    Pour chaque paire de segments détectés par la méthode 1 :
+    - Trouver la plus longue sous-séquence commune
+    - Calculer le score LCS = longueur LCS / max(len_A, len_B)
+    - Mettre à jour le score de similarité du segment
+
+  Fonction utilitaire nécessaire :
+  
+    function tokenize(text: string): string[]
+    // Sépare en mots, lowercase, supprime ponctuation
+    // Utilise les stopwords de content-filter.ts
+    
+    function generateTrigrammes(tokens: string[]): Set<string>
+    // ['le','chat','dort'] → {'le_chat_dort'}
+    
+    function jaccardScore(setA: Set<string>, setB: Set<string>): number
+    // |A ∩ B| / |A ∪ B|
+    
+    function mergeOverlappingSegments(segments: TextSegment[]): TextSegment[]
+    // Fusionne les segments qui se chevauchent dans le texte
+
+IMPORTANT :
+- Ne jamais retourner d'erreur sur texte vide (retourner MatchResult vide)
+- Performance : limiter à 500 fenêtres max par document (textes longs)
+- Timeout : si l'analyse dépasse 10 secondes, retourner ce qu'on a
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 2 — MISE À JOUR DE L'ANALYSEUR PRINCIPAL
+═══════════════════════════════════════════════════════════════
+
+Modifie :
+src/server/analysis/plagiat-detector.ts
+
+Ajoute dans le type AnalysisResult :
+
+  interface AnalysisResult {
+    // ... champs existants à conserver ...
+    globalSimilarity: number
+    riskLevel: 'low' | 'medium' | 'high'
+    
+    // NOUVEAU : segments détaillés par source
+    matchedSources: MatchedSource[]
+  }
+
+  interface MatchedSource {
+    sourceId: string           // ID du document de référence en DB
+    sourceTitle: string        // Titre du document de référence
+    sourceSimilarity: number   // Score global avec cette source (0-1)
+    studentSegments: TextSegment[]   // passages dans le doc étudiant
+    referenceSegments: TextSegment[] // passages correspondants dans la source
+    totalMatchedWords: number
+  }
+
+Dans la fonction principale d'analyse :
+
+  1. Pour chaque document de référence en DB :
+     a. Récupérer son extractedText depuis ReferenceDocument
+     b. Appeler findMatchingSegments(studentText, refText)
+     c. Si overallSimilarity > 0.15 : ajouter à matchedSources
+  
+  2. Trier matchedSources par sourceSimilarity décroissant
+  
+  3. Garder au maximum les 5 sources les plus similaires
+     (éviter une réponse JSON trop lourde)
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 3 — MISE À JOUR DE LA BASE DE DONNÉES
+═══════════════════════════════════════════════════════════════
+
+Dans prisma/schema.prisma, le modèle SimilarityReport
+doit stocker les segments détectés.
+
+Vérifie que le champ highlightedSegments existe :
+
+  model SimilarityReport {
+    // ... champs existants ...
+    highlightedSegments Json?   // stocke le tableau MatchedSource[]
+    matchedSources      Json?   // stocke les titres et IDs des sources
+  }
+
+Si ces champs n'existent pas, crée une migration :
+
+  Ajoute dans schema.prisma les champs manquants puis :
+  
+  npx prisma migrate dev --name add-highlighted-segments
+
+Le JSON stocké dans highlightedSegments aura cette structure :
+
+  {
+    "sources": [
+      {
+        "sourceId": "12",
+        "sourceTitle": "Détection de plagiat...",
+        "sourceSimilarity": 0.73,
+        "studentSegments": [
+          {
+            "text": "Le machine learning est une technologie...",
+            "startIndex": 450,
+            "endIndex": 650,
+            "similarity": 0.95
+          }
+        ],
+        "referenceSegments": [
+          {
+            "text": "Le machine learning est une technologie...",
+            "startIndex": 120,
+            "endIndex": 320,
+            "similarity": 0.95
+          }
+        ],
+        "totalMatchedWords": 48
+      }
+    ]
+  }
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 4 — ROUTE API : RETOURNER LES SEGMENTS
+═══════════════════════════════════════════════════════════════
+
+Modifie ou crée :
+src/app/api/reports/[report]/route.ts
+
+La réponse GET doit inclure les segments surlignés :
+
+  {
+    "ok": true,
+    "report": {
+      "id": "1",
+      "globalSimilarity": 73,
+      "riskLevel": "high",
+      "analyzedAt": "...",
+      
+      "matchedSources": [
+        {
+          "sourceId": "12",
+          "sourceTitle": "Détection de plagiat multilingue",
+          "sourceSimilarity": 73,
+          "totalMatchedWords": 148,
+          "studentSegments": [
+            {
+              "text": "Le machine learning est...",
+              "startIndex": 450,
+              "endIndex": 650,
+              "similarity": 95
+            }
+          ],
+          "referenceSegments": [
+            {
+              "text": "Le machine learning est...",
+              "startIndex": 120,
+              "endIndex": 320,
+              "similarity": 95
+            }
+          ]
+        }
+      ]
+    }
+  }
+
+Règles de sécurité :
+- Vérifier que l'utilisateur est authentifié
+- Un STUDENT ne peut voir que son propre rapport
+- TEACHER, DA, ADMIN peuvent voir tous les rapports
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 5 — COMPOSANT : AFFICHAGE DES TEXTES SURLIGNÉS
+═══════════════════════════════════════════════════════════════
+
+Crée le fichier :
+src/components/SimilarityHighlighter.tsx
+
+Ce composant reçoit en props :
+
+  interface SimilarityHighlighterProps {
+    studentText: string
+    sources: MatchedSource[]
+    onSourceSelect?: (sourceId: string) => void
+  }
+
+STRUCTURE UI DU COMPOSANT :
+
+  ┌──────────────────────────────────────────────────────────┐
+  │  📊 Analyse de Similarité — Score global : 73%           │
+  │                                                          │
+  │  Sources détectées :                                     │
+  │  [📄 Mémoire #12 — 73%] [📄 Mémoire #8 — 45%]          │
+  │           ↑ tabs cliquables pour changer de source       │
+  └──────────────────────────────────────────────────────────┘
+  
+  ┌──────────────────────────┬───────────────────────────────┐
+  │  Votre document          │  Source : Mémoire #12         │
+  │                          │  "Détection de plagiat..."    │
+  ├──────────────────────────┼───────────────────────────────┤
+  │  [texte normal]          │  [texte normal]               │
+  │                          │                               │
+  │  [██████ surlignés ██]   │  [██████ surlignés ██]        │
+  │  rouge + tooltip "95%"   │  jaune + tooltip "95%"        │
+  │                          │                               │
+  │  [texte normal]          │  [texte normal]               │
+  └──────────────────────────┴───────────────────────────────┘
+  
+  ┌──────────────────────────────────────────────────────────┐
+  │  📈 Statistiques                                         │
+  │  148 mots copiés sur 850 mots totaux (17%)               │
+  │  3 passages suspects détectés                            │
+  └──────────────────────────────────────────────────────────┘
+
+LOGIQUE D'AFFICHAGE DES HIGHLIGHTS :
+
+  Crée une fonction utilitaire :
+  
+    function buildHighlightedHTML(
+      fullText: string,
+      segments: TextSegment[]
+    ): React.ReactNode
+  
+  Cette fonction :
+  1. Trie les segments par startIndex croissant
+  2. Découpe le texte en tranches :
+     - Texte normal → <span>{texte}</span>
+     - Passage suspect → 
+       <mark 
+         className="bg-red-200 border-b-2 border-red-500 
+                    cursor-pointer rounded px-0.5"
+         title={`Similarité : ${segment.similarity}%`}
+         data-segment-id={index}
+       >
+         {texte}
+       </mark>
+  3. Pour la source, utiliser bg-yellow-200 border-yellow-500
+     au lieu de bg-red-200 border-red-500
+
+COULEURS :
+  - Passages dans le doc étudiant : rouge
+    bg-red-100 border-red-400 (similarité 75-89%)
+    bg-red-300 border-red-600 (similarité 90-100%)
+  
+  - Passages dans la source : jaune
+    bg-yellow-100 border-yellow-400
+  
+  - Score affiché dans un badge :
+    vert si < 20%, orange si 20-70%, rouge si > 70%
+
+INTERACTIONS :
+  - Cliquer sur un passage dans le doc étudiant scroll
+    automatiquement vers le passage correspondant dans la source
+  - Hover sur un passage : affiche tooltip avec le score exact
+  - Bouton "Tout masquer / Tout afficher les highlights"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 6 — INTÉGRER DANS LA PAGE RAPPORT
+═══════════════════════════════════════════════════════════════
+
+Modifie la page ou le composant qui affiche le rapport.
+Selon l'architecture actuelle, c'est probablement :
+
+  src/app/student/page.tsx (section résultats)
+  OU
+  src/components/ReportModal.tsx (si ce composant existe)
+
+Ajoute le composant SimilarityHighlighter après les scores :
+
+  // Dans la section rapport
+  {report.matchedSources && report.matchedSources.length > 0 && (
+    <div className="mt-6">
+      <h3 className="text-lg font-semibold text-[#6c5448] mb-4">
+        Passages similaires détectés
+      </h3>
+      <SimilarityHighlighter
+        studentText={document.extractedText}
+        sources={report.matchedSources}
+      />
+    </div>
+  )}
+
+  // Si score < 20% : afficher message positif à la place
+  {report.globalSimilarity < 20 && (
+    <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+      <p className="text-green-700 font-medium">
+        ✅ Aucune similarité significative détectée.
+           Votre document semble original.
+      </p>
+    </div>
+  )}
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 7 — AFFICHAGE POUR TEACHER ET DA
+═══════════════════════════════════════════════════════════════
+
+Les enseignants et DA voient aussi les highlights dans leur dashboard.
+
+Dans src/app/teacher/page.tsx et src/app/da/page.tsx :
+
+Quand ils consultent un rapport (GET /api/reports/{id}),
+ils doivent voir le même composant SimilarityHighlighter
+avec en plus :
+
+  - Un bandeau de contexte :
+    "Document de : [Nom Étudiant] — INE : [XXX]"
+  
+  - Les boutons de décision restent visibles en bas :
+    [✅ Valider] [❌ Rejeter] [💬 Demander révision]
+  
+  - Un résumé exportable (optionnel) :
+    [📥 Télécharger rapport PDF]
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 8 — TESTS À AJOUTER
+═══════════════════════════════════════════════════════════════
+
+Crée le fichier :
+tests/segment-matcher.test.ts
+
+Tests obligatoires :
+
+  describe('findMatchingSegments', () => {
+    
+    it('retourne vide si les textes sont identiques à 0%', () => {
+      const result = findMatchingSegments('bonjour monde', 'au revoir')
+      expect(result.studentSegments).toHaveLength(0)
+      expect(result.overallSimilarity).toBeLessThan(0.15)
+    })
+    
+    it('détecte un passage copié directement', () => {
+      const original = 'Le machine learning est une branche de '
+                     + 'l intelligence artificielle qui permet aux '
+                     + 'systèmes d apprendre automatiquement'
+      const copie = 'Introduction. ' + original + ' selon les experts.'
+      
+      const result = findMatchingSegments(copie, original)
+      expect(result.overallSimilarity).toBeGreaterThan(0.7)
+      expect(result.studentSegments.length).toBeGreaterThan(0)
+    })
+    
+    it('ne plante pas sur texte vide', () => {
+      expect(() => findMatchingSegments('', '')).not.toThrow()
+      expect(() => findMatchingSegments('texte', '')).not.toThrow()
+    })
+    
+    it('les indices startIndex/endIndex sont dans les bornes', () => {
+      const student = 'texte étudiant avec du contenu long pour tester'
+      const ref = 'texte étudiant avec du contenu long pour tester'
+      
+      const result = findMatchingSegments(student, ref)
+      result.studentSegments.forEach(seg => {
+        expect(seg.startIndex).toBeGreaterThanOrEqual(0)
+        expect(seg.endIndex).toBeLessThanOrEqual(student.length)
+        expect(seg.startIndex).toBeLessThan(seg.endIndex)
+      })
+    })
+    
+    it('respecte le seuil de similarité minimale', () => {
+      const result = findMatchingSegments(
+        'texte A complet',
+        'texte B différent',
+        { similarityThreshold: 0.9 }
+      )
+      result.studentSegments.forEach(seg => {
+        expect(seg.similarity).toBeGreaterThanOrEqual(0.9)
+      })
+    })
+  })
+
+  describe('buildHighlightedHTML (utilitaire)', () => {
+    
+    it('texte sans segments reste inchangé', () => {
+      // render sans mark
+    })
+    
+    it('segments chevauchants sont fusionnés', () => {
+      // tester mergeOverlappingSegments
+    })
+  })
+
+═══════════════════════════════════════════════════════════════
+RÈGLES STRICTES
+═══════════════════════════════════════════════════════════════
+
+✅ OBLIGATOIRE
+- Créer la branche feature/highlight-similarities AVANT tout code
+- Conserver le seuil Handal à 20%
+- Le composant est responsive (mobile : affichage en colonne,
+  desktop : affichage côte à côte)
+- Utiliser la couleur principale Handal : #6c5448
+- Les 51 tests Vitest existants doivent rester verts
+- TypeScript strict : aucune erreur tsc --noEmit
+- Texte extrait tronqué à 500 mots dans l'affichage
+  (bouton "Voir plus" pour la suite)
+
+❌ INTERDIT
+- Ne pas envoyer le texte complet du document dans le JSON API
+  si > 10 000 caractères (paginer ou tronquer)
+- Ne pas bloquer l'analyse si aucune source de référence n'existe
+  (retourner matchedSources: [] dans ce cas)
+- Ne pas modifier les routes d'auth
+- Ne pas casser les tests existants
+
+⚠️ PERFORMANCE
+- Si le document fait > 5000 mots : analyser par chunks de 1000 mots
+- Mettre en cache le résultat dans SimilarityReport.highlightedSegments
+  pour ne pas recalculer à chaque consultation du rapport
+- Utiliser React.memo sur SimilarityHighlighter pour éviter
+  les re-renders inutiles
+
+═══════════════════════════════════════════════════════════════
+PROGRESSION ATTENDUE
+═══════════════════════════════════════════════════════════════
+
+Procède étape par étape.
+Après chaque étape :
+1. Montre le code complet du fichier créé/modifié
+2. Confirme les tests qui passent
+3. Attends ma validation avant de passer à la suivante
+
+Commence par l'ÉTAPE 0 (Git) et confirme la branche créée.

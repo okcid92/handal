@@ -7,6 +7,213 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                     BigInt              @id @default(autoincrement())
+  name                   String
+  ine                    String?             @unique @db.VarChar(12)
+  email                  String?             @unique
+  password               String
+  role                   Role                @default(STUDENT)
+  department             String?
+  emailVerifiedAt        DateTime?           @map("email_verified_at")
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
+  analysisHistory        AnalysisHistory[]
+  deliberations          Deliberation[]
+  documentsOwned         Document[]          @relation("DocumentStudent")
+  appreciationsAsDa      FinalAppreciation[] @relation("AppreciationDa")
+  appreciationsAsTeacher FinalAppreciation[] @relation("AppreciationTeacher")
+  referenceDocuments     ReferenceDocument[] @relation("ReferenceUploadedBy")
+  reportsGenerated       SimilarityReport[]
+  themesModerated        Theme[]             @relation("ThemeModeratedBy")
+  themesValidatedC       Theme[]             @relation("ThemeValidatedCdBy")
+  themesValidatedD       Theme[]             @relation("ThemeValidatedDaBy")
+
+  @@map("users")
+}
+
+model Theme {
+  id                   BigInt      @id @default(autoincrement())
+  studentId            BigInt      @map("student_id")
+  title                String
+  description          String      @db.Text
+  status               ThemeStatus @default(PENDING)
+  moderatedBy          BigInt?     @map("moderated_by")
+  moderationComment    String?     @map("moderation_comment") @db.Text
+  moderatedAt          DateTime?   @map("moderated_at")
+  validatedCdBy        BigInt?     @map("validated_cd_by")
+  validatedCdAt        DateTime?   @map("validated_cd_at")
+  teacherApproval      Boolean?    @map("teacher_approval")
+  teacherComment       String?     @map("teacher_comment") @db.Text
+  teacherValidatedAt   DateTime?   @map("teacher_validated_at")
+  daApproval           Boolean?    @map("da_approval")
+  daComment            String?     @map("da_comment") @db.Text
+  daValidatedAt        DateTime?   @map("da_validated_at")
+  validatedDaBy        BigInt?     @map("validated_da_by")
+  validatedDaAt        DateTime?   @map("validated_da_at")
+  finalScore           Decimal?    @map("final_score") @db.Decimal(5, 2)
+  finalScoreAssignedAt DateTime?   @map("final_score_assigned_at")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+  titleNormalized      String      @unique @map("title_normalized")
+  themeSignature       String?     @map("theme_signature") @db.LongText
+  themeSimilarityScore Decimal?    @map("theme_similarity_score") @db.Decimal(5, 2)
+  themeSimilarityLabel String?     @map("theme_similarity_label") @db.VarChar(64)
+  documents            Document[]
+  moderator            User?       @relation("ThemeModeratedBy", fields: [moderatedBy], references: [id], map: "themes_moderated_by_fkey")
+  validatedCdByUser    User?       @relation("ThemeValidatedCdBy", fields: [validatedCdBy], references: [id], map: "themes_validated_cd_by_fkey")
+  validatedDaByUser    User?       @relation("ThemeValidatedDaBy", fields: [validatedDaBy], references: [id], map: "themes_validated_da_by_fkey")
+
+  @@index([status])
+  @@index([moderatedBy], map: "themes_moderated_by_fkey")
+  @@index([validatedCdBy], map: "themes_validated_cd_by_fkey")
+  @@index([validatedDaBy], map: "themes_validated_da_by_fkey")
+  @@map("themes")
+}
+
+model Document {
+  id                  BigInt             @id @default(autoincrement())
+  themeId             BigInt?            @map("theme_id")
+  studentId           BigInt             @map("student_id")
+  originalName        String             @map("original_name")
+  storagePath         String             @map("storage_path")
+  mimeType            String             @map("mime_type")
+  fileSize            BigInt             @map("file_size")
+  checksum            String
+  isFinal             Boolean            @default(true) @map("is_final")
+  isReference         Boolean            @default(false) @map("is_reference")
+  documentStatus      DocumentStatus     @default(SUBMITTED) @map("document_status")
+  submittedAt         DateTime           @map("submitted_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  extractedText       String?            @map("extracted_text") @db.LongText
+  analysisStatus      AnalysisStatus     @default(PENDING) @map("analysis_status")
+  analysisQueuedAt    DateTime?          @map("analysis_queued_at")
+  analysisStartedAt   DateTime?          @map("analysis_started_at")
+  analysisCompletedAt DateTime?          @map("analysis_completed_at")
+  analysisError       String?            @map("analysis_error") @db.Text
+  uploadAttempts      Int                @default(1) @map("upload_attempts")
+  stagingMetadata     String?            @map("staging_metadata") @db.LongText
+  student             User               @relation("DocumentStudent", fields: [studentId], references: [id], map: "documents_student_id_fkey")
+  theme               Theme?             @relation(fields: [themeId], references: [id], onDelete: Restrict, map: "documents_theme_id_fkey")
+  appreciation        FinalAppreciation?
+  reports             SimilarityReport[]
+
+  @@index([themeId])
+  @@index([studentId])
+  @@index([isReference])
+  @@map("documents")
+}
+
+model FinalAppreciation {
+  id               BigInt                @id @default(autoincrement())
+  documentId       BigInt                @unique @map("document_id")
+  teacherId        BigInt?               @map("teacher_id")
+  teacherDecision  AppreciationDecision? @map("teacher_decision")
+  teacherComment   String?               @map("teacher_comment") @db.Text
+  teacherDecidedAt DateTime?             @map("teacher_decided_at")
+  daId             BigInt?               @map("da_id")
+  daDecision       AppreciationDecision? @map("da_decision")
+  daComment        String?               @map("da_comment") @db.Text
+  daDecidedAt      DateTime?             @map("da_decided_at")
+  finalDecision    AppreciationDecision? @map("final_decision")
+  mention          String?               @db.VarChar(64)
+  finalizedAt      DateTime?             @map("finalized_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at")
+  da               User?                 @relation("AppreciationDa", fields: [daId], references: [id], map: "final_appreciations_da_id_fkey")
+  document         Document              @relation(fields: [documentId], references: [id], map: "final_appreciations_document_id_fkey")
+  teacher          User?                 @relation("AppreciationTeacher", fields: [teacherId], references: [id], map: "final_appreciations_teacher_id_fkey")
+
+  @@index([teacherId])
+  @@index([daId])
+  @@map("final_appreciations")
+}
+
+model ReferenceDocument {
+  id            BigInt   @id @default(autoincrement())
+  uploadedBy    BigInt   @map("uploaded_by")
+  originalName  String   @map("original_name")
+  mimeType      String   @map("mime_type")
+  fileSize      BigInt   @map("file_size")
+  checksum      String
+  extractedText String   @map("extracted_text") @db.LongText
+  themeProfile  String   @map("theme_profile") @db.LongText
+  dominantTheme String   @map("dominant_theme") @db.VarChar(255)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  uploader      User     @relation("ReferenceUploadedBy", fields: [uploadedBy], references: [id], map: "reference_documents_uploaded_by_fkey")
+
+  @@index([uploadedBy])
+  @@map("reference_documents")
+}
+
+model SimilarityReport {
+  id                  BigInt         @id @default(autoincrement())
+  documentId          BigInt         @map("document_id")
+  globalSimilarity    Decimal        @map("global_similarity") @db.Decimal(5, 2)
+  aiScore             Decimal?       @map("ai_score") @db.Decimal(5, 2)
+  plagiarismScore     Decimal?       @map("plagiarism_score") @db.Decimal(5, 2)
+  combinedScore       Decimal?       @map("combined_score") @db.Decimal(5, 2)
+  winnowingScore      Decimal?       @map("winnowing_score") @db.Decimal(5, 4)
+  lcsScore            Decimal?       @map("lcs_score") @db.Decimal(5, 4)
+  styleScore          Decimal?       @map("style_score") @db.Decimal(5, 4)
+  simhashScore        Decimal?       @map("simhash_score") @db.Decimal(5, 4)
+  semanticScore       Decimal?       @map("semantic_score") @db.Decimal(5, 4)
+  flagged             Boolean        @default(false)
+  riskLevel           RiskLevel      @map("risk_level")
+  matchedSources      String         @map("matched_sources") @db.LongText
+  highlightedSegments String         @map("highlighted_segments") @db.LongText
+  analyzedAt          DateTime       @map("analyzed_at")
+  generatedBy         BigInt?        @map("generated_by")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  deliberations       Deliberation[]
+  document            Document       @relation(fields: [documentId], references: [id], map: "similarity_reports_document_id_fkey")
+  generatorUser       User?          @relation(fields: [generatedBy], references: [id], map: "similarity_reports_generated_by_fkey")
+
+  @@index([documentId])
+  @@index([generatedBy], map: "similarity_reports_generated_by_user_fkey")
+  @@map("similarity_reports")
+}
+
+model Deliberation {
+  id                 BigInt               @id @default(autoincrement())
+  similarityReportId BigInt               @map("similarity_report_id")
+  decidedBy          BigInt               @map("decided_by")
+  committee          String?
+  decision           DeliberationDecision
+  notes              String?              @db.Text
+  decidedAt          DateTime             @map("decided_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+  decider            User                 @relation(fields: [decidedBy], references: [id], map: "deliberations_decided_by_fkey")
+  report             SimilarityReport     @relation(fields: [similarityReportId], references: [id], map: "deliberations_similarity_report_id_fkey")
+
+  @@index([similarityReportId])
+  @@index([decidedBy])
+  @@map("deliberations")
+}
+
+model AnalysisHistory {
+  id              BigInt   @id @default(autoincrement())
+  studentId       BigInt   @map("student_id")
+  documentId      BigInt?  @map("document_id")
+  reportId        BigInt?  @map("report_id")
+  fileName        String   @map("file_name") @db.VarChar(512)
+  detectedTitle   String?  @map("detected_title") @db.VarChar(512)
+  titleScore      Int      @default(0) @map("title_score")
+  similarityScore Decimal? @map("similarity_score") @db.Decimal(5, 2)
+  blocked         Boolean  @default(false)
+  titleMismatch   Boolean  @default(false) @map("title_mismatch")
+  attemptNumber   Int      @default(1) @map("attempt_number")
+  analyzedAt      DateTime @default(now()) @map("analyzed_at")
+  student         User     @relation(fields: [studentId], references: [id], map: "analysis_history_student_id_fkey")
+
+  @@index([studentId])
+  @@map("analysis_history")
+}
+
 enum Role {
   STUDENT
   TEACHER
@@ -70,220 +277,4 @@ enum AnalysisStatus {
   PROCESSING
   COMPLETED
   FAILED
-}
-
-model User {
-  id              BigInt    @id @default(autoincrement())
-  name            String
-  ine             String?   @unique @db.VarChar(12)
-  email           String?   @unique
-  password        String
-  role            Role      @default(STUDENT)
-  department      String?
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-
-  themesModerated    Theme[]            @relation("ThemeModeratedBy")
-  themesValidatedC   Theme[]            @relation("ThemeValidatedCdBy")
-  themesValidatedD   Theme[]            @relation("ThemeValidatedDaBy")
-  reportsGenerated   SimilarityReport[]
-  themesOwned        Theme[]            @relation("ThemeStudent")
-  documentsOwned     Document[]         @relation("DocumentStudent")
-  referenceDocuments ReferenceDocument[] @relation("ReferenceUploadedBy")
-  deliberations      Deliberation[]
-  appreciationsAsTeacher FinalAppreciation[] @relation("AppreciationTeacher")
-  appreciationsAsDa      FinalAppreciation[] @relation("AppreciationDa")
-  analysisHistory        AnalysisHistory[]
-
-  @@map("users")
-}
-
-model Theme {
-  id                   BigInt      @id @default(autoincrement())
-  studentId            BigInt      @map("student_id")
-  title                String
-  titleNormalized      String      @unique @map("title_normalized")
-  description          String      @db.Text
-  status               ThemeStatus @default(PENDING)
-
-  // Validation séquentielle legacy (v1)
-  moderatedBy          BigInt?     @map("moderated_by")
-  moderationComment    String?     @map("moderation_comment") @db.Text
-  moderatedAt          DateTime?   @map("moderated_at")
-  validatedCdBy        BigInt?     @map("validated_cd_by")
-  validatedCdAt        DateTime?   @map("validated_cd_at")
-  validatedDaBy        BigInt?     @map("validated_da_by")
-  validatedDaAt        DateTime?   @map("validated_da_at")
-  finalScore           Decimal?    @map("final_score") @db.Decimal(5, 2)
-  finalScoreAssignedAt DateTime?   @map("final_score_assigned_at")
-
-  // Validation simultanée v2 (Teacher + DA en parallèle)
-  teacherApproval      Boolean?    @map("teacher_approval")
-  teacherComment       String?     @map("teacher_comment") @db.Text
-  teacherValidatedAt   DateTime?   @map("teacher_validated_at")
-  daApproval           Boolean?    @map("da_approval")
-  daComment            String?     @map("da_comment") @db.Text
-  daValidatedAt        DateTime?   @map("da_validated_at")
-
-  themeSignature       Json?       @map("theme_signature")
-  themeSimilarityScore Decimal?    @map("theme_similarity_score") @db.Decimal(5, 2)
-  themeSimilarityLabel String?     @map("theme_similarity_label") @db.VarChar(64)
-  createdAt            DateTime    @default(now()) @map("created_at")
-  updatedAt            DateTime    @updatedAt @map("updated_at")
-
-  student           User      @relation("ThemeStudent", fields: [studentId], references: [id], map: "themes_student_id_fkey")
-  moderator         User?     @relation("ThemeModeratedBy", fields: [moderatedBy], references: [id], map: "themes_moderated_by_fkey")
-  validatedCdByUser User?     @relation("ThemeValidatedCdBy", fields: [validatedCdBy], references: [id], map: "themes_validated_cd_by_fkey")
-  validatedDaByUser User?     @relation("ThemeValidatedDaBy", fields: [validatedDaBy], references: [id], map: "themes_validated_da_by_fkey")
-  documents         Document[]
-
-  @@index([status], map: "themes_status_idx")
-  @@map("themes")
-}
-
-model Document {
-  id                  BigInt         @id @default(autoincrement())
-  themeId             BigInt?        @map("theme_id")
-  studentId           BigInt         @map("student_id")
-  originalName        String         @map("original_name")
-  storagePath         String         @map("storage_path")
-  mimeType            String         @map("mime_type")
-  fileSize            BigInt         @map("file_size")
-  checksum            String
-  extractedText       String?        @map("extracted_text") @db.LongText
-  analysisStatus      AnalysisStatus @default(PENDING) @map("analysis_status")
-  analysisQueuedAt    DateTime?      @map("analysis_queued_at")
-  analysisStartedAt   DateTime?      @map("analysis_started_at")
-  analysisCompletedAt DateTime?      @map("analysis_completed_at")
-  analysisError       String?        @map("analysis_error") @db.Text
-  documentStatus      DocumentStatus @default(SUBMITTED) @map("document_status")
-  isFinal             Boolean        @default(true) @map("is_final")
-  isReference         Boolean        @default(false) @map("is_reference")
-  uploadAttempts      Int            @default(1) @map("upload_attempts")
-  stagingMetadata     Json?          @map("staging_metadata")
-  submittedAt         DateTime       @map("submitted_at")
-  createdAt           DateTime       @default(now()) @map("created_at")
-  updatedAt           DateTime       @updatedAt @map("updated_at")
-
-  theme        Theme?             @relation(fields: [themeId], references: [id], map: "documents_theme_id_fkey")
-  student      User               @relation("DocumentStudent", fields: [studentId], references: [id], map: "documents_student_id_fkey")
-  reports      SimilarityReport[]
-  appreciation FinalAppreciation?
-
-  @@index([themeId], map: "documents_theme_id_idx")
-  @@index([studentId], map: "documents_student_id_idx")
-  @@index([isReference], map: "documents_is_reference_idx")
-  @@map("documents")
-}
-
-model FinalAppreciation {
-  id               BigInt               @id @default(autoincrement())
-  documentId       BigInt               @unique @map("document_id")
-
-  teacherId        BigInt?              @map("teacher_id")
-  teacherDecision  AppreciationDecision? @map("teacher_decision")
-  teacherComment   String?              @map("teacher_comment") @db.Text
-  teacherDecidedAt DateTime?            @map("teacher_decided_at")
-
-  daId             BigInt?              @map("da_id")
-  daDecision       AppreciationDecision? @map("da_decision")
-  daComment        String?              @map("da_comment") @db.Text
-  daDecidedAt      DateTime?            @map("da_decided_at")
-
-  finalDecision    AppreciationDecision? @map("final_decision")
-  mention          String?              @db.VarChar(64)
-  finalizedAt      DateTime?            @map("finalized_at")
-  createdAt        DateTime             @default(now()) @map("created_at")
-  updatedAt        DateTime             @updatedAt @map("updated_at")
-
-  document Document @relation(fields: [documentId], references: [id], map: "final_appreciations_document_id_fkey")
-  teacher  User?    @relation("AppreciationTeacher", fields: [teacherId], references: [id], map: "final_appreciations_teacher_id_fkey")
-  da       User?    @relation("AppreciationDa", fields: [daId], references: [id], map: "final_appreciations_da_id_fkey")
-
-  @@index([teacherId], map: "final_appreciations_teacher_id_idx")
-  @@index([daId], map: "final_appreciations_da_id_idx")
-  @@map("final_appreciations")
-}
-
-model ReferenceDocument {
-  id            BigInt   @id @default(autoincrement())
-  uploadedBy    BigInt   @map("uploaded_by")
-  originalName  String   @map("original_name")
-  mimeType      String   @map("mime_type")
-  fileSize      BigInt   @map("file_size")
-  checksum      String
-  extractedText String   @map("extracted_text") @db.LongText
-  themeProfile  Json     @map("theme_profile")
-  dominantTheme String   @map("dominant_theme") @db.VarChar(255)
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-
-  uploader User @relation("ReferenceUploadedBy", fields: [uploadedBy], references: [id], map: "reference_documents_uploaded_by_fkey")
-
-  @@index([uploadedBy], map: "reference_documents_uploaded_by_idx")
-  @@map("reference_documents")
-}
-
-model SimilarityReport {
-  id                  BigInt    @id @default(autoincrement())
-  documentId          BigInt    @map("document_id")
-  globalSimilarity    Decimal   @map("global_similarity") @db.Decimal(5, 2)
-  aiScore             Decimal?  @map("ai_score") @db.Decimal(5, 2)
-  plagiarismScore     Decimal?  @map("plagiarism_score") @db.Decimal(5, 2)
-  combinedScore       Decimal?  @map("combined_score") @db.Decimal(5, 2)
-  flagged             Boolean   @default(false)
-  riskLevel           RiskLevel @map("risk_level")
-  matchedSources      Json      @map("matched_sources")
-  highlightedSegments Json      @map("highlighted_segments")
-  analyzedAt          DateTime  @map("analyzed_at")
-  generatedBy         BigInt?   @map("generated_by")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
-
-  document      Document       @relation(fields: [documentId], references: [id], map: "similarity_reports_document_id_fkey")
-  generatorUser User?          @relation(fields: [generatedBy], references: [id], map: "similarity_reports_generated_by_fkey")
-  deliberations Deliberation[]
-
-  @@index([documentId], map: "similarity_reports_document_id_idx")
-  @@map("similarity_reports")
-}
-
-model Deliberation {
-  id                 BigInt               @id @default(autoincrement())
-  similarityReportId BigInt               @map("similarity_report_id")
-  decidedBy          BigInt               @map("decided_by")
-  committee          String?
-  decision           DeliberationDecision
-  notes              String?              @db.Text
-  decidedAt          DateTime             @map("decided_at")
-  createdAt          DateTime             @default(now()) @map("created_at")
-  updatedAt          DateTime             @updatedAt @map("updated_at")
-
-  report  SimilarityReport @relation(fields: [similarityReportId], references: [id], map: "deliberations_similarity_report_id_fkey")
-  decider User             @relation(fields: [decidedBy], references: [id], map: "deliberations_decided_by_fkey")
-
-  @@index([similarityReportId], map: "deliberations_similarity_report_id_idx")
-  @@index([decidedBy], map: "deliberations_decided_by_idx")
-  @@map("deliberations")
-}
-
-model AnalysisHistory {
-  id               BigInt   @id @default(autoincrement())
-  studentId        BigInt   @map("student_id")
-  documentId       BigInt?  @map("document_id")
-  reportId         BigInt?  @map("report_id")
-  fileName         String   @map("file_name") @db.VarChar(512)
-  detectedTitle    String?  @map("detected_title") @db.VarChar(512)
-  titleScore       Int      @default(0) @map("title_score")
-  similarityScore  Decimal? @map("similarity_score") @db.Decimal(5, 2)
-  blocked          Boolean  @default(false)
-  titleMismatch    Boolean  @default(false) @map("title_mismatch")
-  attemptNumber    Int      @default(1) @map("attempt_number")
-  analyzedAt       DateTime @default(now()) @map("analyzed_at")
-
-  student User @relation(fields: [studentId], references: [id], map: "analysis_history_student_id_fkey")
-
-  @@index([studentId], map: "analysis_history_student_id_idx")
-  @@map("analysis_history")
 }

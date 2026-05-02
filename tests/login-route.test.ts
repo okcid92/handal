@@ -42,7 +42,7 @@ describe("login route", () => {
 
   it("creates a session for a valid student login", async () => {
     findFirst.mockResolvedValue({
-      id: 1n,
+      id: BigInt(1),
       name: "Student Demo",
       email: null,
       ine: "N01331820231",

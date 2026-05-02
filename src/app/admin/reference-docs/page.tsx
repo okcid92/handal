@@ -13,7 +13,7 @@ export default function AdminReferenceDocsPage() {
   return (
     <div className="app-shell min-h-screen px-6 py-8">
       <div className="mx-auto max-w-4xl space-y-6">
-        {/* Onglets */}
+        {/* Tabs */}
         <div className="section-frame flex gap-2 rounded-2xl p-1.5">
           {(
             [

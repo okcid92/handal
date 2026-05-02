@@ -1,0 +1,279 @@
+Tu es un expert Next.js/TypeScript travaillant sur le projet Handal.
+
+MISSION : Effectue un audit complet du projet et dis-moi exactement
+ce qui fonctionne, ce qui est cassé, et ce qui manque.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 1 — GIT : ÉTAT DES BRANCHES
+═══════════════════════════════════════════════════════════════
+
+Exécute ces commandes et montre-moi les résultats exacts :
+
+  git branch --list
+  git status
+  git log --oneline -5
+
+Questions auxquelles tu dois répondre :
+- Sur quelle branche suis-je actuellement ?
+- Existe-t-il une branche backup/stable-before-algo-upgrade ?
+- Existe-t-il une branche feature/algo-upgrade-algolab ?
+- Y a-t-il des fichiers non commités ?
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 2 — DÉPENDANCES : TOUT EST INSTALLÉ ?
+═══════════════════════════════════════════════════════════════
+
+Exécute :
+
+  node --version
+  npm --version
+  npx prisma --version
+
+Vérifie dans package.json que ces dépendances sont présentes :
+- next (16+)
+- typescript (5+)
+- prisma et @prisma/client (6+)
+- vitest
+- @playwright/test
+- tailwindcss
+- lucide-react
+- zod
+
+Signale toute dépendance manquante ou version incorrecte.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 3 — BASE DE DONNÉES : CONNEXION ET SCHÉMA
+═══════════════════════════════════════════════════════════════
+
+Exécute :
+
+  npx prisma db pull 2>&1 | head -20
+  npx prisma validate
+
+Vérifie dans prisma/schema.prisma que ces modèles existent :
+- User (avec champs : id, email, ine, role, password)
+- Theme (avec champs : id, status, studentId, title)
+- Document (avec champs : id, themeId, studentId, documentStatus)
+- SimilarityReport (avec champs : id, documentId, globalSimilarity)
+- Deliberation
+- FinalAppreciation
+
+Vérifie aussi que .env.local contient DATABASE_URL et SESSION_SECRET.
+
+Questions :
+- La connexion DB fonctionne-t-elle ?
+- Le schéma est-il synchronisé avec la DB ?
+- Les migrations sont-elles toutes appliquées ?
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 4 — TYPESCRIPT : ZÉRO ERREUR ?
+═══════════════════════════════════════════════════════════════
+
+Exécute :
+
+  npx tsc --noEmit 2>&1
+
+Si des erreurs apparaissent, liste-les toutes avec :
+- Le fichier concerné
+- Le numéro de ligne
+- Le message d'erreur
+- Ta proposition de correction
+
+Si aucune erreur : confirme "✅ TypeScript OK"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 5 — TESTS UNITAIRES VITEST
+═══════════════════════════════════════════════════════════════
+
+Exécute :
+
+  npm run test 2>&1
+
+Résultat attendu : 51 tests ✅
+
+Présente le résultat dans ce tableau :
+
+  Fichier de test              | Tests | Résultat
+  ─────────────────────────────|───────|─────────
+  security.test.ts             |   4   | ✅ ou ❌
+  cover-extractor.test.ts      |  11   | ✅ ou ❌
+  login-route.test.ts          |   1   | ✅ ou ❌
+  content-filter.test.ts       |   3   | ✅ ou ❌
+  text-extraction.test.ts      |  25   | ✅ ou ❌
+  proxy.test.ts                |   3   | ✅ ou ❌
+  domain.test.ts               |   4   | ✅ ou ❌
+  TOTAL                        |  51   | ✅ ou ❌
+
+Pour chaque test qui échoue, montre le message d'erreur exact.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 6 — TESTS E2E PLAYWRIGHT
+═══════════════════════════════════════════════════════════════
+
+Exécute :
+
+  npm run test:e2e 2>&1
+
+Résultat attendu : 8 tests ✅
+
+Présente le résultat dans ce tableau :
+
+  Test E2E                                        | Résultat
+  ────────────────────────────────────────────────|─────────
+  Home page exposes login panel                   | ✅ ou ❌
+  Login mode toggle switches placeholder          | ✅ ou ❌
+  Demo account selector pre-fills form            | ✅ ou ❌
+  Invalid login shows error message               | ✅ ou ❌
+  Student login redirects to /student             | ✅ ou ❌
+  Staff login redirects to role dashboard         | ✅ ou ❌
+  Unauthenticated access redirects to home        | ✅ ou ❌
+  Navbar links present on home page               | ✅ ou ❌
+  TOTAL                                           | ✅ ou ❌
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 7 — BUILD DE PRODUCTION
+═══════════════════════════════════════════════════════════════
+
+Exécute :
+
+  npm run build 2>&1
+
+Questions :
+- Le build se termine sans erreur ?
+- Y a-t-il des warnings critiques ?
+- Toutes les pages sont-elles générées correctement ?
+
+Si le build échoue, montre l'erreur complète.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 8 — FICHIERS CRITIQUES : EXISTENT-ILS ?
+═══════════════════════════════════════════════════════════════
+
+Vérifie l'existence de chaque fichier (✅ présent / ❌ manquant) :
+
+  AUTHENTIFICATION
+  ✅/❌ src/lib/session.ts
+  ✅/❌ src/lib/authz.ts
+  ✅/❌ src/app/api/login/route.ts
+  ✅/❌ src/app/api/logout/route.ts
+
+  ANALYSE PLAGIAT
+  ✅/❌ src/server/analysis/plagiat-detector.ts
+  ✅/❌ src/server/analysis/content-filter.ts
+  ✅/❌ src/server/analysis/cover-extractor.ts
+  ✅/❌ src/server/analysis/themeanalysor.ts
+
+  DASHBOARDS
+  ✅/❌ src/app/student/page.tsx
+  ✅/❌ src/app/teacher/page.tsx
+  ✅/❌ src/app/da/page.tsx
+  ✅/❌ src/app/admin/page.tsx
+
+  CONFIGURATION
+  ✅/❌ .env.local
+  ✅/❌ next.config.ts
+  ✅/❌ prisma/schema.prisma
+  ✅/❌ prisma/seed.js
+  ✅/❌ vitest.config.ts
+  ✅/❌ playwright.config.ts
+
+Pour chaque fichier manquant, dis-moi si c'est critique ou non.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 9 — COMPTES DE DÉMO : EXISTENT-ILS EN BASE ?
+═══════════════════════════════════════════════════════════════
+
+Exécute via Prisma Studio ou une requête directe :
+
+  npx prisma studio
+  
+  OU via une requête SQL :
+  SELECT email, ine, role FROM users 
+  WHERE email IN (
+    'admin@handal.local',
+    'teacher@handal.local', 
+    'da@handal.local'
+  ) OR ine = 'N01331820231';
+
+Résultat attendu :
+
+  Compte                  | Rôle    | Existe ?
+  ────────────────────────|─────────|─────────
+  admin@handal.local      | ADMIN   | ✅ ou ❌
+  teacher@handal.local    | TEACHER | ✅ ou ❌
+  da@handal.local         | DA      | ✅ ou ❌
+  INE: N01331820231       | STUDENT | ✅ ou ❌
+
+Si un compte manque :
+  npx prisma db seed
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 10 — TEST MANUEL RAPIDE DES ROUTES API
+═══════════════════════════════════════════════════════════════
+
+Lance le serveur en arrière-plan puis teste :
+
+  npm run dev &
+  sleep 5
+
+  # Test 1 : Login étudiant
+  curl -s -X POST http://localhost:3000/api/login \
+    -H "Content-Type: application/json" \
+    -d '{"ine":"N01331820231","password":"mon926732"}' \
+    | python3 -m json.tool
+
+  # Test 2 : Login invalide (doit retourner erreur)
+  curl -s -X POST http://localhost:3000/api/login \
+    -H "Content-Type: application/json" \
+    -d '{"ine":"FAUX","password":"faux"}' \
+    | python3 -m json.tool
+
+  # Test 3 : Route protégée sans session (doit retourner 401)
+  curl -s http://localhost:3000/api/me/overview \
+    | python3 -m json.tool
+
+Résultats attendus :
+- Test 1 : { ok: true, user: { role: "STUDENT" } }
+- Test 2 : { error: "..." } avec status 401
+- Test 3 : { error: "Unauthenticated" } avec status 401
+
+═══════════════════════════════════════════════════════════════
+RAPPORT FINAL ATTENDU
+═══════════════════════════════════════════════════════════════
+
+À la fin de toutes les étapes, présente un rapport structuré :
+
+┌─────────────────────────────────────────────────────────────┐
+│                    RAPPORT D'AUDIT HANDAL                   │
+├─────────────────┬───────────┬───────────────────────────────┤
+│ Composant       │  Statut   │ Détails                       │
+├─────────────────┼───────────┼───────────────────────────────┤
+│ Git / Branches  │ ✅ ou ❌  │ ...                           │
+│ Dépendances     │ ✅ ou ❌  │ ...                           │
+│ Base de données │ ✅ ou ❌  │ ...                           │
+│ TypeScript      │ ✅ ou ❌  │ ...                           │
+│ Tests Vitest    │ ✅ ou ❌  │ X/51 tests passent            │
+│ Tests Playwright│ ✅ ou ❌  │ X/8 tests passent             │
+│ Build prod      │ ✅ ou ❌  │ ...                           │
+│ Fichiers        │ ✅ ou ❌  │ X fichiers manquants          │
+│ Comptes démo    │ ✅ ou ❌  │ X/4 comptes présents          │
+│ Routes API      │ ✅ ou ❌  │ ...                           │
+├─────────────────┴───────────┴───────────────────────────────┤
+│ SCORE GLOBAL : X/10 composants OK                           │
+└─────────────────────────────────────────────────────────────┘
+
+PROBLÈMES CRITIQUES (bloquants) :
+  1. ...
+  2. ...
+
+PROBLÈMES MINEURS (non bloquants) :
+  1. ...
+  2. ...
+
+ACTIONS RECOMMANDÉES (par priorité) :
+  1. ...
+  2. ...
+  3. ...
+
+EST-CE QUE LE PROJET EST PRÊT POUR L'INTÉGRATION ALGOLAB ?
+→ OUI / NON + justification
