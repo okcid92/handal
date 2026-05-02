@@ -13,6 +13,14 @@ const payloadSchema = z.object({
   mention: z.string().trim().optional().nullable(),
 });
 
+function serializeBigInt<T>(value: T): T {
+  return JSON.parse(
+    JSON.stringify(value, (_key, nestedValue) =>
+      typeof nestedValue === "bigint" ? nestedValue.toString() : nestedValue,
+    ),
+  ) as T;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },
@@ -117,10 +125,10 @@ export async function POST(
         data: { documentStatus: newDocumentStatus },
       });
 
-      return NextResponse.json({ ok: true, data: finalAppreciation });
+      return NextResponse.json({ ok: true, data: serializeBigInt(finalAppreciation) });
     }
 
-    return NextResponse.json({ ok: true, data: updatedAppreciation });
+    return NextResponse.json({ ok: true, data: serializeBigInt(updatedAppreciation) });
   } catch (error) {
     return errorResponse(error);
   }

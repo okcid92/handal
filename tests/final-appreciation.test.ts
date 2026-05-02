@@ -41,8 +41,7 @@ describe("final appreciation route", () => {
       id: BigInt(10),
       studentId: BigInt(2),
       documentStatus: "CLEAN",
-      similarityReport: null,
-      finalAppreciation: null,
+      appreciation: null,
       student: { id: BigInt(2) },
     });
     createAppreciation.mockResolvedValue({
@@ -68,6 +67,9 @@ describe("final appreciation route", () => {
     );
 
     const body = await response.json();
+    if (!body.ok) {
+      console.log(body);
+    }
     expect(body.ok).toBe(true);
     expect(body.data.teacherDecision).toBe("APPROVED");
   });
@@ -77,8 +79,7 @@ describe("final appreciation route", () => {
       id: BigInt(11),
       studentId: BigInt(2),
       documentStatus: "CLEAN",
-      similarityReport: null,
-      finalAppreciation: { id: BigInt(2), teacherDecision: "APPROVED", daDecision: null },
+      appreciation: { id: BigInt(2), teacherDecision: "APPROVED", daDecision: null },
       student: { id: BigInt(2) },
     });
     updateAppreciation
@@ -104,6 +105,9 @@ describe("final appreciation route", () => {
     );
 
     const body = await response.json();
+    if (!body.ok) {
+      console.log(body);
+    }
     expect(body.ok).toBe(true);
     expect(body.data.finalDecision).toBe("APPROVED");
     expect(updateDocument).toHaveBeenCalled();

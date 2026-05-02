@@ -49,7 +49,7 @@ describe("createDocument v2", () => {
     findTheme.mockResolvedValue(null);
 
     await expect(createDocumentV2(payload, studentId)).rejects.toThrow(
-      "VALIDATED theme",
+      "validated theme",
     );
   });
 
@@ -62,7 +62,7 @@ describe("createDocument v2", () => {
     });
 
     await expect(createDocumentV2(payload, studentId)).rejects.toThrow(
-      "VALIDATED",
+      "validated",
     );
   });
 
