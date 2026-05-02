@@ -155,6 +155,11 @@ model SimilarityReport {
   aiScore             Decimal?       @map("ai_score") @db.Decimal(5, 2)
   plagiarismScore     Decimal?       @map("plagiarism_score") @db.Decimal(5, 2)
   combinedScore       Decimal?       @map("combined_score") @db.Decimal(5, 2)
+  winnowingScore      Decimal?       @map("winnowing_score") @db.Decimal(5, 4)
+  lcsScore            Decimal?       @map("lcs_score") @db.Decimal(5, 4)
+  styleScore          Decimal?       @map("style_score") @db.Decimal(5, 4)
+  simhashScore        Decimal?       @map("simhash_score") @db.Decimal(5, 4)
+  semanticScore       Decimal?       @map("semantic_score") @db.Decimal(5, 4)
   flagged             Boolean        @default(false)
   riskLevel           RiskLevel      @map("risk_level")
   matchedSources      String         @map("matched_sources") @db.LongText

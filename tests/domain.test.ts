@@ -11,8 +11,8 @@ describe("domain helpers", () => {
   });
 
   it("builds a stable seed from the document id", () => {
-    expect(buildSeed(97n)).toBe(0);
-    expect(buildSeed(123n)).toBe(26);
+    expect(buildSeed(BigInt(97))).toBe(0);
+    expect(buildSeed(BigInt(123))).toBe(26);
   });
 
   it("produces bounded similarity scores", () => {
