@@ -109,28 +109,6 @@ export function deriveRiskLevel(globalSimilarity: number): RiskLevel {
   return RiskLevel.LOW;
 }
 
-const AUTO_VALIDATION_SIMILARITY_THRESHOLD = 20;
-const AUTO_VALIDATION_EXCLUDED_RATIO_THRESHOLD = 0.3;
-
-function shouldAutoValidateByChefDept(plagiarism: {
-  maxSimilarity: number;
-  filterResult: {
-    excludedRatio: number;
-  };
-}) {
-  const globalSimilarity = Number((plagiarism.maxSimilarity * 100).toFixed(2));
-  const excludedRatio = plagiarism.filterResult.excludedRatio;
-  const approvedByAlgo =
-    globalSimilarity < AUTO_VALIDATION_SIMILARITY_THRESHOLD &&
-    excludedRatio < AUTO_VALIDATION_EXCLUDED_RATIO_THRESHOLD;
-
-  return {
-    approvedByAlgo,
-    globalSimilarity,
-    excludedRatio,
-  };
-}
-
 function generateSources(seed: number): ReportSource[] {
   const base = [
     { name: "Archive universitaire", type: "repository" as const },
@@ -672,9 +650,6 @@ export async function listAnalysisHistory(studentId: bigint) {
           select: {
             id: true,
             matchedSources: true,
-            deliberations: {
-              select: { id: true },
-            },
             document: {
               select: {
                 documentStatus: true,
@@ -693,7 +668,6 @@ export async function listAnalysisHistory(studentId: bigint) {
         sourceSimilarity: number | null;
       }
     >();
-    const autoValidationByReportId = new Map<string, boolean>();
 
     // Collecter tous les sourceIds référencés dans les rapports
     const allSourceIds = new Set<string>();
@@ -742,12 +716,6 @@ export async function listAnalysisHistory(studentId: bigint) {
         top.sourceLabel = resolvedTitles.get(top.sourceId)!;
       }
       sourceByReportId.set(report.id.toString(), top);
-      autoValidationByReportId.set(
-        report.id.toString(),
-        report.document.documentStatus === DocumentStatus.APPROVED &&
-          report.document.isReference &&
-          report.deliberations.length === 0,
-      );
     });
 
     return rows.map((r) => ({
@@ -774,9 +742,7 @@ export async function listAnalysisHistory(studentId: bigint) {
         ? (sourceByReportId.get(r.reportId.toString())?.sourceSimilarity ??
           null)
         : null,
-      autoValidatedByCd: r.reportId
-        ? (autoValidationByReportId.get(r.reportId.toString()) ?? false)
-        : false,
+      autoValidatedByCd: false,
     }));
   } catch {
     return [];
@@ -787,7 +753,7 @@ export async function getValidatedThemeForStudent(studentId: bigint) {
   const theme = await prisma.theme.findFirst({
     where: {
       studentId,
-      status: { in: [ThemeStatus.VALIDATED, ThemeStatus.VALIDATED_DA] },
+      status: ThemeStatus.VALIDATED,
     },
     orderBy: { updatedAt: "desc" },
     select: { id: true, title: true, status: true },
@@ -814,7 +780,7 @@ export async function createDocument(
         await prisma.theme.findFirst({
           where: {
             studentId,
-            status: { in: [ThemeStatus.VALIDATED, ThemeStatus.VALIDATED_DA] },
+            status: ThemeStatus.VALIDATED,
           },
           orderBy: { updatedAt: "desc" },
           select: { id: true },
@@ -835,7 +801,6 @@ export async function createDocument(
       id: true,
       studentId: true,
       status: true,
-      finalScore: true,
     },
   });
 
@@ -851,10 +816,7 @@ export async function createDocument(
     );
   }
 
-  if (
-    theme.status !== ThemeStatus.VALIDATED &&
-    theme.status !== ThemeStatus.VALIDATED_DA
-  ) {
+  if (theme.status !== ThemeStatus.VALIDATED) {
     throw new ApiError(
       "Theme must be validated before final upload",
       409,
@@ -981,14 +943,6 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
     throw new ApiError("Document has no theme", 409, "DOCUMENT_THEME_MISSING");
   }
 
-  if (document.theme.status !== ThemeStatus.VALIDATED_DA) {
-    throw new ApiError(
-      "Theme must be VALIDATED_DA for official analysis",
-      409,
-      "THEME_NOT_VALIDATED_DA",
-    );
-  }
-
   if (!document.extractedText) {
     throw new ApiError(
       "Document has no extracted text to analyze",
@@ -1017,11 +971,8 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
       comparisonCorpus,
     );
 
-    const autoValidation = shouldAutoValidateByChefDept(plagiarism);
-    const aiScoreRaw = plagiarism.avgSimilarity * 100;
-    const globalSimilarityRaw = autoValidation.globalSimilarity;
-    const aiScore = Number(aiScoreRaw.toFixed(2));
-    const globalSimilarity = Number(globalSimilarityRaw.toFixed(2));
+    const globalSimilarity = Number((plagiarism.maxSimilarity * 100).toFixed(2));
+    const aiScore = Number((plagiarism.avgSimilarity * 100).toFixed(2));
     const riskLevel = deriveRiskLevel(globalSimilarity);
     const matchedSources = enrichMatchedSources(plagiarism.results);
     const topReferenceSource = getTopReferenceSource(matchedSources);
@@ -1051,31 +1002,16 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
       },
     });
 
+    const finalStatus = globalSimilarity >= 20 ? DocumentStatus.FLAGGED_PLAGIARISM : DocumentStatus.CLEAN;
     await prisma.document.update({
       where: { id: document.id },
       data: {
         analysisStatus: AnalysisStatus.COMPLETED,
         analysisCompletedAt: new Date(),
         analysisError: null,
+        documentStatus: finalStatus,
       },
     });
-
-    if (autoValidation.approvedByAlgo) {
-      await prisma.document.update({
-        where: { id: document.id },
-        data: {
-          documentStatus: DocumentStatus.APPROVED,
-          isReference: true,
-        },
-      });
-
-      logger.info("document.auto_approved.cd", {
-        documentId: document.id.toString(),
-        reportId: created.id.toString(),
-        globalSimilarity,
-        excludedRatio: autoValidation.excludedRatio,
-      });
-    }
 
     logger.info("document.analyzed", {
       documentId: document.id.toString(),
@@ -1099,7 +1035,6 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
         topReferenceSource,
         exclusionNote: plagiarism.exclusionNote,
         filterResult: plagiarism.filterResult,
-        autoValidation,
       },
     };
   } catch (error) {
@@ -1187,11 +1122,6 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
     conclusionFound: boolean;
     excludedRatio: number;
   };
-  autoValidation: {
-    approvedByAlgo: boolean;
-    globalSimilarity: number;
-    excludedRatio: number;
-  };
 }> {
   const document = await loadDocument(documentId);
 
@@ -1205,11 +1135,6 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       topReferenceSource: { sourceId: null, sourceLabel: null, sourceSimilarity: null },
       exclusionNote: null,
       filterResult: { wasSliced: false, introFound: false, conclusionFound: false, excludedRatio: 0 },
-      autoValidation: {
-        approvedByAlgo: false,
-        globalSimilarity: 0,
-        excludedRatio: 0,
-      },
     };
   }
 
@@ -1230,8 +1155,7 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       corpus,
     );
 
-    const autoValidation = shouldAutoValidateByChefDept(plagiarism);
-    const globalSimilarity = autoValidation.globalSimilarity;
+    const globalSimilarity = Number((plagiarism.maxSimilarity * 100).toFixed(2));
     const riskLevel = deriveRiskLevel(globalSimilarity);
 
     const matchedSources = enrichMatchedSources(plagiarism.results);
@@ -1269,28 +1193,13 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       },
     });
 
-    if (autoValidation.approvedByAlgo) {
-      await prisma.document.update({
-        where: { id: document.id },
-        data: {
-          documentStatus: DocumentStatus.APPROVED,
-          isReference: true,
-        },
-      });
-
-      logger.info("document.auto_approved.inline", {
-        documentId: document.id.toString(),
-        reportId: created.id.toString(),
-        globalSimilarity,
-        excludedRatio: autoValidation.excludedRatio,
-      });
-    }
-
+    const finalStatus = globalSimilarity >= 20 ? DocumentStatus.FLAGGED_PLAGIARISM : DocumentStatus.CLEAN;
     await prisma.document.update({
       where: { id: document.id },
       data: {
         analysisStatus: AnalysisStatus.COMPLETED,
         analysisCompletedAt: new Date(),
+        documentStatus: finalStatus,
       },
     });
 
@@ -1311,7 +1220,6 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
       topReferenceSource,
       exclusionNote: plagiarism.exclusionNote,
       filterResult: plagiarism.filterResult,
-      autoValidation,
     };
   } catch (error) {
     await prisma.document.update({

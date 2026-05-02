@@ -1,10 +1,4 @@
-import {
-  Prisma,
-  ThemeStatus,
-  DocumentStatus,
-  type Role,
-  type Theme,
-} from "@prisma/client";
+import { Prisma, ThemeStatus, type Role, type Theme } from "@prisma/client";
 
 import { ApiError } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
@@ -17,7 +11,10 @@ import { listReferenceProfiles } from "@/server/reference-documents";
 
 const THEME_REFERENCE_SIMILARITY_BLOCK_THRESHOLD = 0.65;
 
-export type ThemeDecision = "approved" | "rejected";
+type ThemePayload = {
+  title: string;
+  description: string;
+};
 
 export type ThemeSummary = {
   id: string;
@@ -25,10 +22,7 @@ export type ThemeSummary = {
   title: string;
   description: string;
   status: ThemeStatus;
-  moderationComment: string | null;
-  finalScore: string | null;
   themeSimilarityScore?: string | null;
-  themeSimilarityLabel?: string | null;
   createdAt: string;
   updatedAt: string;
   student: {
@@ -50,73 +44,21 @@ export type ThemeSummary = {
   submitted_at: string;
 };
 
-type ThemePayload = {
+export type ThemeSimilarityMatch = {
+  themeId: string;
   title: string;
-  description: string;
+  similarity: number;
 };
 
 export function normalizeThemeTitle(title: string) {
   return title.trim().toLowerCase();
 }
 
-/**
- * Nettoie un titre de thème : trim, espaces doubles, première lettre majuscule.
- */
-export function sanitizeThemeTitle(raw: string): string {
+function sanitizeThemeTitle(raw: string): string {
   return raw
     .trim()
     .replace(/\s+/g, " ")
     .replace(/^(.)/, (c) => c.toUpperCase());
-}
-
-/**
- * Find-or-create pour les thèmes de documents de référence (upload admin).
- * Contrairement à createTheme(), ne vérifie pas la similarité ni le statut étudiant.
- * Retourne l'ID du thème existant ou créé.
- */
-export async function findOrCreateReferenceTheme(
-  title: string,
-  adminId: bigint,
-  description?: string,
-): Promise<bigint> {
-  const cleaned = sanitizeThemeTitle(title || "Sujet non classé");
-  const normalized = normalizeThemeTitle(cleaned);
-
-  // 1. Chercher un thème existant (correspondance exacte normalisée)
-  const existing = await prisma.theme.findUnique({
-    where: { titleNormalized: normalized },
-    select: { id: true },
-  });
-  if (existing) {
-    logger.info("theme.reference.found", { themeId: existing.id.toString(), title: cleaned });
-    return existing.id;
-  }
-
-  // 2. Créer le thème avec statut VALIDATED (référence officielle)
-  try {
-    const created = await prisma.theme.create({
-      data: {
-        studentId: adminId,
-        title: cleaned,
-        titleNormalized: normalized,
-        description: description ?? `Thème extrait automatiquement depuis un document de référence IBAM : ${cleaned}.`,
-        status: ThemeStatus.VALIDATED,
-      },
-      select: { id: true },
-    });
-    logger.info("theme.reference.created", { themeId: created.id.toString(), title: cleaned });
-    return created.id;
-  } catch (err) {
-    // Race condition : un autre processus a créé le même thème entre le findUnique et le create
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      const retry = await prisma.theme.findUnique({
-        where: { titleNormalized: normalized },
-        select: { id: true },
-      });
-      if (retry) return retry.id;
-    }
-    throw err;
-  }
 }
 
 function serializeTheme(
@@ -136,11 +78,9 @@ function serializeTheme(
   const firstName = nameParts[0] ?? "";
   const lastName = nameParts.slice(1).join(" ") || firstName;
   const similarityScoreValue =
-    theme.themeSimilarityScore?.toString() !== undefined &&
-    theme.themeSimilarityScore !== null
+    theme.themeSimilarityScore !== null && theme.themeSimilarityScore !== undefined
       ? `${theme.themeSimilarityScore.toString()}%`
       : "0%";
-  const submittedAt = theme.createdAt.toISOString().slice(0, 10);
 
   return {
     id: theme.id.toString(),
@@ -148,10 +88,7 @@ function serializeTheme(
     title: theme.title,
     description: theme.description,
     status: theme.status,
-    moderationComment: theme.moderationComment ?? null,
-    finalScore: theme.finalScore?.toString() ?? null,
     themeSimilarityScore: theme.themeSimilarityScore?.toString() ?? null,
-    themeSimilarityLabel: theme.themeSimilarityLabel ?? null,
     createdAt: theme.createdAt.toISOString(),
     updatedAt: theme.updatedAt.toISOString(),
     student: theme.student
@@ -172,36 +109,28 @@ function serializeTheme(
     student_firstname: firstName,
     student_department: theme.student?.department ?? null,
     similarity_score: similarityScoreValue,
-    submitted_at: submittedAt,
+    submitted_at: theme.createdAt.toISOString().slice(0, 10),
   };
 }
 
 function bigramSet(text: string) {
   const normalized = normalizeThemeTitle(text).replace(/\s+/g, " ").trim();
   const grams = new Set<string>();
-  if (normalized.length < 2) {
-    return grams;
-  }
-
+  if (normalized.length < 2) return grams;
   for (let i = 0; i < normalized.length - 1; i += 1) {
     grams.add(normalized.slice(i, i + 2));
   }
-
   return grams;
 }
 
 function titleSimilarityScore(a: string, b: string) {
   const setA = bigramSet(a);
   const setB = bigramSet(b);
-  if (setA.size === 0 || setB.size === 0) {
-    return 0;
-  }
+  if (setA.size === 0 || setB.size === 0) return 0;
 
   let intersection = 0;
   setA.forEach((gram) => {
-    if (setB.has(gram)) {
-      intersection += 1;
-    }
+    if (setB.has(gram)) intersection += 1;
   });
 
   const union = setA.size + setB.size - intersection;
@@ -210,10 +139,7 @@ function titleSimilarityScore(a: string, b: string) {
 
 async function assertThemeSimilarityAccepted(title: string) {
   const existingThemes = await prisma.theme.findMany({
-    select: {
-      id: true,
-      title: true,
-    },
+    select: { id: true, title: true },
     take: 250,
     orderBy: { createdAt: "desc" },
   });
@@ -221,11 +147,7 @@ async function assertThemeSimilarityAccepted(title: string) {
   const matches = existingThemes
     .map((theme) => {
       const score = titleSimilarityScore(title, theme.title);
-      return {
-        id: theme.id.toString(),
-        title: theme.title,
-        score,
-      };
+      return { id: theme.id.toString(), title: theme.title, score };
     })
     .filter((item) => item.score >= 0.7)
     .sort((a, b) => b.score - a.score)
@@ -248,10 +170,32 @@ async function ensureThemeTitleAvailable(title: string) {
     where: { titleNormalized: normalizeThemeTitle(title) },
     select: { id: true },
   });
-
   if (existing) {
     throw new ApiError("Theme title already exists", 409, "THEME_TITLE_EXISTS");
   }
+}
+
+async function loadTheme(themeId: bigint) {
+  const theme = await prisma.theme.findUnique({
+    where: { id: themeId },
+    include: {
+      student: {
+        select: {
+          id: true,
+          name: true,
+          ine: true,
+          email: true,
+          department: true,
+          role: true,
+        },
+      },
+    },
+  });
+
+  if (!theme) {
+    throw new ApiError("Theme not found", 404, "THEME_NOT_FOUND");
+  }
+  return theme;
 }
 
 export async function createTheme(studentId: bigint, payload: ThemePayload) {
@@ -301,7 +245,6 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
   const similarityScore = topComparison
     ? Number((topComparison.thematicSimilarity * 100).toFixed(2))
     : null;
-  const similarityLabel = topComparison?.proximityLevel ?? null;
 
   const serializableProfile = {
     ...candidateProfile,
@@ -323,7 +266,6 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
         themeSignature: JSON.stringify(serializableProfile),
         themeSimilarityScore:
           similarityScore !== null ? new Prisma.Decimal(similarityScore) : null,
-        themeSimilarityLabel: similarityLabel,
       },
       include: {
         student: {
@@ -343,15 +285,8 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"
     ) {
-      throw new ApiError(
-        "Theme title already exists",
-        409,
-        "THEME_TITLE_EXISTS",
-      );
+      throw new ApiError("Theme title already exists", 409, "THEME_TITLE_EXISTS");
     }
-    logger.error("theme.create.failed", "prisma create error", {
-      error: err instanceof Error ? err.message : String(err),
-    });
     throw err;
   }
 
@@ -365,10 +300,7 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
 
 export async function listPendingThemes() {
   const themes = await prisma.theme.findMany({
-    where: {
-      // Only themes already accepted by the algorithm are routed to CD moderation.
-      status: ThemeStatus.PENDING_VALIDATION,
-    },
+    where: { status: ThemeStatus.PENDING_VALIDATION },
     orderBy: { createdAt: "asc" },
     include: {
       student: {
@@ -387,192 +319,141 @@ export async function listPendingThemes() {
   return themes.map(serializeTheme);
 }
 
-async function loadTheme(themeId: bigint) {
-  const theme = await prisma.theme.findUnique({
-    where: { id: themeId },
-    include: {
-      student: {
-        select: {
-          id: true,
-          name: true,
-          ine: true,
-          email: true,
-          department: true,
-          role: true,
-        },
-      },
-    },
-  });
-
-  if (!theme) {
-    throw new ApiError("Theme not found", 404, "THEME_NOT_FOUND");
-  }
-
-  return theme;
-}
-
-function assertRoleCanModerate(theme: Theme, expectedStatus: ThemeStatus) {
-  if (theme.status !== expectedStatus) {
-    throw new ApiError(
-      `Theme must be ${expectedStatus} before this action`,
-      409,
-      "THEME_STATUS_INVALID",
-    );
-  }
-}
-
-export async function validateThemeCd(
+export async function validateThemeVotingV2(
   themeId: bigint,
-  moderatorId: bigint,
-  decision: ThemeDecision,
-  comment?: string | null,
-) {
+  voterId: bigint,
+  decision: "approved" | "rejected",
+  comment: string,
+): Promise<Theme> {
   const theme = await loadTheme(themeId);
 
   if (theme.status !== ThemeStatus.PENDING_VALIDATION) {
     throw new ApiError(
-      `Theme must be PENDING_VALIDATION (algorithm-approved) before CD validation`,
+      `Cannot vote on theme with status ${theme.status}`,
       409,
       "THEME_STATUS_INVALID",
     );
   }
 
-  // Le Chef de Département est le seul validateur du thème.
-  // Approbation → VALIDATED directement (dépôt document débloqué).
-  const finalStatus =
-    decision === "approved" ? ThemeStatus.VALIDATED : ThemeStatus.REJECTED;
+  const voter = await prisma.user.findUnique({ where: { id: voterId } });
+  if (!voter || !["TEACHER", "DA", "ADMIN"].includes(voter.role)) {
+    throw new ApiError("Only TEACHER or DA can vote", 403, "FORBIDDEN");
+  }
 
-  const updated = await prisma.theme.update({
+  const updatedTheme = await prisma.theme.update({
     where: { id: themeId },
-    data: {
-      moderatedBy: moderatorId,
-      moderatedAt: new Date(),
-      moderationComment: comment?.trim() || null,
-      status: finalStatus,
-      teacherApproval: decision === "approved",
-      teacherComment: comment?.trim() || null,
-      teacherValidatedAt: new Date(),
-      validatedCdBy: decision === "approved" ? moderatorId : null,
-      validatedCdAt: decision === "approved" ? new Date() : null,
-    },
-    include: {
-      student: {
-        select: {
-          id: true,
-          name: true,
-          ine: true,
-          email: true,
-          department: true,
-          role: true,
-        },
-      },
-    },
+    data:
+      voter.role === "TEACHER"
+        ? {
+            teacherVote: decision,
+            teacherComment: comment,
+            teacherVotedAt: new Date(),
+          }
+        : {
+            daVote: decision,
+            daComment: comment,
+            daVotedAt: new Date(),
+          },
   });
 
-  logger.info("theme.validated.cd", {
-    themeId: updated.id.toString(),
-    moderatorId: moderatorId.toString(),
-    decision,
-  });
+  if (updatedTheme.teacherVote && updatedTheme.daVote) {
+    const finalStatus =
+      updatedTheme.teacherVote === "approved" &&
+      updatedTheme.daVote === "approved"
+        ? ThemeStatus.VALIDATED
+        : ThemeStatus.REJECTED;
 
-  return serializeTheme(updated);
+    const finalTheme = await prisma.theme.update({
+      where: { id: themeId },
+      data: { status: finalStatus },
+    });
+
+    await notifyStudent(theme.studentId, {
+      type: finalStatus === ThemeStatus.VALIDATED ? "THEME_VALIDATED" : "THEME_REJECTED",
+      themeId,
+      message:
+        finalStatus === ThemeStatus.VALIDATED
+          ? `Votre thème "${theme.title}" a été validé. Vous pouvez déposer votre mémoire.`
+          : `Votre thème "${theme.title}" a été rejeté.`,
+    });
+
+    return finalTheme;
+  }
+
+  return updatedTheme;
 }
 
-export async function validateThemeDa(
-  themeId: bigint,
-  validatorId: bigint,
-  decision: ThemeDecision,
-  finalScore?: number | null,
-  comment?: string | null,
-) {
-  const theme = await loadTheme(themeId);
+export async function checkThemeSimilarity(
+  title: string,
+): Promise<ThemeSimilarityMatch[]> {
+  const existingThemes = await prisma.theme.findMany({
+    select: { id: true, title: true },
+    take: 250,
+    orderBy: { createdAt: "desc" },
+  });
 
-  // Accepte VALIDATED_CD (v1) et PENDING_VALIDATION (v2 — DA peut voter sans attendre CD)
-  if (
-    theme.status !== ThemeStatus.VALIDATED_CD &&
-    theme.status !== ThemeStatus.PENDING_VALIDATION
-  ) {
-    throw new ApiError(
-      `Theme must be VALIDATED_CD or PENDING_VALIDATION before DA validation`,
-      409,
-      "THEME_STATUS_INVALID",
-    );
-  }
+  return existingThemes
+    .map((theme) => ({
+      themeId: theme.id.toString(),
+      title: theme.title,
+      similarity: Number((titleSimilarityScore(title, theme.title) * 100).toFixed(2)),
+    }))
+    .filter((match) => match.similarity >= 50)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, 5);
+}
 
-  // En v2 (PENDING_VALIDATION), la note finale n'est plus requise à cette étape
-  const isV2 = theme.status === ThemeStatus.PENDING_VALIDATION;
+export async function findOrCreateReferenceTheme(
+  title: string,
+  adminId: bigint,
+  description?: string,
+): Promise<bigint> {
+  const cleaned = sanitizeThemeTitle(title || "Sujet non classe");
+  const normalized = normalizeThemeTitle(cleaned);
 
-  if (!isV2 && decision === "approved") {
-    if (
-      finalScore === null ||
-      finalScore === undefined ||
-      Number.isNaN(finalScore)
-    ) {
-      throw new ApiError(
-        "Final score is required",
-        422,
-        "FINAL_SCORE_REQUIRED",
-      );
-    }
-    if (finalScore < 0 || finalScore > 20) {
-      throw new ApiError(
-        "Final score must be between 0 and 20",
-        422,
-        "FINAL_SCORE_INVALID",
-      );
-    }
-  }
+  const existing = await prisma.theme.findUnique({
+    where: { titleNormalized: normalized },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
 
-  // En v2 : statut final = VALIDATED si les deux ont approuvé, sinon REJECTED
-  const teacherApproved =
-    theme.teacherApproval === true || theme.validatedCdBy !== null;
-  const finalStatus = isV2
-    ? decision === "approved" && teacherApproved
-      ? ThemeStatus.VALIDATED
-      : ThemeStatus.REJECTED
-    : decision === "approved"
-      ? ThemeStatus.VALIDATED_DA
-      : ThemeStatus.REJECTED;
-
-  const updated = await prisma.theme.update({
-    where: { id: themeId },
-    data: {
-      validatedDaBy: validatorId,
-      validatedDaAt: new Date(),
-      status: finalStatus,
-      moderationComment: comment?.trim() || null,
-      daApproval: decision === "approved",
-      daComment: comment?.trim() || null,
-      daValidatedAt: new Date(),
-      ...(!isV2 && decision === "approved"
-        ? {
-            finalScore: new Prisma.Decimal(finalScore as number),
-            finalScoreAssignedAt: new Date(),
-          }
-        : !isV2
-          ? { finalScore: null, finalScoreAssignedAt: null }
-          : {}),
-    },
-    include: {
-      student: {
-        select: {
-          id: true,
-          name: true,
-          ine: true,
-          email: true,
-          department: true,
-          role: true,
-        },
+  try {
+    const created = await prisma.theme.create({
+      data: {
+        studentId: adminId,
+        title: cleaned,
+        titleNormalized: normalized,
+        description:
+          description ??
+          `Theme extrait automatiquement depuis un document de reference IBAM : ${cleaned}.`,
+        status: ThemeStatus.VALIDATED,
+        teacherVote: "approved",
+        daVote: "approved",
+        teacherVotedAt: new Date(),
+        daVotedAt: new Date(),
       },
-    },
-  });
+      select: { id: true },
+    });
+    return created.id;
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const retry = await prisma.theme.findUnique({
+        where: { titleNormalized: normalized },
+        select: { id: true },
+      });
+      if (retry) return retry.id;
+    }
+    throw err;
+  }
+}
 
-  logger.info("theme.validated.da", {
-    themeId: updated.id.toString(),
-    validatorId: validatorId.toString(),
-    decision,
-    finalScore: updated.finalScore?.toString() ?? null,
+async function notifyStudent(
+  studentId: bigint,
+  payload: { type: string; themeId: bigint; message: string },
+) {
+  logger.info("theme.notification", {
+    studentId: studentId.toString(),
+    type: payload.type,
+    themeId: payload.themeId.toString(),
   });
-
-  return serializeTheme(updated);
 }

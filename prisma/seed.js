@@ -58,7 +58,51 @@ async function main() {
     });
   }
 
-  console.log("Seed completed: demo accounts ready");
+  const [student, teacher, da] = await Promise.all([
+    prisma.user.findUnique({ where: { ine: "N01331820231" } }),
+    prisma.user.findUnique({ where: { email: "teacher@handal.local" } }),
+    prisma.user.findUnique({ where: { email: "da@handal.local" } }),
+  ]);
+
+  if (!student || !teacher || !da) {
+    throw new Error("Seed prerequisite users are missing");
+  }
+
+  const now = new Date();
+  await prisma.theme.upsert({
+    where: {
+      titleNormalized: "ai in education",
+    },
+    update: {
+      studentId: student.id,
+      title: "AI in Education",
+      description:
+        "Etude des usages de l'intelligence artificielle dans l'apprentissage universitaire.",
+      status: "VALIDATED",
+      teacherVote: "approved",
+      teacherComment: "Sujet pertinent pour le departement.",
+      teacherVotedAt: now,
+      daVote: "approved",
+      daComment: "Validation academique conjointe confirmee.",
+      daVotedAt: now,
+    },
+    create: {
+      studentId: student.id,
+      title: "AI in Education",
+      titleNormalized: "ai in education",
+      description:
+        "Etude des usages de l'intelligence artificielle dans l'apprentissage universitaire.",
+      status: "VALIDATED",
+      teacherVote: "approved",
+      teacherComment: "Sujet pertinent pour le departement.",
+      teacherVotedAt: now,
+      daVote: "approved",
+      daComment: "Validation academique conjointe confirmee.",
+      daVotedAt: now,
+    },
+  });
+
+  console.log("Seed completed: demo accounts and v2 validated theme ready");
 }
 
 main()

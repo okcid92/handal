@@ -31,7 +31,6 @@ export async function GET(request: NextRequest) {
     // Build search query
     const where: any = {
       isReference: true,
-      documentStatus: { not: "PENDING_ADMIN_REVIEW" },
       extractedText: { not: null },
     };
 

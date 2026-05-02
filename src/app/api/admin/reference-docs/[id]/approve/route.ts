@@ -40,7 +40,7 @@ export async function PATCH(
       throw new ApiError("Document not found", 404, "DOCUMENT_NOT_FOUND");
     }
 
-    if (doc.documentStatus !== "PENDING_ADMIN_REVIEW") {
+    if (doc.documentStatus !== "SUBMITTED") {
       throw new ApiError("Document is not in staging", 409, "NOT_IN_STAGING");
     }
 

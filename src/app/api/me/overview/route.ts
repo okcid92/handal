@@ -6,15 +6,6 @@ import { readSessionFromRequest } from "@/lib/session";
 
 const THEME_STATUS_PRIORITY: Record<string, number> = {
   VALIDATED: 5,
-  VALIDATED_DA: 5,
-  VALIDATED_CD: 4,
-  DOCUMENT_SUBMITTED: 4,
-  ANALYSIS_PENDING: 4,
-  APPROVED: 4,
-  APPROVED_WITH_MENTION: 4,
-  CONDITIONAL_APPROVAL: 4,
-  REQUESTED_REVIEW: 4,
-  FLAGGED_PLAGIARISM: 4,
   PENDING_VALIDATION: 2,
   PENDING: 1,
 };
@@ -55,11 +46,8 @@ export async function GET(request: NextRequest) {
                 id: true,
                 title: true,
                 status: true,
-                teacherApproval: true,
-                daApproval: true,
-                // champs legacy v1
-                validatedCdBy: true,
-                validatedDaBy: true,
+                teacherVote: true,
+                daVote: true,
                 updatedAt: true,
                 createdAt: true,
               },
@@ -99,12 +87,8 @@ export async function GET(request: NextRequest) {
               id: activeTheme.id.toString(),
               title: activeTheme.title,
               status: activeTheme.status,
-              // v2 : votes simultanés
-              teacherApproval: activeTheme.teacherApproval,
-              daApproval: activeTheme.daApproval,
-              // v1 legacy : validé séquentiellement
-              validatedCd: activeTheme.validatedCdBy !== null,
-              validatedDa: activeTheme.validatedDaBy !== null,
+              teacherVote: activeTheme.teacherVote,
+              daVote: activeTheme.daVote,
             }
           : null,
       },
