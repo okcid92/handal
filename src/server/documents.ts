@@ -521,14 +521,14 @@ async function persistExtractedThemeFromAnalyzedDocument(
         titleNormalized,
         description,
         status: ThemeStatus.VALIDATED,
-        themeSignature: {
+        themeSignature: JSON.stringify({
           documentName: profile.documentName,
           dominantTheme: profile.dominantTheme,
           keywords: profile.keywords,
           themeVector: profile.themeVector,
           stats: profile.stats,
           analyzedAt: profile.analyzedAt.toISOString(),
-        } as unknown as Prisma.InputJsonValue,
+        }),
       },
       select: { id: true },
     });
@@ -1041,9 +1041,8 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
         globalSimilarity: new Prisma.Decimal(globalSimilarity),
         aiScore: new Prisma.Decimal(aiScore),
         riskLevel,
-        matchedSources: matchedSources as unknown as Prisma.InputJsonValue,
-        highlightedSegments:
-          highlightedSegments as unknown as Prisma.InputJsonValue,
+        matchedSources: JSON.stringify(matchedSources),
+        highlightedSegments: JSON.stringify(highlightedSegments),
         analyzedAt: new Date(),
         generatedBy: analystId,
       },
@@ -1253,9 +1252,8 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
         documentId: document.id,
         globalSimilarity: new Prisma.Decimal(globalSimilarity),
         riskLevel,
-        matchedSources: matchedSources as unknown as Prisma.InputJsonValue,
-        highlightedSegments:
-          highlightedSegments as unknown as Prisma.InputJsonValue,
+        matchedSources: JSON.stringify(matchedSources),
+        highlightedSegments: JSON.stringify(highlightedSegments),
         analyzedAt: new Date(),
       },
       include: {

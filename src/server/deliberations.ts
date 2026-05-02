@@ -269,7 +269,9 @@ export async function validateReportByChefDept(
         ...(metadata
           ? {
               stagingMetadata:
-                metadata as unknown as import("@prisma/client").Prisma.InputJsonValue,
+                typeof metadata === "string"
+                  ? metadata
+                  : JSON.stringify(metadata),
             }
           : {}),
       },

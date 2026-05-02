@@ -324,8 +324,7 @@ export async function POST(request: NextRequest) {
                   documentStatus: "PENDING_ADMIN_REVIEW",
                   isReference: false,
                   isFinal: false,
-                  stagingMetadata:
-                    stagingMetadata as unknown as import("@prisma/client").Prisma.InputJsonValue,
+                  stagingMetadata: JSON.stringify(stagingMetadata),
                   submittedAt: new Date(),
                 },
                 select: { id: true },

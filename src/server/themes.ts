@@ -320,7 +320,7 @@ export async function createTheme(studentId: bigint, payload: ThemePayload) {
         titleNormalized: normalizeThemeTitle(title),
         description,
         status: ThemeStatus.PENDING_VALIDATION,
-        themeSignature: serializableProfile as unknown as Prisma.InputJsonValue,
+        themeSignature: JSON.stringify(serializableProfile),
         themeSimilarityScore:
           similarityScore !== null ? new Prisma.Decimal(similarityScore) : null,
         themeSimilarityLabel: similarityLabel,

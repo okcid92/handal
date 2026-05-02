@@ -25,6 +25,7 @@ model User {
   appreciationsAsTeacher FinalAppreciation[] @relation("AppreciationTeacher")
   referenceDocuments     ReferenceDocument[] @relation("ReferenceUploadedBy")
   reportsGenerated       SimilarityReport[]
+  themesOwned            Theme[]             @relation("ThemeStudent")
   themesModerated        Theme[]             @relation("ThemeModeratedBy")
   themesValidatedC       Theme[]             @relation("ThemeValidatedCdBy")
   themesValidatedD       Theme[]             @relation("ThemeValidatedDaBy")
@@ -60,10 +61,12 @@ model Theme {
   themeSimilarityScore Decimal?    @map("theme_similarity_score") @db.Decimal(5, 2)
   themeSimilarityLabel String?     @map("theme_similarity_label") @db.VarChar(64)
   documents            Document[]
+  student              User        @relation("ThemeStudent", fields: [studentId], references: [id], map: "themes_student_id_fkey")
   moderator            User?       @relation("ThemeModeratedBy", fields: [moderatedBy], references: [id], map: "themes_moderated_by_fkey")
   validatedCdByUser    User?       @relation("ThemeValidatedCdBy", fields: [validatedCdBy], references: [id], map: "themes_validated_cd_by_fkey")
   validatedDaByUser    User?       @relation("ThemeValidatedDaBy", fields: [validatedDaBy], references: [id], map: "themes_validated_da_by_fkey")
 
+  @@index([studentId], map: "themes_student_id_fkey")
   @@index([status])
   @@index([moderatedBy], map: "themes_moderated_by_fkey")
   @@index([validatedCdBy], map: "themes_validated_cd_by_fkey")

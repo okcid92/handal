@@ -1,5 +1,3 @@
-import { Prisma } from "@prisma/client";
-
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import {
@@ -32,7 +30,7 @@ export async function createReferenceDocument(
       fileSize: BigInt(payload.fileSize),
       checksum: payload.checksum.trim(),
       extractedText: payload.extractedText,
-      themeProfile: profile as unknown as Prisma.InputJsonValue,
+      themeProfile: JSON.stringify(profile),
       dominantTheme: profile.dominantTheme,
     },
   });

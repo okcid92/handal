@@ -307,9 +307,10 @@ function styleSimilarity(textA: string, textB: string): number {
 }
 
 function fnv1a64(input: string): bigint {
-  let hash = 0xcbf29ce484222325n;
-  const prime = 0x100000001b3n;
-  const mask = (1n << 64n) - 1n;
+  let hash = BigInt("0xcbf29ce484222325");
+  const prime = BigInt("0x100000001b3");
+  const one = BigInt(1);
+  const mask = (one << BigInt(64)) - one;
   for (let i = 0; i < input.length; i += 1) {
     hash ^= BigInt(input.charCodeAt(i));
     hash = (hash * prime) & mask;
@@ -326,13 +327,14 @@ function simhash64(tokens: string[]): bigint {
   for (const [token, count] of tf) {
     const hash = fnv1a64(token);
     for (let bit = 0; bit < 64; bit += 1) {
-      const bitSet = ((hash >> BigInt(bit)) & 1n) === 1n;
+      const one = BigInt(1);
+      const bitSet = ((hash >> BigInt(bit)) & one) === one;
       vector[bit] += bitSet ? count : -count;
     }
   }
-  let result = 0n;
+  let result = BigInt(0);
   for (let bit = 0; bit < 64; bit += 1) {
-    if (vector[bit] >= 0) result |= 1n << BigInt(bit);
+    if (vector[bit] >= 0) result |= BigInt(1) << BigInt(bit);
   }
   return result;
 }
@@ -343,7 +345,7 @@ function simhashSimilarity(tokensA: string[], tokensB: string[]): number {
   const hashB = simhash64(tokensB);
   let identical = 0;
   for (let bit = 0; bit < 64; bit += 1) {
-    const mask = 1n << BigInt(bit);
+    const mask = BigInt(1) << BigInt(bit);
     if ((hashA & mask) === (hashB & mask)) identical += 1;
   }
   return identical / 64;

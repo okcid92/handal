@@ -66,7 +66,7 @@ export async function PATCH(
         documentStatus: "APPROVED",
         isReference: true,
         analysisStatus: "PENDING",
-        stagingMetadata: finalMetadata,
+        stagingMetadata: JSON.stringify(finalMetadata),
       },
     });
 
