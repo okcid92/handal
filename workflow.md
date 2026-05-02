@@ -1,16 +1,11 @@
 # Workflows Détaillés - Handal
 
 > [!IMPORTANT]
-> **État d'implémentation — Version 2.0 (Cible)**
-> Ce document décrit le **workflow cible** complet de la plateforme. Certaines fonctionnalités sont déjà implémentées (Phases 0–6), d'autres sont planifiées (Phase 7+).
+> **Workflow Handal v2 — Validation Conjointe**
+> Ce document décrit le workflow **v2 complet** (validation conjointe) implémenté dans Handal.
 >
-> | Légende       | Signification                                     |
-> | ------------- | ------------------------------------------------- |
-> | ✅ Implémenté | Route/fonctionnalité présente dans le code actuel |
-> | 🔲 Planifié   | Documenté ici comme cible — pas encore codé       |
->
-> **Modèle actuellement en production :** validation séquentielle (PENDING → VALIDATED_CD → VALIDATED_DA).
-> **Modèle cible documenté ici :** validation simultanée conjointe (TEACHER + DA en parallèle).
+> **Modèle v2 :** validation simultanée conjointe (TEACHER + DA en parallèle).
+> **Statuts Theme :** PENDING → PENDING_VALIDATION → VALIDATED/REJECTED
 
 Ce document décrit le workflow complet de chaque rôle utilisateur dans la plateforme Handal, avec tous les états, conditions et actions possibles.
 
@@ -110,7 +105,7 @@ flowchart TD
 **Conditions préalables:**
 
 - Étudiant authentifié
-- N'a pas encore de thème approuvé (implicite: un thème actif par étudiant)
+- N'a pas encore de thème validé (un thème actif par étudiant)
 
 **Données requises:**
 
@@ -132,47 +127,33 @@ flowchart TD
    - `title` minimum 8 caractères
    - `description` minimum 1 caractère
 
-2. **Auto-Vérification Algorithmique (NOUVEAU):**
-   - Comparaison sémantique du titre et description avec **tous les mémoires existants** (validés ou archivés)
-   - Utilisation de similarité cosinus ou fuzzy matching pour détecter les doublons
-   - Seuil de similarité: ≥ 70% = rejet automatique avec message explicite
-   - Stockage de la similarité détectée pour audit
+2. **Auto-Vérification Algorithmique:**
+   - Comparaison sémantique du titre et description avec **tous les mémoires existants**
+   - Utilisation de similarité cosinus pour détecter les doublons
+   - Seuil de similarité: ≥ 70% = rejet automatique
 
-**Résultat en cas de succès (Auto-Check PASSED):**
+**Résultat en cas de succès:**
 
 - Thème créé avec statut `PENDING_VALIDATION`
-- Réponse: `{ theme: { id: "12", status: "PENDING_VALIDATION", algorithmicCheckPassed: true } }`
 - **Envoi SIMULTANÉ** aux Chef de département (TEACHER) et Direction Académique (DA)
 - Notification: "Nouveau thème en attente de validation"
 
-**Résultat en cas d'échec (Auto-Check FAILED):**
+**Résultat en cas d'échec (Doublon détecté):**
 
 - Code 409: Doublon détecté
-- Réponse: `{ error: "Thème trop similaire aux suivants: #5 (87%), #12 (75%)", similarityMatches: [...] }`
-- Le thème est **REJETÉ automatiquement**
-- Suggestion: L'étudiant peut reformuler et renvoyer
-
-**Résultat en cas d'erreur de validation:**
-
-- Code 400: titre trop court, description manquante
-- Code 422: validation schema échouée
+- L'étudiant peut reformuler et renvoyer
 
 **État du thème:**
 
 ```
-PENDING_VALIDATION ← Créé après auto-check algorithmique OK
-                     (attend validation SIMULTANÉE par TEACHER & DA)
+PENDING_VALIDATION ← Attend votes parallèles TEACHER + DA
 ```
 
 **UI/UX:**
 
-- Formulaire "Proposer un thème" dans le tableau de bord
-- Champs: titre, description
-- Lors de la soumission:
-  - Affichage "Vérification en cours..."
-  - Si doublon détecté: `"Votre thème est trop similaire aux thèmes #5 (87%) et #12 (75%). Veuillez le reformuler."`
-  - Si accepté: `"Thème créé #12. En attente de validation da la Commission."`
-- Permet de proposer plusieurs thèmes (mais un seul peut être actif)
+- Formulaire "Proposer un thème"
+- Si doublon: message explicite avec scores de similarité
+- Si accepté: "Thème #12 en attente de validation"
 
 ---
 
@@ -186,22 +167,21 @@ L'étudiant voit:
 - État de son thème actuel (si proposé)
 - Ses documents (si thème validé)
 
-**États du thème visibles:**
+**États du thème visibles (v2):**
 
-1. **PENDING_VALIDATION** → En attente de validation conjointe (Chef de département + DA)
-2. **REJECTED** → Rejeté (automatiquement par algo OU par humains), ne peut pas déposer
-3. **VALIDATED** → Approuvé par Chef + DA conjointement, **peut maintenant déposer le mémoire**
-4. **DOCUMENT_SUBMITTED** → Mémoire uploadé, en attente d'analyse
-5. **ANALYSIS_PENDING** → Document analysé, en attente d'appréciation finale
-6. **APPROVED** → Appréciation finale positive, soutenance autorisée
-7. **FLAGGED_PLAGIARISM** → Alerte plagiat (score ≥ 20%), en révision
+1. **PENDING_VALIDATION** → En attente de votes parallèles (Teacher + DA)
+2. **REJECTED** → Rejeté (un des deux a rejeté), ne peut pas déposer
+3. **VALIDATED** → Approuvé par Teacher + DA, **peut déposer le mémoire**
+4. **ANALYSIS_COMPLETE** → Document analysé, en attente d'appréciation
+5. **APPROVED** → Appréciation finale positive, soutenance autorisée
+6. **FLAGGED_PLAGIARISM** → Alerte plagiat (score ≥ 20%), en révision
 
 **Actions disponibles selon l'état:**
 
-- **PENDING_VALIDATION:** Attendre validation
-- **REJECTED:** Attendre (doublon détecté) ou proposer nouveau thème
-- **VALIDATED:** Déposer le mémoire final (voir section 1.4)
-- **DOCUMENT_SUBMITTED/ANALYSIS_PENDING:** Attendre appréciation
+- **PENDING_VALIDATION:** Attendre votes
+- **REJECTED:** Proposer nouveau thème
+- **VALIDATED:** Déposer le mémoire final
+- **ANALYSIS_COMPLETE:** Attendre appréciation
 - **APPROVED:** Accès aux rapports finaux
 - **FLAGGED_PLAGIARISM:** Révision/correction nécessaire
 
@@ -215,7 +195,7 @@ L'étudiant voit:
 
 1. Étudiant authentifié
 2. Thème appartient à l'étudiant
-3. Thème a le statut `VALIDATED` (approuvé par Chef + DA)
+3. Thème a le statut `VALIDATED` (approuvé par Teacher + DA)
 
 **Données requises:**
 
@@ -460,8 +440,47 @@ SINON:
 
 ---
 
-### 1.8 Workflow Complet Étudiant (Diagramme - Nouveau Système 3 Phases)
+### 1.8 Workflow Complet Étudiant (Diagramme v2)
 
+```
+┌─────────────────────────────────────────────────────────┐
+│ PHASE 0: AUTHENTIFICATION                               │
+│    ├─ INE + mot de passe                               │
+│    └─ Redirection → /student                           │
+└─────────────────────────────────────────────────────────┘
+                               ↓
+┌─────────────────────────────────────────────────────────┐
+│ PHASE 1: LE THÈME (Validation Conjointe)               │
+│ • Proposition + Auto-Check (70% seuil)                  │
+│ • POST /api/themes/propose                              │
+│ • SI doublon: REJECTED automatique                     │
+│ • SI OK: PENDING_VALIDATION                            │
+│            ↓                                           │
+│     Votes parallèles: Teacher + DA                      │
+│            ↓                                           │
+│  SI 2 approuvent: VALIDATED (peut déposer)            │
+│  SI 1 rejette: REJECTED                               │
+└─────────────────────────────────────────────────────────┘
+                               ↓
+┌─────────────────────────────────────────────────────────┐
+│ PHASE 2: DOCUMENT (Analyse Automatique)                │
+│ • Dépôt: POST /api/documents/upload-file               │
+│ • Condition: thème = VALIDATED                         │
+│ • Analyse: Plagiat + IA                                │
+│ • Seuil 20%: CLEAN ou FLAGGED_PLAGIARISM            │
+└─────────────────────────────────────────────────────────┘
+                               ↓
+┌─────────────────────────────────────────────────────────┐
+│ PHASE 3: APPRÉCIATION FINALE (Teacher + DA)            │
+│ POST /api/documents/{id}/final-appreciation            │
+│ • Décisions: APPROVED, APPROVED_WITH_MENTION, etc.    │
+│ • Si 2 approuvent: Document = APPROVED                 │
+│ • Si 1 rejette: Document = REJECTED                   │
+└─────────────────────────────────────────────────────────┘
+                               ↓
+     ┌─────────────────────────┴──────────────────────┐
+     ↓                                                ↓
+APPROVED (Soutenance)                  REJECTED (Fin)
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ PHASE 0: AUTHENTIFICATION                                       │
@@ -605,88 +624,48 @@ Soutenance autorisée         Révision ou fin
 
 ---
 
-### 2.3 Validation Simultanée du Thème (Phase 1, Étape 2)
+### 2.3 Validation Conjointe du Thème (Phase 1, Étape 2) ✅ Implémenté
 
-> [!WARNING]
-> 🔲 **Planifié — Non implémenté.** L'endpoint actuel est `PATCH /api/themes/{theme}/validate-cd` (TEACHER) et `PATCH /api/themes/{theme}/validate-da` (DA), fonctionnant séquentiellement. L'endpoint conjoint ci-dessous est la cible v2.
-
-**Endpoint cible:** `PATCH /api/themes/{theme}/validate-joint` 🔲
+**Endpoint:** `POST /api/themes/{id}/vote`
 
 **Conditions préalables:**
 
 1. Utilisateur authentifié
 2. Rôle: TEACHER ou DA ou ADMIN
-3. Thème existe avec statut `PENDING_VALIDATION` **uniquement**
-4. Les deux validateurs (Chef + DA) doivent participer
+3. Thème avec statut `PENDING_VALIDATION`
+4. Votes parallèles: chaque validateur vote indépendamment
 
-**Requête (Chef de département / TEACHER):**
-
-```json
-{
-  "validator_role": "TEACHER",
-  "decision": "approved",
-  "comment": "Thème pertinent sur le plan pédagogique. Structure claire."
-}
-```
-
-**Requête (Direction Académique / DA):**
+**Requête (Teacher ou DA):**
 
 ```json
 {
-  "validator_role": "DA",
   "decision": "approved",
-  "comment": "Aligné avec les standards académiques. Approuvé."
+  "comment": "Thème pertinent sur le plan pédagogique."
 }
 ```
 
-**Validations:**
+**Traitement interne (validateThemeVotingV2):**
 
-- `validator_role` doit être `"TEACHER"` ou `"DA"`
-- `decision` doit être `"approved"` ou `"rejected"`
-- `comment` optionnel (max 500 caractères)
-- Thème doit être `PENDING_VALIDATION`
-- Validateur ne doit pas avoir déjà voté sur ce thème
+1. Vérification thème = `PENDING_VALIDATION`
+2. Enregistrement vote:
+   - Teacher: `teacherVote`, `teacherComment`, `teacherVotedAt`
+   - DA: `daVote`, `daComment`, `daVotedAt`
+3. Si les 2 ont voté:
+   - Approuvent tous les 2 → `VALIDATED`
+   - Un rejette → `REJECTED`
+4. Notification automatique à l'étudiant
 
-**Traitement interne:**
+**Résultat:**
 
-1. Vérification que thème est `PENDING_VALIDATION`
-2. Enregistrement du vote:
-   - Si `validator_role = "TEACHER"`: `teacher_approval`, `teacher_comment`, `teacher_validated_at`
-   - Si `validator_role = "DA"`: `da_approval`, `da_comment`, `da_validated_at`
-3. Vérification si **les deux ont voté**:
-   - SI les deux approuvent → `status = "VALIDATED"`
-   - SI au moins un rejette → `status = "REJECTED"`
-
-**Résultat en cas de succès (Premier validateur):**
-
-- Code 200
-- Réponse: `{ ok: true, theme: { id: "12", status: "PENDING_VALIDATION", teacher_approval: true, da_approval: null } }`
-- Message UI: `"Validation enregistrée. En attente de l'autre validateur..."`
-
-**Résultat en cas de succès (Décision finale après 2ème validateur):**
-
-- Code 200
-- Réponse: `{ ok: true, theme: { id: "12", status: "VALIDATED" ou "REJECTED" } }`
-- Notification à l'étudiant: thème VALIDATED ou REJECTED
-
-**Résultat en cas d'échec:**
-
-- Code 401: non authentifié
-- Code 403: rôle insuffisant
-- Code 404: thème inexistant
-- Code 409: thème n'est pas PENDING_VALIDATION OU validateur a déjà voté
+- 1er votant: `{ ok: true, status: "PENDING_VALIDATION", message: "En attente de l'autre validateur" }`
+- 2ème votant: `{ ok: true, status: "VALIDATED" ou "REJECTED" }`
+- Notification étudiant automatique
 
 **UI/UX:**
 
-- Panneau "Thèmes en attente de validation"
-- Liste affichant: titre, ID, auto-check résultat, états de validation
-- Clic sur thème → formulaire:
-  - Affichage du titre et description
-  - Affichage du résultat auto-check algorithmique
-  - Radio buttons: `approved` / `rejected`
-  - Textarea: "Commentaire de validation"
-  - Bouton: "Valider le thème"
-- Retour: "En attente du 2ème validateur" ou "Décision finale: VALIDATED/REJECTED"
+- Liste des thèmes en attente
+- Bouton "Approuver" ou "Rejeter" pour chaque rôle
+- Affichage en temps réel du statut des votes
 
 ---
 
@@ -755,15 +734,12 @@ Soutenance autorisée         Révision ou fin
     ],
     "analyzedAt": "2026-04-19T11:00:00Z"
   },
-  "deliberations": [
-    {
-      "id": "1",
-      "decidedBy": "DA_NAME",
-      "decision": "final_validation",
-      "notes": "Approuvé sans réserve",
-      "decidedAt": "2026-04-19T12:00:00Z"
-    }
-  ]
+  "finalAppreciation": {
+    "teacherDecision": "APPROVED",
+    "daDecision": null,
+    "finalDecision": null,
+    "mention": null
+  }
 }
 ```
 
@@ -775,7 +751,7 @@ Soutenance autorisée         Révision ou fin
   - Niveau de risque
   - Sources correspondantes
   - Segments surlignés
-- Affichage des délibérations existantes (si DA a déjà tranché)
+- Affichage des votes d'appréciation (Teacher/DA) si déjà saisis
 - Bouton "Retour à la liste" ou navigation vers thème/document
 
 ---
@@ -814,8 +790,45 @@ Voir section 1.7 pour détails complets.
 
 ---
 
-### 2.7 Workflow Complet Enseignant (Diagramme)
+### 2.7 Workflow Complet Enseignant (Diagramme v2)
 
+```
+┌─────────────────────────────────────────────────────────┐
+│ 1. AUTHENTIFICATION                                     │
+│    ├─ Email + mot de passe                            │
+│    └─ Redirection → /teacher                          │
+└─────────────────────────────────────────────────────────┘
+                               ↓
+┌─────────────────────────────────────────────────────────┐
+│ 2. PHASE 1 - VOTE THÈME (Parallèle)                  │
+│    ├─ GET /api/themes/pending                         │
+│    ├─ Vote: POST /api/themes/{id}/vote               │
+│    │   ├─ Decision: approved/rejected                │
+│    │   └─ Commentaire pédagogique                   │
+│    └─ Résultat: VALIDATED (2 approbations)          │
+│       ou REJECTED (1 rejet)                           │
+└─────────────────────────────────────────────────────────┘
+                               ↓
+     ┌──────────────────────────┴──────────────────────┐
+     ↓                                                  ↓
+Thème VALIDATED                             Thème REJECTED
+ (étudiant dépose)                          (fin)
+     │                                            │
+     └──────────────────────────┬──────────────────┘
+                               ↓
+     ┌─────────────────────────────────────────────────┐
+     │ PHASE 2 - ANALYSE AUTOMATIQUE (Déclenchée)     │
+     │ Document → Plagiat + IA → CLEAN/FLAGGED        │
+     └─────────────────────────────────────────────────┘
+                               ↓
+     ┌─────────────────────────────────────────────────┐
+     │ 3. PHASE 3 - APPRÉCIATION FINALE                │
+     │    ├─ Consultation rapport                       │
+     │    ├─ POST /api/documents/{id}/final-appreciation│
+     │    │   ├─ Decision + commentaire                 │
+     │    │   └─ En attente vote DA                    │
+     │    └─ Résultat: APPROVED/REJECTED              │
+     └─────────────────────────────────────────────────┘
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. AUTHENTIFICATION                                             │
@@ -896,7 +909,7 @@ Thème VALIDATED                             Thème REJECTED
 
 ---
 
-### 3.2 Consultation des Thèmes en Attente (Validation Académique)
+### 3.2 Consultation des Thèmes en Attente (Validation Conjointe)
 
 **Endpoint:** `GET /api/themes/pending`
 
@@ -906,7 +919,8 @@ Thème VALIDATED                             Thème REJECTED
 - Rôle: DA ou ADMIN
 
 **Résultat:**
-Liste de thèmes en état `VALIDATED_CD` (approuvés par enseignant, en attente DA)
+
+Liste de thèmes en état `PENDING_VALIDATION` (attend votes Teacher + DA)
 
 ```json
 {
@@ -915,8 +929,9 @@ Liste de thèmes en état `VALIDATED_CD` (approuvés par enseignant, en attente 
     {
       "id": "12",
       "title": "Détection de plagiat multilingue",
-      "status": "VALIDATED_CD",
-      "description": "...",
+      "status": "PENDING_VALIDATION",
+      "teacherVote": null,
+      "daVote": null,
       "student": {
         "name": "Jean Dupont",
         "ine": "N01331820231"
@@ -928,9 +943,9 @@ Liste de thèmes en état `VALIDATED_CD` (approuvés par enseignant, en attente 
 
 **UI/UX:**
 
-- Panneau "Thèmes à valider" avec liste interactive
-- Affichage: titre, ID, nom étudiant, statut, commentaire du teacher
-- Clic → remplissage formulaire de validation DA
+- Panneau "Thèmes en attente de validation"
+- Affichage: titre, ID, nom étudiant, état des votes Teacher/DA
+- Clic → formulaire de vote DA
 
 ---
 
@@ -952,23 +967,26 @@ La DA a accès à **tous** les rapports du système.
 
 ---
 
-### 3.5 Appréciation Finale Conjointe avec Chef de Département
+### 3.5 Appréciation Finale Conjointe avec Teacher
 
-**Endpoint:** `POST /api/documents/{id}/final-appreciation` (Identique à section 1.7)
+**Endpoint:** `POST /api/documents/{id}/final-appreciation` ✅ Implémenté
 
 La DA:
 
 1. Consulte le rapport d'analyse (plagiat + IA)
-2. Ajoute son commentaire administratif/académique
-3. En coordination avec Chef de département, enregistre la décision finale
-4. Décisions possibles (voir section 1.7):
-   - `APPROVED`
-   - `APPROVED_WITH_MENTION`
-   - `CONDITIONAL_APPROVAL`
-   - `REQUESTED_REVIEW`
-   - `REJECTED`
+2. Vote via l'API (décision + commentaire)
+3. En coordination avec Teacher, enregistre la décision finale
+4. Décisions possibles:
+   - `APPROVED` → Soutenance autorisée
+   - `APPROVED_WITH_MENTION` → Avec mention
+   - `CONDITIONAL_APPROVAL` → Sous conditions
+   - `REQUESTED_REVIEW` → Révision demandée
+   - `REJECTED` → Rejeté
 
-Voir section 1.7 pour détails complets.
+**Traitement:**
+- Si les 2 approuvent → `APPROVED`, Document = `APPROVED`
+- Si l'un rejette → Document = `REJECTED`
+- Notification automatique à l'étudiant
 
 ---
 
@@ -1223,7 +1241,7 @@ PHASE 3:
 
 ---
 
-### 5.2 États du Document (NOUVEAU)
+### 5.2 États du Document
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -1240,9 +1258,8 @@ PHASE 3:
 │    ↓                                         ↓               │
 │ CLEAN (score < 20%)              FLAGGED_PLAGIARISM         │
 │    ↓                              (score ≥ 20%)             │
-│ ANALYSIS_PENDING                      ↓                     │
-│ (Appréciation Chef + DA)   DOCUMENT_REJECTED               │
-│    ↓                        Ou: dépôt révision              │
+│ Appréciation Teacher + DA          Dépôt révision           │
+│    ↓                                (nouvelle analyse)      │
 │ Décisions finales:                                           │
 │ • APPROVED                                                   │
 │ • APPROVED_WITH_MENTION                                      │
@@ -1261,7 +1278,7 @@ PHASE 3:
 
 ---
 
-### 5.3 États du Rapport (NOUVEAU)
+### 5.3 États du Rapport
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -1275,7 +1292,7 @@ PHASE 3:
 │ (score < 20%)                (score ≥ 20%)                  │
 │     ↓                            ↓                          │
 │ AWAITING_APPRECIATION       AWAITING_STUDENT_RESPONSE      │
-│ (En attente Chef + DA)      (Étudiant doit réviser)        │
+│ (En attente Teacher + DA)   (Étudiant doit réviser)        │
 │     ↓                            ↓                          │
 │ APPRECIATED                REVISION_SUBMITTED              │
 │ (Décision enregistrée)      (Nouveau dépôt)                │
@@ -1292,21 +1309,19 @@ PHASE 3:
 
 ## 6. PROTECTION ET CONTRÔLES D'ACCÈS
 
-### 6.1 Garde-Fous par Endpoint (NOUVEAU SYSTÈME)
+### 6.1 Garde-Fous par Endpoint
 
 | Endpoint                                      | Statut | Rôles Autorisés             | Conditions Supplémentaires              |
 | --------------------------------------------- | ------ | --------------------------- | --------------------------------------- |
 | `POST /api/themes/propose`                    | ✅     | STUDENT                     | Vérification unicité titre              |
-| `GET /api/themes/pending`                     | ✅     | TEACHER, DA, ADMIN          | Retourne thèmes PENDING                 |
-| `PATCH /api/themes/{id}/validate-cd`          | ✅     | TEACHER, ADMIN              | Thème PENDING requis                    |
-| `PATCH /api/themes/{id}/validate-da`          | ✅     | DA, ADMIN                   | Thème VALIDATED_CD requis + note finale |
-| `PATCH /api/themes/{id}/validate-joint`       | 🔲     | TEACHER, DA, ADMIN          | **Cible v2** — validation simultanée    |
-| `POST /api/documents/upload-file`             | ✅     | STUDENT                     | Thème VALIDATED_DA requis               |
+| `GET /api/themes/pending`                     | ✅     | TEACHER, DA, ADMIN          | Retourne thèmes PENDING_VALIDATION      |
+| `POST /api/themes/{id}/vote`                  | ✅     | TEACHER, DA, ADMIN          | Vote parallèle                          |
+| `POST /api/documents/upload-file`             | ✅     | STUDENT                     | Thème VALIDATED requis                  |
 | `GET /api/documents/{id}/analysis`            | 🔲     | STUDENT, TEACHER, DA, ADMIN | **Cible v2** — consultation scores      |
 | `GET /api/reports`                            | ✅     | TEACHER, DA, ADMIN          | Lecture seule                           |
 | `GET /api/reports/{id}`                       | ✅     | TEACHER, DA, ADMIN          | Lecture seule                           |
-| `POST /api/reports/{id}/deliberate`           | ✅     | DA, ADMIN                   | Décision finale                         |
-| `POST /api/documents/{id}/final-appreciation` | 🔲     | TEACHER, DA, ADMIN          | **Cible v2** — appréciation conjointe   |
+| `POST /api/reports/{id}/deliberate`           | 🔲     | DA, ADMIN                   | Legacy v1 (non utilisé en v2)           |
+| `POST /api/documents/{id}/final-appreciation` | ✅     | TEACHER, DA, ADMIN          | Appréciation conjointe                  |
 
 ### 6.2 Seuils Critiques
 
@@ -1344,18 +1359,18 @@ STUDENT crée THÈME
   ├─ IF ≥ 70% similarité: REJECTED (fin)
   └─ IF < 70%: Thème PENDING_VALIDATION
   ↓
-TEACHER valide (vote 1)
-  ↓
-  PATCH /api/themes/{id}/validate-joint
-  {validator_role: "TEACHER", decision: "approved/rejected", comment}
+TEACHER vote (vote 1)
+   ↓
+  POST /api/themes/{id}/vote
+  {decision: "approved/rejected", comment}
   ├─ Si TEACHER rejette: Vote TEACHER = rejected
   ├─ Si TEACHER approuve: Vote TEACHER = approved (attend DA)
   └─ En attente vote DA
   ↓
-DA valide (vote 2)
-  ↓
-  PATCH /api/themes/{id}/validate-joint
-  {validator_role: "DA", decision: "approved/rejected", comment}
+DA vote (vote 2)
+   ↓
+  POST /api/themes/{id}/vote
+  {decision: "approved/rejected", comment}
   ├─ Si DA rejette: DECISION = REJECTED (fin)
   ├─ Si DA approuve + TEACHER a approuvé: DECISION = VALIDATED
   └─ Thème VALIDATED → Étudiant peut déposer
@@ -1398,32 +1413,25 @@ SYSTÈME applique FILTRE AUTOMATIQUE 20%
      └─ Notification Étudiant: "Alerte plagiat détectée"
      └─ Option: Déposer version révisée
 
-TEACHER consulte & apprécie (si CLEAN)
+  TEACHER consulte & apprécie
   ↓
   GET /api/reports/{id} → Affichage rapport complet
   ↓
   POST /api/documents/{id}/final-appreciation
-  {
-    decision: "APPROVED" | "APPROVED_WITH_MENTION" | etc,
-    teacher_comment: "...",
-    da_comment: null (en attente)
-  }
+  { decision: "APPROVED" | "APPROVED_WITH_MENTION" | etc, comment: "..." }
   ↓
-  État: ANALYSIS_PENDING
+  État: CLEAN (en attente du vote DA)
   ↓
-DA consulte & apprécie (si CLEAN)
+  DA consulte & apprécie
   ↓
   GET /api/reports/{id} → Affichage rapport + vote TEACHER
   ↓
   POST /api/documents/{id}/final-appreciation
-  {
-    decision: "APPROVED",
-    da_comment: "..."
-  }
+  { decision: "APPROVED", comment: "..." }
   ↓
   DECISION FINALE ENREGISTRÉE
-  ├─ État Document: APPROVED | APPROVED_WITH_MENTION | etc
-  ├─ État Thème: APPROVED | APPROVED_WITH_MENTION | etc
+  ├─ État Document: APPROVED ou REJECTED
+  └─ Décision finale stockée dans FinalAppreciation
   └─ Notification Étudiant: "Appréciation finale: APPROVED. Soutenance autorisée."
 
 ════════════════════════════════════════════════════════════════

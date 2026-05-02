@@ -36,128 +36,102 @@ Decision structurante:
 
 ## 4. Phases de delivery
 
-## Phase 0 - Cadrage full stack (Semaine 1)
+## Phase 0 - Auth v2 (Semaine 1)
 
-Statut actuel: COMPLETE (artefacts dans docs/domain-dictionary.md, docs/phase-0-validation.md et prisma/schema.prisma)
-
-Livrables:
-
-- Mapping complet des regles metier issues de l existant.
-- Definition des contrats API cibles dans Next.js.
-- Schema Prisma initial base sur users, themes, documents, similarity_reports, deliberations.
-
-Actions:
-
-- Figer les enums de statuts: PENDING, VALIDATED_CD, VALIDATED_DA, REJECTED.
-- Figer les decisions: final_validation, sanction, rewrite_required.
-- Clarifier le role var: exclu tant qu il n a pas de regle metier.
-
-Critere d acceptance:
-
-- Dictionnaire metier + schema de donnees valides par l equipe.
-
-## Phase 1 - Fondation backend Next.js (Semaines 1-2)
-
-Statut actuel: COMPLETE (Prisma configure, migration appliquee, couche db/erreurs/logger/session en place, endpoints /api/ping /api/login /api/logout /api/me/overview operationnels)
+Statut actuel: COMPLETE (sessions, RBAC et comptes demo fonctionnels)
 
 Livrables:
 
-- Prisma configure avec migrations MySQL.
-- Couche db + gestion erreurs centralisee.
-- Base des Route Handlers: /api/ping, /api/login, /api/logout, /api/me/overview.
+- Authentification session HMAC-SHA256.
+- RBAC par role (student, teacher, da, admin).
+- Comptes de demo seedes.
 
 Actions:
 
-- Implementer transactions pour operations critiques.
-- Standardiser format reponse erreur/succes.
-- Ajouter logging structure cote serveur.
-
-Critere d acceptance:
-
-- API minimale fonctionnelle sans Laravel.
-
-## Phase 2 - Auth et RBAC robustes (Semaine 2)
-
-Statut actuel: COMPLETE (session cookie signee, proxy de protection, helpers RBAC, comptes demo seedes)
-
-Livrables:
-
-- Auth.js (session) avec login par INE/mot de passe pour student, et email/mot de passe pour teacher/da/admin.
-- Middleware de protection des pages et API.
-- Policies RBAC reutilisables cote server.
-
-Actions:
-
-- Mapper roles: student, teacher, da, admin.
-- Remplacer X-User-Id par session serveur.
-- Ajouter audit minimal (qui a fait quoi, quand).
+- Verifier la creation de session et la persistance cookie.
+- Standardiser les roles et les guard helpers.
 
 Critere d acceptance:
 
 - Les 4 comptes de demo se connectent avec permissions correctes.
 
-## Phase 3 - Domain themes (Semaines 2-3)
+## Phase 1 - Thème validation v2 (Semaines 1-2)
 
-Statut actuel: COMPLETE (unicite globale du titre, routes propose/pending/validate-cd/validate-da, migration et build valides)
+Statut actuel: COMPLETE (validation conjointe Teacher + DA, statut PENDING_VALIDATION, route vote)
 
 Livrables:
 
 - POST /api/themes/propose.
 - GET /api/themes/pending.
-- PATCH /api/themes/{theme}/validate-cd.
-- PATCH /api/themes/{theme}/validate-da.
+- POST /api/themes/{id}/vote (vote parallele Teacher + DA).
 
 Actions:
 
-- Regle titre unique insensible a la casse.
-- Validation titre >= 8 caracteres.
-- Transitions de statuts strictes avec verifications role et etat.
+- Regle titre unique + auto-check 70%.
+- Votes paralleles et statut final VALIDATED/REJECTED.
 
 Critere d acceptance:
 
-- Le workflow de validation de theme fonctionne de bout en bout.
+- Theme valide uniquement si Teacher + DA approuvent.
 
-## Phase 4 - Domain documents et analyses (Semaines 3-4)
+## Phase 2 - Document upload v2 (Semaines 2-3)
 
-Statut actuel: COMPLETE (upload metadata, auto-test, analyse officielle, liste/detail des rapports)
+Statut actuel: COMPLETE (precondition VALIDATED, upload metadata, analyse declenchee)
 
 Livrables:
 
-- POST /api/documents/upload (metadata puis upload reel en sous-phase).
+- POST /api/documents/upload-file.
 - POST /api/documents/{document}/auto-test.
 - POST /api/documents/{document}/analyze.
 - GET /api/reports et GET /api/reports/{report}.
 
 Actions:
 
-- Verifier preconditions: theme VALIDATED_DA + note finale avant depot final.
-- Calculs analyses: mode simulation initial, interface prete pour vrai moteur.
-- Persister matched_sources et highlighted_segments en JSON.
+- Verifier preconditions: theme VALIDATED uniquement.
+- Analyse plagiat + IA, seuil 20%.
 
 Critere d acceptance:
 
-- Teacher/admin peuvent produire et consulter un rapport persiste.
+- Document upload bloque si theme non VALIDATED.
 
-## Phase 5 - Domain deliberations (Semaine 4)
+## Phase 3 - Appreciation finale v2 (Semaines 3-4)
 
-Statut actuel: COMPLETE (POST deliberate, historique des decisions expose dans le detail de rapport)
+Statut actuel: COMPLETE (route final-appreciation, votes Teacher + DA, decision finale)
 
 Livrables:
 
-- POST /api/reports/{report}/deliberate.
-- Historique des decisions et consultation securisee.
+- POST /api/documents/{id}/final-appreciation.
+- FinalAppreciation modele et calcul finalDecision.
 
 Actions:
 
-- Verifier decisions autorisees.
-- Verifier role da/admin obligatoire.
-- Journaliser les actions sensibles.
+- Decisions possibles: APPROVED, APPROVED_WITH_MENTION, CONDITIONAL_APPROVAL, REQUESTED_REVIEW, REJECTED.
+- Statut document mis a jour (APPROVED/REJECTED).
 
 Critere d acceptance:
 
-- Deliberation finale exploitable avec traces completees.
+- Decision finale enregistree apres 2 votes.
 
-## Phase 6 - Frontend Next.js complet (Semaines 4-6)
+## Phase 4 - Stabilisation & qualite (Semaines 4-6)
+
+Statut actuel: EN COURS (tests, hardening, monitoring)
+
+Livrables:
+
+- Tests unitaires services metier.
+- Tests integration API Route Handlers.
+- Tests e2e par role et par workflow.
+
+Actions:
+
+- Ajouter tests de transitions invalides.
+- Hardening securite (rate limit, headers, CSRF).
+
+Critere d acceptance:
+
+- Aucun bug bloquant sur workflows critiques.
+
+## Phase 5 - Frontend Next.js complet (Semaines 6-7)
 
 Statut actuel: COMPLETE (login UX, dashboards student/teacher/DA/admin, formulaires metier, navigation role-based)
 
@@ -165,8 +139,8 @@ Livrables:
 
 - Login et dashboard par role.
 - Parcours student complet (proposition, depot, auto-test).
-- Parcours teacher/admin (moderation, analyse, rapports).
-- Parcours da/admin (validation finale, deliberation).
+- Parcours teacher/admin (votes, analyse, rapports).
+- Parcours da/admin (votes, appreciation finale).
 
 Actions:
 
@@ -178,7 +152,7 @@ Critere d acceptance:
 
 - Tous les cas d usage metier sont realisables dans l interface Next.js.
 
-## Phase 7 - Qualite, performance, securite (Semaines 6-7)
+## Phase 6 - Qualite, performance, securite (Semaines 7-8)
 
 Statut actuel: EN COURS (tests unitaires partiels presents, couverture e2e incomplète, hardening securite non valide)
 
@@ -199,7 +173,7 @@ Critere d acceptance:
 
 - Aucun bug bloquant sur les workflows critiques en recette.
 
-## Phase 8 - Go-live et decommission Laravel (Semaine 8)
+## Phase 7 - Go-live et decommission Laravel (Semaine 8+)
 
 Statut actuel: EN ATTENTE (runbook et rollback plan documentes, mais Phase 7 non completee — go-live bloque jusqu'a validation Phase 7)
 

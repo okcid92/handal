@@ -50,11 +50,10 @@ Build       : ESLint, TypeScript compiler
 
 ### Phases du Processus
 
-1. **Thème (PENDING → VALIDATED_CD → VALIDATED_DA)**
+1. **Thème (PENDING → PENDING_VALIDATION → VALIDATED/REJECTED)**
    - Étudiant propose thème + description
-   - Chef de Département valide
-   - Directeur Académique valide
-   - État final: VALIDATED ou REJECTED
+   - Teacher et DA votent en parallèle
+   - État final: VALIDATED si les deux approuvent, REJECTED sinon
 
 2. **Document (Upload + Analyse)**
    - Étudiant dépose PDF du mémoire
@@ -62,10 +61,10 @@ Build       : ESLint, TypeScript compiler
    - Analyse automatique plagiat
    - Extraction contenu + calcul scores (TF-IDF, Jaccard, N-gram)
 
-3. **Verdict (Score + Délibération)**
+3. **Verdict (Score + Appréciation finale)**
    - **Seuil 20%**: Score < 20% = "propre"
-   - Chef de Département + DA consultent rapport
-   - Décision: VALIDATION / RÉÉCRITURE_REQUISE / SANCTION
+   - Teacher + DA consultent rapport
+   - Décision: APPROVED / APPROVED_WITH_MENTION / CONDITIONAL_APPROVAL / REQUESTED_REVIEW / REJECTED
    - Archivage final
 
 ---
