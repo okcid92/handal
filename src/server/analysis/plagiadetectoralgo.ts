@@ -1,8 +1,27 @@
-import { filterInstitutionalContent, buildExclusionNote, type FilterResult } from "./content-filter";
+import {
+  buildExclusionNote,
+  filterInstitutionalContent,
+  tokenize,
+  tokenizeAndStem,
+  type FilterResult,
+} from "./content-filter";
 
 export interface Document {
   name: string;
   content: string;
+}
+
+export interface DetailedScores {
+  cosine: number; // 0-1
+  jaccard: number; // 0-1
+  ngram: number; // 0-1
+  winnowing: number; // 0-1
+  lcs: number; // 0-1
+  style: number; // 0-1
+  simhash: number; // 0-1 (indicateur)
+  semantic?: number; // 0-1 optionnel
+  combined: number; // 0-1
+  riskLevel: "low" | "medium" | "high";
 }
 
 export interface SimilarityResult {
@@ -10,6 +29,11 @@ export interface SimilarityResult {
   cosineTFIDF: number;
   jaccard: number;
   ngram: number;
+  winnowing: number;
+  lcs: number;
+  style: number;
+  simhash: number;
+  semantic?: number;
   combined: number;
   commonPhrases: string[];
 }
@@ -21,128 +45,308 @@ export interface PlagiarismReport {
   avgSimilarity: number;
   results: SimilarityResult[];
   exclusionNote: string | null;
-  filterResult: Pick<FilterResult, "wasSliced" | "introFound" | "conclusionFound" | "excludedRatio">;
+  filterResult: Pick<
+    FilterResult,
+    "wasSliced" | "introFound" | "conclusionFound" | "excludedRatio"
+  >;
 }
+
+type TFIDFVector = Map<string, number>;
+
+const LCS_TOKEN_LIMIT = 500;
+const WINNOWING_K = 5;
+const WINNOWING_WINDOW = 4;
+const LOGICAL_CONNECTORS = [
+  "cependant",
+  "neanmoins",
+  "toutefois",
+  "donc",
+  "ainsi",
+  "par consequent",
+  "en effet",
+  "de plus",
+  "en outre",
+  "premierement",
+  "deuxiemement",
+  "enfin",
+  "finalement",
+  "or",
+  "c est pourquoi",
+  "par ailleurs",
+  "d ailleurs",
+];
 
 function stripHTML(text: string): string {
-  return text
-    .replace(/<[^>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function normalize(text: string): string {
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
+
+function normalizeRawText(text: string): string {
   return stripHTML(text)
+    .normalize("NFD")
     .toLowerCase()
-    .replace(/[^\w\sàâéèêëîïôùûüç]/g, " ")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function tokenize(text: string): string[] {
-  return normalize(text)
-    .split(/\s+/)
-    .filter((w) => w.length > 1);
+function createTf(tokens: string[]): Map<string, number> {
+  const tf = new Map<string, number>();
+  for (const token of tokens) {
+    tf.set(token, (tf.get(token) ?? 0) + 1);
+  }
+  const total = tokens.length || 1;
+  for (const [token, count] of tf) {
+    tf.set(token, count / total);
+  }
+  return tf;
 }
 
-type TFIDFVector = Record<string, number>;
+function createTfidfVectors(tokenLists: string[][]): TFIDFVector[] {
+  const docCount = tokenLists.length;
+  const df = new Map<string, number>();
 
-function computeTFIDF(documents: string[]): TFIDFVector[] {
-  const N = documents.length;
-  const df: Record<string, number> = {};
+  for (const tokens of tokenLists) {
+    const seen = new Set(tokens);
+    for (const token of seen) {
+      df.set(token, (df.get(token) ?? 0) + 1);
+    }
+  }
 
-  documents.forEach((doc) => {
-    const uniqueTokens = new Set(tokenize(doc));
-    uniqueTokens.forEach((word) => {
-      df[word] = (df[word] ?? 0) + 1;
-    });
-  });
-
-  return documents.map((doc) => {
-    const tokens = tokenize(doc);
-    const tf: Record<string, number> = {};
-
-    tokens.forEach((word) => {
-      tf[word] = (tf[word] ?? 0) + 1;
-    });
-
-    const vector: TFIDFVector = {};
-    Object.entries(tf).forEach(([word, count]) => {
-      const termFreq = count / tokens.length;
-      const inverseDocFreq = Math.log(N / ((df[word] ?? 0) + 1) + 1);
-      vector[word] = termFreq * inverseDocFreq;
-    });
-
+  return tokenLists.map((tokens) => {
+    if (tokens.length === 0) return new Map<string, number>();
+    const tf = createTf(tokens);
+    const vector = new Map<string, number>();
+    for (const [token, tfValue] of tf) {
+      const docFreq = df.get(token) ?? 0;
+      const idf = Math.log((1 + docCount) / (1 + docFreq)) + 1;
+      vector.set(token, tfValue * idf);
+    }
     return vector;
   });
 }
 
 function cosineSimilarity(a: TFIDFVector, b: TFIDFVector): number {
-  const allKeys = new Set([...Object.keys(a), ...Object.keys(b)]);
-  let dotProduct = 0;
-  let magnitudeA = 0;
-  let magnitudeB = 0;
+  if (a.size === 0 || b.size === 0) return 0;
+  const keys = new Set([...a.keys(), ...b.keys()]);
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
 
-  allKeys.forEach((key) => {
-    const av = a[key] ?? 0;
-    const bv = b[key] ?? 0;
-    dotProduct += av * bv;
-    magnitudeA += av * av;
-    magnitudeB += bv * bv;
-  });
-
-  if (magnitudeA === 0 || magnitudeB === 0) {
-    return 0;
+  for (const key of keys) {
+    const av = a.get(key) ?? 0;
+    const bv = b.get(key) ?? 0;
+    dot += av * bv;
+    normA += av * av;
+    normB += bv * bv;
   }
 
-  return dotProduct / (Math.sqrt(magnitudeA) * Math.sqrt(magnitudeB));
+  if (normA === 0 || normB === 0) return 0;
+  return clamp01(dot / (Math.sqrt(normA) * Math.sqrt(normB)));
 }
 
-function jaccardSimilarity(textA: string, textB: string): number {
-  const setA = new Set(tokenize(textA));
-  const setB = new Set(tokenize(textB));
-
-  let intersectionSize = 0;
-  setA.forEach((word) => {
-    if (setB.has(word)) {
-      intersectionSize += 1;
-    }
-  });
-
-  const unionSize = setA.size + setB.size - intersectionSize;
-  return unionSize === 0 ? 0 : intersectionSize / unionSize;
+function jaccardSimilarity(tokensA: string[], tokensB: string[]): number {
+  if (tokensA.length === 0 || tokensB.length === 0) return 0;
+  const setA = new Set(tokensA);
+  const setB = new Set(tokensB);
+  let intersection = 0;
+  for (const token of setA) {
+    if (setB.has(token)) intersection += 1;
+  }
+  const union = setA.size + setB.size - intersection;
+  return union === 0 ? 0 : clamp01(intersection / union);
 }
 
-function generateNgrams(tokens: string[], n: number): Set<string> {
-  const ngrams = new Set<string>();
-
+function ngrams(tokens: string[], n: number): Set<string> {
+  const grams = new Set<string>();
+  if (tokens.length < n) return grams;
   for (let i = 0; i <= tokens.length - n; i += 1) {
-    ngrams.add(tokens.slice(i, i + n).join(" "));
+    grams.add(tokens.slice(i, i + n).join(" "));
   }
-
-  return ngrams;
+  return grams;
 }
 
-function ngramSimilarity(textA: string, textB: string, n = 3): number {
-  const tokensA = tokenize(textA);
-  const tokensB = tokenize(textB);
+function diceCoefficient(setA: Set<string | number>, setB: Set<string | number>): number {
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let intersection = 0;
+  for (const item of setA) {
+    if (setB.has(item)) intersection += 1;
+  }
+  return clamp01((2 * intersection) / (setA.size + setB.size));
+}
 
-  if (tokensA.length < n || tokensB.length < n) {
-    return 0;
+function ngramSimilarity(tokensA: string[], tokensB: string[]): number {
+  const biA = ngrams(tokensA, 2);
+  const biB = ngrams(tokensB, 2);
+  const triA = ngrams(tokensA, 3);
+  const triB = ngrams(tokensB, 3);
+  const bigramScore = diceCoefficient(biA, biB);
+  const trigramScore = diceCoefficient(triA, triB);
+  return clamp01(0.6 * bigramScore + 0.4 * trigramScore);
+}
+
+function polynomialHash(tokens: string[]): number {
+  const joined = tokens.join(" ");
+  let hash = 0;
+  const base = 257;
+  const mod = 2_147_483_647;
+  for (let i = 0; i < joined.length; i += 1) {
+    hash = (hash * base + joined.charCodeAt(i)) % mod;
+  }
+  return hash;
+}
+
+function winnowingFingerprints(tokens: string[]): Set<number> {
+  if (tokens.length < WINNOWING_K) return new Set<number>();
+
+  const shingleHashes: number[] = [];
+  for (let i = 0; i <= tokens.length - WINNOWING_K; i += 1) {
+    shingleHashes.push(polynomialHash(tokens.slice(i, i + WINNOWING_K)));
   }
 
-  const ngramsA = generateNgrams(tokensA, n);
-  const ngramsB = generateNgrams(tokensB, n);
-
-  let intersectionSize = 0;
-  ngramsA.forEach((gram) => {
-    if (ngramsB.has(gram)) {
-      intersectionSize += 1;
+  const fingerprints = new Set<number>();
+  const windowSize = Math.min(WINNOWING_WINDOW, shingleHashes.length);
+  for (let i = 0; i <= shingleHashes.length - windowSize; i += 1) {
+    let min = Number.MAX_SAFE_INTEGER;
+    for (let j = i; j < i + windowSize; j += 1) {
+      if (shingleHashes[j] < min) min = shingleHashes[j];
     }
-  });
+    fingerprints.add(min);
+  }
+  return fingerprints;
+}
 
-  const unionSize = ngramsA.size + ngramsB.size - intersectionSize;
-  return unionSize === 0 ? 0 : intersectionSize / unionSize;
+function winnowingSimilarity(tokensA: string[], tokensB: string[]): number {
+  if (tokensA.length < WINNOWING_K || tokensB.length < WINNOWING_K) return 0;
+  const fingerprintsA = winnowingFingerprints(tokensA);
+  const fingerprintsB = winnowingFingerprints(tokensB);
+  return diceCoefficient(fingerprintsA, fingerprintsB);
+}
+
+function lcsSimilarity(tokensA: string[], tokensB: string[]): number {
+  if (tokensA.length === 0 || tokensB.length === 0) return 0;
+  const a = tokensA.slice(0, LCS_TOKEN_LIMIT);
+  const b = tokensB.slice(0, LCS_TOKEN_LIMIT);
+  const prev = new Array<number>(b.length + 1).fill(0);
+  const curr = new Array<number>(b.length + 1).fill(0);
+
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      if (a[i - 1] === b[j - 1]) curr[j] = prev[j - 1] + 1;
+      else curr[j] = Math.max(curr[j - 1], prev[j]);
+    }
+    for (let j = 0; j <= b.length; j += 1) {
+      prev[j] = curr[j];
+      curr[j] = 0;
+    }
+  }
+
+  const lcsLength = prev[b.length];
+  return clamp01((2 * lcsLength) / (a.length + b.length));
+}
+
+function safeRatio(a: number, b: number): number {
+  if (a === 0 && b === 0) return 1;
+  const max = Math.max(a, b);
+  if (max === 0) return 1;
+  return clamp01(1 - Math.abs(a - b) / max);
+}
+
+function extractStyleMetrics(text: string) {
+  const normalized = normalizeRawText(text);
+  const words = tokenize(normalized);
+  const wordCount = words.length;
+  const sentences = normalized
+    .split(/[.!?]+/g)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const paragraphs = stripHTML(text)
+    .split(/\n{2,}|\r\n{2,}/g)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  const punctuationCount = (stripHTML(text).match(/[.,;:!?()"'«»\-]/g) ?? [])
+    .length;
+  const uniqueWords = new Set(words).size;
+
+  let connectorCount = 0;
+  for (const connector of LOGICAL_CONNECTORS) {
+    const regex = new RegExp(`\\b${connector}\\b`, "g");
+    connectorCount += (normalized.match(regex) ?? []).length;
+  }
+
+  return {
+    avgSentenceLength:
+      sentences.length > 0 ? wordCount / sentences.length : 0,
+    avgWordLength:
+      wordCount > 0
+        ? words.reduce((sum, word) => sum + word.length, 0) / wordCount
+        : 0,
+    punctuationDensity: wordCount > 0 ? punctuationCount / wordCount : 0,
+    lexicalDiversity: wordCount > 0 ? uniqueWords / wordCount : 0,
+    paragraphCount: paragraphs.length,
+    connectorDensity: wordCount > 0 ? connectorCount / wordCount : 0,
+  };
+}
+
+function styleSimilarity(textA: string, textB: string): number {
+  const a = extractStyleMetrics(textA);
+  const b = extractStyleMetrics(textB);
+  const scores = [
+    safeRatio(a.avgSentenceLength, b.avgSentenceLength),
+    safeRatio(a.avgWordLength, b.avgWordLength),
+    safeRatio(a.punctuationDensity, b.punctuationDensity),
+    safeRatio(a.lexicalDiversity, b.lexicalDiversity),
+    safeRatio(a.paragraphCount, b.paragraphCount),
+    safeRatio(a.connectorDensity, b.connectorDensity),
+  ];
+  return clamp01(scores.reduce((sum, value) => sum + value, 0) / scores.length);
+}
+
+function fnv1a64(input: string): bigint {
+  let hash = 0xcbf29ce484222325n;
+  const prime = 0x100000001b3n;
+  const mask = (1n << 64n) - 1n;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= BigInt(input.charCodeAt(i));
+    hash = (hash * prime) & mask;
+  }
+  return hash;
+}
+
+function simhash64(tokens: string[]): bigint {
+  const vector = new Array<number>(64).fill(0);
+  const tf = new Map<string, number>();
+  for (const token of tokens) {
+    tf.set(token, (tf.get(token) ?? 0) + 1);
+  }
+  for (const [token, count] of tf) {
+    const hash = fnv1a64(token);
+    for (let bit = 0; bit < 64; bit += 1) {
+      const bitSet = ((hash >> BigInt(bit)) & 1n) === 1n;
+      vector[bit] += bitSet ? count : -count;
+    }
+  }
+  let result = 0n;
+  for (let bit = 0; bit < 64; bit += 1) {
+    if (vector[bit] >= 0) result |= 1n << BigInt(bit);
+  }
+  return result;
+}
+
+function simhashSimilarity(tokensA: string[], tokensB: string[]): number {
+  if (tokensA.length === 0 || tokensB.length === 0) return 0;
+  const hashA = simhash64(tokensA);
+  const hashB = simhash64(tokensB);
+  let identical = 0;
+  for (let bit = 0; bit < 64; bit += 1) {
+    const mask = 1n << BigInt(bit);
+    if ((hashA & mask) === (hashB & mask)) identical += 1;
+  }
+  return identical / 64;
 }
 
 function findCommonPhrases(
@@ -151,68 +355,124 @@ function findCommonPhrases(
   phraseLength = 4,
   maxResults = 5,
 ): string[] {
-  const tokensA = tokenize(textA);
-  const tokensB = tokenize(textB);
+  const tokensA = tokenizeAndStem(textA);
+  const tokensB = tokenizeAndStem(textB);
+  if (tokensA.length < phraseLength || tokensB.length < phraseLength) return [];
 
-  const ngramsB = new Set<string>();
+  const gramsB = new Set<string>();
   for (let i = 0; i <= tokensB.length - phraseLength; i += 1) {
-    ngramsB.add(tokensB.slice(i, i + phraseLength).join(" "));
+    gramsB.add(tokensB.slice(i, i + phraseLength).join(" "));
   }
 
   const found = new Set<string>();
   for (let i = 0; i <= tokensA.length - phraseLength; i += 1) {
     const phrase = tokensA.slice(i, i + phraseLength).join(" ");
-    if (ngramsB.has(phrase)) {
-      found.add(phrase);
-    }
-
-    if (found.size >= maxResults) {
-      break;
-    }
+    if (gramsB.has(phrase)) found.add(phrase);
+    if (found.size >= maxResults) break;
   }
-
   return [...found];
 }
 
-export function analyzePlagiarism(
+function riskFromCombined(combined: number): "low" | "medium" | "high" {
+  if (combined < 0.2) return "low";
+  if (combined < 0.7) return "medium";
+  return "high";
+}
+
+export async function analyzePlagiarism(
+  textA: string,
+  textB: string,
+  semanticScore?: number,
+): Promise<DetailedScores> {
+  const sourceA = stripHTML(textA);
+  const sourceB = stripHTML(textB);
+  const tokensA = tokenizeAndStem(sourceA);
+  const tokensB = tokenizeAndStem(sourceB);
+
+  if (tokensA.length === 0 || tokensB.length === 0) {
+    const empty: DetailedScores = {
+      cosine: 0,
+      jaccard: 0,
+      ngram: 0,
+      winnowing: 0,
+      lcs: 0,
+      style: 0,
+      simhash: 0,
+      combined: 0,
+      riskLevel: "low",
+    };
+    if (semanticScore !== undefined) empty.semantic = clamp01(semanticScore);
+    return empty;
+  }
+
+  const [vectorA, vectorB] = createTfidfVectors([tokensA, tokensB]);
+  const cosine = cosineSimilarity(vectorA, vectorB);
+  const jaccard = jaccardSimilarity(tokensA, tokensB);
+  const ngram = ngramSimilarity(tokensA, tokensB);
+  const winnowing = winnowingSimilarity(tokensA, tokensB);
+  const lcs = lcsSimilarity(tokensA, tokensB);
+  const style = styleSimilarity(sourceA, sourceB);
+  const simhash = simhashSimilarity(tokensA, tokensB);
+  const semantic = semanticScore !== undefined ? clamp01(semanticScore) : undefined;
+
+  const combined =
+    semantic === undefined
+      ? 0.3 * cosine +
+        0.2 * jaccard +
+        0.2 * ngram +
+        0.15 * winnowing +
+        0.1 * lcs +
+        0.05 * style
+      : 0.2 * cosine +
+        0.1 * jaccard +
+        0.15 * ngram +
+        0.15 * winnowing +
+        0.15 * semantic +
+        0.15 * lcs +
+        0.05 * style;
+
+  return {
+    cosine,
+    jaccard,
+    ngram,
+    winnowing,
+    lcs,
+    style,
+    simhash,
+    semantic,
+    combined: clamp01(combined),
+    riskLevel: riskFromCombined(combined),
+  };
+}
+
+export async function analyzePlagiarismReport(
   main: Document,
   references: Document[],
-): PlagiarismReport {
-  // Filtrer le contenu institutionnel du document principal
+): Promise<PlagiarismReport> {
   const filterResult = filterInstitutionalContent(main.content);
-  const filteredMain = {
-    ...main,
-    content: filterResult.filteredContent,
-  };
-
-  // Filtrer aussi les documents de référence
+  const filteredMain = { ...main, content: filterResult.filteredContent };
   const filteredReferences = references.map((ref) => ({
     ...ref,
     content: filterInstitutionalContent(ref.content).filteredContent,
   }));
 
-  const allContents = [
-    filteredMain.content,
-    ...filteredReferences.map((r) => r.content),
-  ];
-  const tfidfVectors = computeTFIDF(allContents);
-  const mainVector = tfidfVectors[0];
-
-  const results: SimilarityResult[] = filteredReferences.map((ref, i) => {
-    const cs = cosineSimilarity(mainVector, tfidfVectors[i + 1]);
-    const js = jaccardSimilarity(filteredMain.content, ref.content);
-    const ng = ngramSimilarity(filteredMain.content, ref.content);
-    const combined = cs * 0.5 + js * 0.25 + ng * 0.25;
-
-    return {
+  const results: SimilarityResult[] = [];
+  for (const ref of filteredReferences) {
+    const detailed = await analyzePlagiarism(filteredMain.content, ref.content);
+    results.push({
       name: ref.name,
-      cosineTFIDF: cs,
-      jaccard: js,
-      ngram: ng,
-      combined,
+      cosineTFIDF: detailed.cosine,
+      jaccard: detailed.jaccard,
+      ngram: detailed.ngram,
+      winnowing: detailed.winnowing,
+      lcs: detailed.lcs,
+      style: detailed.style,
+      simhash: detailed.simhash,
+      semantic: detailed.semantic,
+      combined: detailed.combined,
       commonPhrases: findCommonPhrases(filteredMain.content, ref.content),
-    };
-  });
+    });
+  }
 
   results.sort((a, b) => b.combined - a.combined);
 
@@ -221,15 +481,13 @@ export function analyzePlagiarism(
     results.reduce((sum, result) => sum + result.combined, 0) /
     (results.length || 1);
 
-  const exclusionNote = buildExclusionNote(filterResult);
-
   return {
     mainDocument: main.name,
     analyzedAt: new Date(),
     maxSimilarity,
     avgSimilarity,
     results,
-    exclusionNote,
+    exclusionNote: buildExclusionNote(filterResult),
     filterResult: {
       wasSliced: filterResult.wasSliced,
       introFound: filterResult.introFound,

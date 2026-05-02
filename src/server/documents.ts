@@ -12,7 +12,10 @@ import {
 import { ApiError } from "@/lib/api-errors";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { analyzePlagiarism, type SimilarityResult } from "@/server/analysis/plagiadetectoralgo";
+import {
+  analyzePlagiarismReport,
+  type SimilarityResult,
+} from "@/server/analysis/plagiadetectoralgo";
 import { analyzeTheme } from "@/server/analysis/themeanalysor";
 
 type DocumentPayload = {
@@ -1006,7 +1009,7 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
 
     const comparisonCorpus = await loadOfficialComparisonCorpus(document.id);
 
-    const plagiarism = analyzePlagiarism(
+    const plagiarism = await analyzePlagiarismReport(
       {
         name: document.originalName,
         content: document.extractedText,
@@ -1223,7 +1226,7 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
   try {
     const corpus = await loadOfficialComparisonCorpus(document.id);
 
-    const plagiarism = analyzePlagiarism(
+    const plagiarism = await analyzePlagiarismReport(
       { name: document.originalName, content: document.extractedText },
       corpus,
     );
