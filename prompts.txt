@@ -1,0 +1,438 @@
+Tu es un expert Next.js/TypeScript travaillant sur le projet Handal,
+une plateforme académique de détection de plagiat pour l'IBAM
+(Institut Burkinabè des Arts et Métiers).
+
+═══════════════════════════════════════════════════════════════
+CONTEXTE DU PROJET
+═══════════════════════════════════════════════════════════════
+
+Handal est une application Next.js 16 (App Router) + TypeScript +
+Prisma + MySQL. Elle gère le cycle complet des mémoires académiques :
+proposition de thème → validation multi-rôles → analyse anti-plagiat
+→ délibération finale.
+
+Stack actuelle :
+- Frontend : Next.js 16.2.4, TypeScript 5, Tailwind CSS, Lucide React
+- Backend  : Next.js API Routes (Node.js)
+- DB       : MySQL 8.0 + Prisma 6.15.0
+- Auth     : Sessions HMAC-SHA256 custom
+- Tests    : Vitest (51 tests ✅) + Playwright (8 tests ✅) + Selenium Python (16 tests ✅)
+
+Algorithmes actuels dans src/server/analysis/plagiat-detector.ts :
+- TF-IDF + Cosinus (poids 40%)
+- Jaccard           (poids 30%)
+- N-gram            (poids 30%)
+Score combiné = 0.4 × cosine + 0.3 × jaccard + 0.3 × ngram
+
+Seuil critique Handal : score < 20% = document "propre", ≥ 20% = alerte
+
+═══════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════
+
+J'ai développé un mini-site AlgoLab (Express.js) qui teste 8 algorithmes
+de détection de plagiat. Je veux intégrer ces améliorations dans Handal.
+
+Tu dois :
+
+1. CRÉER UNE BRANCHE GIT de sécurité AVANT toute modification
+2. AMÉLIORER les 3 algos existants
+3. AJOUTER 4 nouveaux algos
+4. AJOUTER le service Python Sentence-BERT (optionnel)
+5. METTRE À JOUR la route API et le schéma de réponse
+6. VÉRIFIER que tous les tests existants passent encore
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 0 — SÉCURISATION GIT (OBLIGATOIRE EN PREMIER)
+═══════════════════════════════════════════════════════════════
+
+Avant toute modification de code, exécute ces commandes Git :
+
+  # 1. Vérifier qu'on est sur main et que tout est committé
+  git status
+  git checkout main
+
+  # 2. Créer une branche de sauvegarde de l'état actuel qui fonctionne
+  git checkout -b backup/stable-before-algo-upgrade
+
+  # 3. Committer l'état actuel sur la branche backup
+  git add .
+  git commit -m "backup: état stable avant intégration AlgoLab
+  
+  - 51 tests Vitest ✅
+  - 8 tests Playwright ✅  
+  - 16 tests Selenium ✅
+  - Algos : TF-IDF + Jaccard + N-gram
+  - Score combiné : 0.4×cosine + 0.3×jaccard + 0.3×ngram"
+
+  # 4. Créer la branche de travail pour les nouvelles fonctionnalités
+  git checkout -b feature/algo-upgrade-algolab
+
+  # 5. Confirmer la position
+  git branch --list
+  git log --oneline -3
+
+Explique-moi les branches créées et confirme que je suis bien
+sur feature/algo-upgrade-algolab avant de continuer.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 1 — AMÉLIORER content-filter.ts
+═══════════════════════════════════════════════════════════════
+
+Fichier : src/server/analysis/content-filter.ts
+
+Modifications à apporter :
+
+A) STOPWORDS FRANÇAIS COMPLETS
+   - Remplacer la liste actuelle par une liste de 170+ stopwords
+   - Inclure : articles, pronoms, prépositions, conjonctions,
+     adverbes, verbes courants
+   - Conserver les mots institutionnels IBAM déjà présents :
+     'ibam', 'burkinabè', 'ujkz', 'ouagadougou', 'académique',
+     'soutenance', 'jury', 'encadreur', 'remerciements',
+     'dédicace', 'sommaire', 'annexe', 'mémoire', 'rapport',
+     'stage', 'master', 'licence', 'filière', 'département'
+
+B) TOKENISATION UNICODE CORRECTE
+   Remplacer la fonction tokenize() actuelle par :
+   
+   export function tokenize(text: string): string[] {
+     return text
+       .normalize('NFD')
+       .toLowerCase()
+       .replace(/[\u0300-\u036f]/g, '')
+       .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+       .split(/\s+/)
+       .filter(token => token.length > 2 && !STOPWORDS_FR.has(token));
+   }
+
+C) STEMMING FRANÇAIS SIMPLE
+   Ajouter une nouvelle fonction stem() qui supprime les suffixes
+   communs français :
+   'ations','ation','ements','ement','ités','ité','iques','ique',
+   'eurs','eur','ment','ants','ant','ées','ée','és','é','ions','ion'
+   
+   Règle : ne supprimer un suffixe que si le mot restant fait > 3 chars.
+   
+   Ajouter aussi tokenizeAndStem() = tokenize() + stem() sur chaque token.
+
+Après chaque modification, montre-moi le fichier complet modifié.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 2 — RÉÉCRIRE plagiat-detector.ts
+═══════════════════════════════════════════════════════════════
+
+Fichier : src/server/analysis/plagiat-detector.ts
+
+A) METTRE À JOUR LES TYPES
+
+   Remplacer l'interface de résultat actuelle par :
+
+   export interface DetailedScores {
+     cosine    : number;   // 0-1
+     jaccard   : number;   // 0-1
+     ngram     : number;   // 0-1
+     winnowing : number;   // 0-1 NOUVEAU
+     lcs       : number;   // 0-1 NOUVEAU
+     style     : number;   // 0-1 NOUVEAU
+     simhash   : number;   // 0-1 NOUVEAU (indicateur seul)
+     semantic ?: number;   // 0-1 OPTIONNEL (Python)
+     combined  : number;   // 0-1 score final
+     riskLevel : 'low' | 'medium' | 'high';
+   }
+
+B) AMÉLIORER LES 3 ALGOS EXISTANTS
+
+   cosine() :
+   - Utiliser tokenizeAndStem() au lieu de tokenize()
+   - Implémenter TF-IDF correct (TF × IDF) au lieu de simple fréquence
+   - Garder la similarité cosinus
+
+   jaccard() :
+   - Utiliser tokenizeAndStem() au lieu de tokenize()
+   - Pas d'autre changement
+
+   ngram() :
+   - Combiner bigrams (poids 60%) + trigrams (poids 40%)
+   - Utiliser le coefficient de Dice : 2×|A∩B| / (|A|+|B|)
+   - Avant : seulement bigrams avec jaccard simple
+
+C) AJOUTER 4 NOUVEAUX ALGORITHMES
+
+   ─── Winnowing / Shingling ───
+   Détecte : reordonnancement de paragraphes, copie partielle
+   Paramètre k=5 (taille des shingles), fenêtre=4
+   Étapes :
+   1. Tokeniser le texte
+   2. Générer tous les k-shingles (séquences de k tokens)
+   3. Hasher chaque shingle (hash polynomial simple)
+   4. Sliding window : garder uniquement le hash minimum de chaque fenêtre
+   5. Comparer les ensembles de fingerprints : Dice coefficient
+   Retourner 0 si moins de k tokens dans l'un des textes
+
+   ─── LCS (Longest Common Subsequence) ───
+   Détecte : plagiat chirurgical (mots supprimés/ajoutés)
+   Optimisation obligatoire : matrice 2 lignes (O(n) mémoire)
+   Limite : max 500 tokens par texte pour éviter O(n²) bloquant
+   Score : 2 × LCS_length / (len_A + len_B)
+   Utiliser tokenizeAndStem()
+
+   ─── Analyse Stylistique ───
+   Détecte : paraphrases conservant la structure rhétorique
+   Métriques à comparer :
+   - Longueur moyenne des phrases (mots/phrase)
+   - Longueur moyenne des mots (chars/mot)
+   - Densité de ponctuation (signes/mots)
+   - Diversité lexicale (mots uniques/total)
+   - Nombre de paragraphes
+   - Densité de connecteurs logiques FR :
+     ['cependant','néanmoins','toutefois','donc','ainsi',
+      'par conséquent','en effet','de plus','en outre',
+      'premièrement','deuxièmement','enfin','finalement',
+      'or','c est pourquoi','par ailleurs','d ailleurs']
+   Score par métrique : 1 - |a-b| / max(a,b)
+   Score final : moyenne des 6 métriques
+
+   ─── SimHash ───
+   Détecte : documents quasi-identiques (indicateur rapide)
+   Utiliser 64 bits
+   Score : bits identiques / 64
+   ATTENTION : ne pas inclure dans le score combiné,
+               seulement retourner comme indicateur
+
+D) NOUVELLE FORMULE DU SCORE COMBINÉ
+
+   Sans semantic (Python non disponible) :
+   combined = 0.30×cosine + 0.20×jaccard + 0.20×ngram
+            + 0.15×winnowing + 0.10×lcs + 0.05×style
+   (simhash exclu du calcul)
+
+   Avec semantic (Python disponible) :
+   combined = 0.20×cosine + 0.10×jaccard + 0.15×ngram
+            + 0.15×winnowing + 0.15×semantic
+            + 0.15×lcs + 0.05×style
+
+   Niveaux de risque (CONSERVER les seuils Handal) :
+   - low    : combined < 0.20   (< 20%)
+   - medium : 0.20 ≤ combined < 0.70
+   - high   : combined ≥ 0.70
+
+E) FONCTION PRINCIPALE
+
+   export async function analyzePlagiarism(
+     textA: string,
+     textB: string,
+     semanticScore?: number
+   ): Promise<DetailedScores>
+   
+   Cette fonction appelle tous les algos et retourne DetailedScores complet.
+
+Montre-moi le fichier complet avant de passer à l'étape suivante.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 3 — AJOUTER LE SERVICE PYTHON (OPTIONNEL)
+═══════════════════════════════════════════════════════════════
+
+A) Créer src/server/analysis/semantic_service.py
+   
+   - Framework : Flask (port 3002)
+   - Modèle    : paraphrase-multilingual-MiniLM-L12-v2
+   - Endpoint  : POST /semantic { textA, textB }
+   - Réponse   : { semantic_score, suspicious_segments[], model }
+   - Découpage : chunks de 200 mots pour les longs textes
+   - Score global : moyenne des max de la matrice de similarité
+   - Segments suspects : paires avec score > 0.75 (max 10)
+   - Timeout   : 10 secondes
+   - Démarrage : python semantic_service.py
+
+B) Créer src/server/analysis/semantic-client.ts
+
+   export async function getSemanticScore(
+     textA: string,
+     textB: string
+   ): Promise<number | undefined>
+   
+   - Lire SEMANTIC_SERVICE_URL depuis process.env
+   - Retourner undefined si variable non définie (service désactivé)
+   - Retourner undefined si timeout ou erreur réseau (non bloquant)
+   - Timeout : 10 secondes avec AbortSignal
+   - Log : logger.warn() si service indisponible
+
+C) Ajouter dans .env.local (comme commentaire désactivé par défaut) :
+   # SEMANTIC_SERVICE_URL=http://localhost:3002
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 4 — METTRE À JOUR LA ROUTE API
+═══════════════════════════════════════════════════════════════
+
+Fichier à modifier : la route qui appelle l'analyse de plagiat
+(probablement src/app/api/analysis/route.ts ou similaire)
+
+Modifications :
+1. Importer analyzePlagiarism depuis le plagiat-detector mis à jour
+2. Importer getSemanticScore depuis semantic-client
+3. Appeler getSemanticScore() en parallèle si possible
+4. Passer semanticScore à analyzePlagiarism()
+5. La réponse JSON doit inclure TOUS les scores individuels :
+
+   {
+     "scores": {
+       "cosine"    : 42,   // en pourcentage entier
+       "jaccard"   : 33,
+       "ngram"     : 25,
+       "winnowing" : 18,
+       "lcs"       : 45,
+       "style"     : 30,
+       "simhash"   : 72,   // indicateur
+       "semantic"  : null  // null si Python non disponible
+     },
+     "combined"  : 34,     // en pourcentage entier
+     "riskLevel" : "low",
+     "flagged"   : false   // true si combined >= 20
+   }
+
+6. Conserver la compatibilité avec le champ globalSimilarity
+   utilisé ailleurs dans le code (ajouter globalSimilarity: combined)
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 5 — METTRE À JOUR LE SCHÉMA PRISMA
+═══════════════════════════════════════════════════════════════
+
+Fichier : prisma/schema.prisma
+
+Dans le modèle SimilarityReport, ajouter les nouveaux champs :
+
+  winnowingScore  Decimal?  @db.Decimal(5, 4)
+  lcsScore        Decimal?  @db.Decimal(5, 4)
+  styleScore      Decimal?  @db.Decimal(5, 4)
+  simhashScore    Decimal?  @db.Decimal(5, 4)
+  semanticScore   Decimal?  @db.Decimal(5, 4)
+
+Ces champs sont optionnels (?) pour rester compatibles avec
+les anciens rapports en base.
+
+Ensuite générer et appliquer la migration :
+  npx prisma migrate dev --name add_new_algo_scores
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 6 — VÉRIFICATION ET TESTS
+═══════════════════════════════════════════════════════════════
+
+A) Vérifier que les tests existants passent encore :
+   npm run test
+   
+   TOUS les 51 tests Vitest doivent rester verts.
+   Si un test casse, corrige-le AVANT de continuer.
+
+B) Vérifier le build TypeScript sans erreurs :
+   npx tsc --noEmit
+
+C) Ajouter des tests unitaires pour les nouveaux algos dans
+   tests/plagiat-detector.test.ts :
+
+   Cas de test obligatoires :
+   - Copie exacte     → combined > 0.80
+   - Reformulation    → ngram > 0.40, winnowing > 0.30
+   - Reordonnancement → winnowing < cosine (winnowing pénalise)
+   - Plagiat chir.    → lcs > 0.60
+   - Textes différents → combined < 0.15
+   - Paraphrase       → style > 0.60, cosine < 0.30
+   - Texte vide       → retourne 0 partout (pas d'erreur)
+
+D) Test manuel rapide via curl :
+   curl -X POST http://localhost:3000/api/analysis \
+     -H "Content-Type: application/json" \
+     -d '{"textA":"texte original test","textB":"texte original test"}'
+   
+   Résultat attendu : combined proche de 100, riskLevel: "high"
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 7 — COMMIT ET MERGE
+═══════════════════════════════════════════════════════════════
+
+Quand tous les tests passent, committer par étape :
+
+  git add src/server/analysis/content-filter.ts
+  git commit -m "feat(algo): améliorer content-filter - stopwords FR 170+ + Unicode + stemming"
+
+  git add src/server/analysis/plagiat-detector.ts
+  git commit -m "feat(algo): intégrer 7 algos AlgoLab - winnowing + LCS + style + simhash
+  
+  Algos améliorés : cosine (TF-IDF réel + stem), jaccard (stem), ngram (bi+tri)
+  Nouveaux algos  : winnowing, LCS, style, simhash (indicateur)
+  Nouvelle formule: 0.30×cosine + 0.20×jaccard + 0.20×ngram + 0.15×winnowing + 0.10×lcs + 0.05×style
+  Seuil Handal 20% conservé"
+
+  git add src/server/analysis/semantic*
+  git commit -m "feat(algo): ajouter service Python Sentence-BERT (optionnel)"
+
+  git add prisma/
+  git commit -m "feat(db): ajouter champs scores algo dans SimilarityReport"
+
+  git add src/app/api/
+  git commit -m "feat(api): mettre à jour route analyse avec 8 scores détaillés"
+
+  git add tests/
+  git commit -m "test(algo): ajouter tests unitaires pour winnowing, LCS, style"
+
+Ensuite merger sur main :
+  git checkout main
+  git merge feature/algo-upgrade-algolab --no-ff \
+    -m "feat: intégration AlgoLab → Handal (7 algos + Python Sentence-BERT)"
+  git push origin main
+  git push origin backup/stable-before-algo-upgrade
+
+═══════════════════════════════════════════════════════════════
+RÈGLES STRICTES À RESPECTER
+═══════════════════════════════════════════════════════════════
+
+✅ OBLIGATOIRE
+- Créer la branche backup/ AVANT tout changement de code
+- Conserver le seuil Handal à 20% (riskLevel 'low' si < 0.20)
+- Conserver le filtrage du contenu institutionnel IBAM
+- Tous les nouveaux algos retournent 0 sur texte vide (jamais d'erreur)
+- Les 51 tests Vitest existants doivent rester verts
+- TypeScript strict : aucune erreur tsc --noEmit
+- Chaque nouveau fichier doit avoir ses imports explicites
+
+❌ INTERDIT
+- Ne pas modifier les routes d'auth (/api/login, /api/logout)
+- Ne pas toucher aux dashboards (student, teacher, da, admin)
+- Ne pas modifier prisma/seed.js
+- Ne pas changer les comptes de démo
+- Ne pas rendre le service Python bloquant
+  (si Python absent → analyse continue avec les 6 algos JS)
+- Ne pas baisser le seuil de 20% sans validation explicite
+
+⚠️ ATTENTION TYPESCRIPT
+- DetailedScores : semantic est optionnel (semantic?: number)
+- Tous les scores sont entre 0 et 1 en interne (× 100 uniquement
+  dans la réponse JSON finale)
+- Les champs Prisma nouveaux sont Decimal? (nullable)
+
+═══════════════════════════════════════════════════════════════
+EN CAS DE PROBLÈME
+═══════════════════════════════════════════════════════════════
+
+Si un test casse ou une erreur TypeScript apparaît :
+
+1. NE PAS continuer à l'étape suivante
+2. Corriger le problème d'abord
+3. Relancer npm run test pour confirmer
+
+Si tu veux annuler toutes les modifications et revenir à l'état stable :
+  git checkout main
+  git branch -D feature/algo-upgrade-algolab
+  git checkout backup/stable-before-algo-upgrade
+  # L'état stable est intact sur cette branche
+
+═══════════════════════════════════════════════════════════════
+PROGRESSION ATTENDUE
+═══════════════════════════════════════════════════════════════
+
+Procède étape par étape. Après chaque étape :
+- Montre le code complet du fichier modifié
+- Confirme les tests qui passent
+- Attends ma validation avant de passer à la suivante
+
+Commence par l'ÉTAPE 0 (Git) et confirme les branches créées.
