@@ -1,0 +1,813 @@
+Tu es un expert Next.js/TypeScript travaillant sur le projet Handal.
+
+═══════════════════════════════════════════════════════════════
+CONTEXTE CRITIQUE
+═══════════════════════════════════════════════════════════════
+
+OpenCode a analysé le projet et trouvé 12 incohérences bloquantes :
+
+🔴 CRITIQUES (3) :
+1. Hybridation v1/v2 du workflow thème (code vs doc)
+2. Système d'appréciation finale v2 documenté mais pas implémenté
+3. Prérequis de dépôt incohérents (VALIDATED vs VALIDATED_DA)
+
+🟠 MAJEURS (3) :
+4. Exigence de note finale contradictoire
+5. Enum ThemeStatus surchargé (13 statuts, la moitié inutilisés)
+6. DeliberationDecision vs AppreciationDecision : deux enums pour une seule chose
+
+Fichiers problématiques :
+- src/server/themes.ts (logique hybride)
+- src/server/documents.ts (prérequis mélangés)
+- schema.prisma (enums et models dupliqués)
+- Tous les fichiers doc (v1 vs v2 mélangés)
+
+═══════════════════════════════════════════════════════════════
+MISSION
+═══════════════════════════════════════════════════════════════
+
+Migrer COMPLÈTEMENT vers v2 (validation conjointe) :
+
+AVANT (v1 - séquentiel) :
+  Teacher valide → VALIDATED_CD
+  DA valide → VALIDATED_DA
+  → Étudiant peut déposer
+
+APRÈS (v2 - conjointe) :
+  Teacher ET DA votent en parallèle sur PENDING_VALIDATION
+  → Les 2 approuvent ? → VALIDATED
+  → L'un rejette ? → REJECTED
+  → Étudiant dépose ssi VALIDATED
+
+Tu dois :
+1. Nettoyer les enums : ThemeStatus v2 uniquement
+2. Implémenter la route /final-appreciation
+3. Supprimer la Deliberation (remplacer par FinalAppreciation)
+4. Mettre à jour themes.ts et documents.ts
+5. Migrer le schéma Prisma
+6. Mettre à jour TOUS les fichiers de doc (workflow, sources, roadmap)
+7. Vérifier que les tests passent encore
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 0 — GIT : SÉCURISATION
+═══════════════════════════════════════════════════════════════
+
+  git checkout main
+  git pull origin main
+  git checkout -b backup/before-v2-migration
+  git push -u origin backup/before-v2-migration
+  git checkout -b feature/migrate-to-v2-workflow
+  git push -u origin feature/migrate-to-v2-workflow
+
+Confirme les 2 branches avant de continuer.
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 1 — NETTOYER schema.prisma
+═══════════════════════════════════════════════════════════════
+
+A) REMPLACER l'enum ThemeStatus par :
+
+enum ThemeStatus {
+  PENDING              // Créé par l'étudiant
+  PENDING_VALIDATION   // En attente votes Teacher + DA
+  VALIDATED            // Teacher ET DA approuvent
+  REJECTED             // Teacher OU DA rejette
+}
+
+Supprimer : VALIDATED_CD, VALIDATED_DA, DOCUMENT_SUBMITTED,
+ANALYSIS_PENDING, APPROVED, APPROVED_WITH_MENTION,
+CONDITIONAL_APPROVAL, REQUESTED_REVIEW, FLAGGED_PLAGIARISM
+
+B) SIMPLIFIER DocumentStatus (garder tel quel, c'est correct) :
+
+enum DocumentStatus {
+  SUBMITTED
+  ANALYSIS_IN_PROGRESS
+  ANALYSIS_COMPLETE
+  CLEAN
+  FLAGGED_PLAGIARISM
+  APPROVED
+  APPROVED_WITH_MENTION
+  CONDITIONAL_APPROVAL
+  REQUESTED_REVIEW
+  REJECTED
+  FAILED
+}
+
+C) SUPPRIMER l'enum DeliberationDecision :
+
+Remplacer par AppreciationDecision dans le code
+(garder l'enum uniquement une fois)
+
+enum AppreciationDecision {
+  APPROVED
+  APPROVED_WITH_MENTION
+  CONDITIONAL_APPROVAL
+  REQUESTED_REVIEW
+  REJECTED
+}
+
+D) MODÈLE Theme - SIMPLIFIER les champs :
+
+model Theme {
+  id          BigInt      @id @default(autoincrement())
+  studentId   BigInt      @map("student_id")
+  title       String      @db.VarChar(500)
+  titleNormalized String? @map("title_normalized")
+  description String?     @db.Text
+  status      ThemeStatus @default(PENDING)
+
+  // Scores similarité thématique (vérifier doublon)
+  themeSimilarityScore Decimal? @map("theme_similarity_score")
+  themeSignature       String?  @map("theme_signature")
+
+  // Votes parallèles (v2)
+  // Teacher (Chef de Département)
+  teacherVote       String?   @map("teacher_vote")          // 'approved' | 'rejected'
+  teacherComment    String?   @map("teacher_comment") @db.Text
+  teacherVotedAt    DateTime? @map("teacher_voted_at")
+
+  // DA (Direction Académique)
+  daVote            String?   @map("da_vote")               // 'approved' | 'rejected'
+  daComment         String?   @map("da_comment") @db.Text
+  daVotedAt         DateTime? @map("da_voted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  student     User       @relation("StudentThemes", fields: [studentId], references: [id])
+  documents   Document[]
+
+  @@index([studentId])
+  @@index([status])
+  @@map("themes")
+}
+
+SUPPRIMER les champs :
+- moderatedByCDId / moderatedByDAId
+- cdDecision / cdComment / cdValidatedAt
+- daDecision / daComment / daValidatedAt
+- final_score / comment / note (ces champs ne doivent PAS être dans Theme)
+
+E) MODÈLE FinalAppreciation - ACTIVER (v2) :
+
+model FinalAppreciation {
+  id         BigInt @id @default(autoincrement())
+  documentId BigInt @unique @map("document_id")
+
+  // Teacher (Chef de Département)
+  teacherId        BigInt?              @map("teacher_id")
+  teacherDecision  AppreciationDecision? @map("teacher_decision")
+  teacherComment   String?              @map("teacher_comment") @db.Text
+  teacherDecidedAt DateTime?            @map("teacher_decided_at")
+
+  // DA (Direction Académique)
+  daId        BigInt?              @map("da_id")
+  daDecision  AppreciationDecision? @map("da_decision")
+  daComment   String?              @map("da_comment") @db.Text
+  daDecidedAt DateTime?            @map("da_decided_at")
+
+  // Décision finale (calculée quand les 2 ont voté)
+  finalDecision AppreciationDecision? @map("final_decision")
+  mention       String?               @db.VarChar(100)
+  finalizedAt   DateTime?             @map("finalized_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  document  Document @relation(fields: [documentId], references: [id])
+  teacher   User?    @relation("TeacherAppreciation", fields: [teacherId], references: [id])
+  da        User?    @relation("DAAppreciation", fields: [daId], references: [id])
+
+  @@index([teacherId])
+  @@index([daId])
+  @@map("final_appreciations")
+}
+
+F) SUPPRIMER le modèle Deliberation entièrement :
+
+  # Pas de Deliberation en v2 (remplacé par FinalAppreciation)
+
+G) MIGRER :
+
+  npx prisma migrate dev --name migrate-to-v2-workflow
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 2 — RÉÉCRIRE src/server/themes.ts
+═══════════════════════════════════════════════════════════════
+
+SUPPRIMER les fonctions :
+- validateThemeCd()
+- validateThemeDa()
+
+AJOUTER une fonction UNIQUE :
+
+export async function validateThemeVotingV2(
+  themeId: bigint,
+  voterId: bigint,
+  decision: 'approved' | 'rejected',
+  comment: string
+): Promise<Theme> {
+  
+  // 1. Récupérer le thème
+  const theme = await prisma.theme.findUnique({
+    where: { id: themeId },
+    include: { student: true }
+  });
+
+  if (!theme) {
+    throw new ApiError(404, 'Theme not found');
+  }
+
+  if (theme.status !== 'PENDING_VALIDATION') {
+    throw new ApiError(409, `Cannot vote on theme with status ${theme.status}`);
+  }
+
+  // 2. Déterminer le rôle du votant
+  const voter = await prisma.user.findUnique({ where: { id: voterId } });
+  if (!voter || !['TEACHER', 'DA', 'ADMIN'].includes(voter.role)) {
+    throw new ApiError(403, 'Only TEACHER or DA can vote');
+  }
+
+  // 3. Enregistrer le vote
+  const updatedTheme = await prisma.theme.update({
+    where: { id: themeId },
+    data: voter.role === 'TEACHER' ? {
+      teacherVote: decision,
+      teacherComment: comment,
+      teacherVotedAt: new Date()
+    } : {
+      daVote: decision,
+      daComment: comment,
+      daVotedAt: new Date()
+    }
+  });
+
+  // 4. Calculer la décision finale si les 2 ont voté
+  if (updatedTheme.teacherVote && updatedTheme.daVote) {
+    const finalStatus = 
+      updatedTheme.teacherVote === 'approved' && updatedTheme.daVote === 'approved'
+        ? 'VALIDATED'
+        : 'REJECTED';
+
+    const finalTheme = await prisma.theme.update({
+      where: { id: themeId },
+      data: { status: finalStatus }
+    });
+
+    // Notifier l'étudiant
+    await notifyStudent(theme.studentId, {
+      type: finalStatus === 'VALIDATED' ? 'THEME_VALIDATED' : 'THEME_REJECTED',
+      themeId,
+      message: finalStatus === 'VALIDATED'
+        ? `Votre thème "${theme.title}" a été validé. Vous pouvez déposer votre mémoire.`
+        : `Votre thème "${theme.title}" a été rejeté.`
+    });
+
+    return finalTheme;
+  }
+
+  return updatedTheme;
+}
+
+AUSSI AJOUTER une fonction pour vérifier les doublons :
+
+export async function checkThemeSimilarity(title: string): Promise<ThemeSimilarityMatch[]> {
+  // Implémenter la logique de comparaison sémantique
+  // (utiliser les algos plagiat-detector.ts)
+  // Retourner { themeId, similarity%, title }
+}
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 3 — RÉÉCRIRE src/server/documents.ts
+═══════════════════════════════════════════════════════════════
+
+A) FONCTION createDocument (prérequis v2) :
+
+export async function createDocument(
+  studentId: bigint,
+  file: File
+): Promise<Document> {
+  
+  // 1. Récupérer le thème VALIDATED de l'étudiant
+  const theme = await prisma.theme.findFirst({
+    where: {
+      studentId,
+      status: 'VALIDATED'  // ← SEUL STATUT ACCEPTÉ en v2
+    }
+  });
+
+  if (!theme) {
+    throw new ApiError(403, 
+      'You must have a VALIDATED theme before uploading a document. ' +
+      'Status must be VALIDATED (both Teacher and DA approved).');
+  }
+
+  // 2. Valider le fichier (MIME, taille, etc.)
+  const checksum = await calculateSHA256(file);
+  
+  // 3. Créer le document
+  const document = await prisma.document.create({
+    data: {
+      themeId: theme.id,
+      studentId,
+      originalName: file.name,
+      mimeType: file.type,
+      fileSize: BigInt(file.size),
+      checksum,
+      documentStatus: 'SUBMITTED'
+    }
+  });
+
+  // 4. Stocker le fichier
+  await storeFile(document.id, file);
+
+  // 5. Lancer l'analyse (asynchrone, NON bloquante)
+  await queuePlagiarismAnalysis(document.id);
+
+  return document;
+}
+
+B) FONCTION analyzeDocument (après upload) :
+
+export async function analyzeDocument(
+  documentId: bigint
+): Promise<SimilarityReport> {
+  
+  // 1. Récupérer le document + thème
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+    include: { theme: true }
+  });
+
+  if (!document) throw new ApiError(404, 'Document not found');
+
+  // 2. Marquer comme ANALYSIS_IN_PROGRESS
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { documentStatus: 'ANALYSIS_IN_PROGRESS' }
+  });
+
+  try {
+    // 3. Extraire le texte du PDF
+    const text = await extractTextFromPDF(document.storagePath);
+
+    // 4. Analyser le plagiat (algos)
+    const scores = await analyzePlagiarism(text, {
+      referenceDocuments: await getReferenceDocuments(),
+      detectedTheme: document.theme.title
+    });
+
+    // 5. Créer le rapport
+    const report = await prisma.similarityReport.create({
+      data: {
+        documentId,
+        globalSimilarity: new Decimal(scores.combined),
+        cosineScore: new Decimal(scores.cosine),
+        jaccardScore: new Decimal(scores.jaccard),
+        ngramScore: new Decimal(scores.ngram),
+        winnowingScore: new Decimal(scores.winnowing),
+        lcsScore: new Decimal(scores.lcs),
+        styleScore: new Decimal(scores.style),
+        simhashScore: new Decimal(scores.simhash),
+        semanticScore: scores.semantic ? new Decimal(scores.semantic) : null,
+        riskLevel: scores.combined >= 0.70 ? 'high' : scores.combined >= 0.30 ? 'medium' : 'low',
+        flagged: scores.combined >= 0.20,
+        matchedSources: JSON.stringify(scores.matchedSources || []),
+        highlightedSegments: JSON.stringify(scores.highlightedSegments || {}),
+        analyzedAt: new Date()
+      }
+    });
+
+    // 6. Mettre à jour le statut du document
+    const finalStatus = scores.combined >= 0.20 ? 'FLAGGED_PLAGIARISM' : 'CLEAN';
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { documentStatus: finalStatus }
+    });
+
+    // 7. Notifier Teacher + DA + étudiant
+    await notifyMultiple([
+      { userId: /* Teacher */, type: 'ANALYSIS_COMPLETE', documentId },
+      { userId: /* DA */, type: 'ANALYSIS_COMPLETE', documentId },
+      { 
+        studentId: document.studentId,
+        type: finalStatus === 'FLAGGED_PLAGIARISM' ? 'DOCUMENT_FLAGGED' : 'DOCUMENT_CLEAN',
+        documentId,
+        score: scores.combined
+      }
+    ]);
+
+    return report;
+  } catch (error) {
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { documentStatus: 'FAILED' }
+    });
+    throw error;
+  }
+}
+
+C) SUPPRIMER la logique hybride :
+
+  # Supprimer shouldAutoValidateByChefDept()
+  # Supprimer shouldAutoValidateByDA()
+  # Supprimer tous les vérifications VALIDATED_CD / VALIDATED_DA
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 4 — AJOUTER LA ROUTE /final-appreciation
+═══════════════════════════════════════════════════════════════
+
+Créer : src/app/api/documents/[id]/final-appreciation/route.ts
+
+export async function POST(request: Request, { params }: { params: { id: string } }) {
+  
+  const { decision, comment, mention } = await request.json();
+  const user = await requireAuth(request);
+  
+  if (!['TEACHER', 'DA', 'ADMIN'].includes(user.role)) {
+    return errorResponse(403, 'Only TEACHER or DA can appreciate');
+  }
+
+  const documentId = BigInt(params.id);
+
+  // 1. Récupérer le document et son rapport
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+    include: { similarityReport: true, finalAppreciation: true }
+  });
+
+  if (!document) {
+    return errorResponse(404, 'Document not found');
+  }
+
+  // 2. Vérifier le prérequis (document doit être CLEAN ou FLAGGED analysé)
+  if (!['CLEAN', 'FLAGGED_PLAGIARISM'].includes(document.documentStatus)) {
+    return errorResponse(409, `Cannot appreciate document with status ${document.documentStatus}`);
+  }
+
+  // 3. Upsert FinalAppreciation (créer si n'existe pas, mettre à jour sinon)
+  let appreciation = document.finalAppreciation;
+  if (!appreciation) {
+    appreciation = await prisma.finalAppreciation.create({
+      data: { documentId }
+    });
+  }
+
+  // 4. Enregistrer le vote
+  const isTeacher = user.role === 'TEACHER' || (user.role === 'ADMIN' && !appreciation.teacherDecision);
+  const isDA = user.role === 'DA' || (user.role === 'ADMIN' && !appreciation.daDecision);
+
+  const updateData: any = {};
+  
+  if (isTeacher || user.role === 'ADMIN') {
+    updateData.teacherId = user.id;
+    updateData.teacherDecision = decision;
+    updateData.teacherComment = comment;
+    updateData.teacherDecidedAt = new Date();
+  }
+  
+  if (isDA || user.role === 'ADMIN') {
+    updateData.daId = user.id;
+    updateData.daDecision = decision;
+    updateData.daComment = comment;
+    updateData.daDecidedAt = new Date();
+  }
+
+  const updatedAppreciation = await prisma.finalAppreciation.update({
+    where: { id: appreciation.id },
+    data: updateData
+  });
+
+  // 5. Calculer la décision finale si les 2 ont voté
+  if (updatedAppreciation.teacherDecision && updatedAppreciation.daDecision) {
+    // Règle : les 2 doivent approuver pour approuver
+    const canApprove = 
+      updatedAppreciation.teacherDecision === 'APPROVED' &&
+      updatedAppreciation.daDecision === 'APPROVED';
+
+    const finalDecision = canApprove ? 'APPROVED' : 
+      (updatedAppreciation.teacherDecision === 'REJECTED' || 
+       updatedAppreciation.daDecision === 'REJECTED' ? 'REJECTED' : decision);
+
+    const finalAppreciation = await prisma.finalAppreciation.update({
+      where: { id: appreciation.id },
+      data: {
+        finalDecision,
+        mention: mention || null,
+        finalizedAt: new Date()
+      }
+    });
+
+    // Mettre à jour le statut du document
+    const newDocumentStatus = canApprove ? 'APPROVED' : 'REJECTED';
+    await prisma.document.update({
+      where: { id: documentId },
+      data: { documentStatus: newDocumentStatus }
+    });
+
+    // Notifier l'étudiant
+    const doc = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: { student: true }
+    });
+    
+    await notifyStudent(doc!.studentId, {
+      type: newDocumentStatus === 'APPROVED' ? 'APPRECIATION_APPROVED' : 'APPRECIATION_REJECTED',
+      documentId,
+      message: newDocumentStatus === 'APPROVED'
+        ? `Votre mémoire a été approuvé. Vous êtes autorisé à faire la soutenance.`
+        : `Votre mémoire a été rejeté. Veuillez contacter le jury pour les détails.`,
+      mention: mention || null
+    });
+
+    return successResponse(finalAppreciation);
+  }
+
+  return successResponse(updatedAppreciation);
+}
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 5 — METTRE À JOUR TOUTE LA DOCUMENTATION
+═══════════════════════════════════════════════════════════════
+
+A) METTRE À JOUR workflow.md :
+
+Section 1.2 (Validation thème) :
+- Remplacer tout le contenu pour refléter UNIQUEMENT v2
+- Supprimer mentions de VALIDATED_CD et VALIDATED_DA
+- Clarifier que Teacher ET DA votent en parallèle sur PENDING_VALIDATION
+
+Section 1.7 (Upload document) :
+- Clarifier que prérequis = thème avec statut VALIDATED (pas VALIDATED_DA)
+
+Section 2.3 et 3.5 (Appréciation finale) :
+- Documenter `/api/documents/{id}/final-appreciation`
+- Expliquer que décisions sont : APPROVED, APPROVED_WITH_MENTION, etc.
+- Supprimer mentions de Deliberation
+
+B) METTRE À JOUR sources.md :
+
+AJOUTER en début :
+
+⚠️ **IMPORTANT** : Ce fichier documente l'architecture Handal v1 originale.
+L'implémentation actuelle a migré vers v2 (validation conjointe).
+Voir workflow.md pour la documentation à jour.
+
+C) METTRE À JOUR roadmap.md :
+
+Remplacer les phases v1 par les phases v2 :
+- Phase 0 : Auth v2 ✅
+- Phase 1 : Thème validation v2 ✅
+- Phase 2 : Document upload v2 ✅
+- Phase 3 : Appréciation finale v2 ✅
+
+D) METTRE À JOUR COPILOT.md :
+
+Section "Workflow principal" :
+- Supprimer mentions v1
+- Utiliser UNIQUEMENT les états v2
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 6 — METTRE À JOUR LES TESTS
+═══════════════════════════════════════════════════════════════
+
+A) Mettre à jour tests/unit/themes.test.ts :
+
+Remplacer les tests v1 par :
+
+it('validateThemeVotingV2 - Teacher approuve', async () => {
+  const theme = await createTheme(student.id, { status: 'PENDING_VALIDATION' });
+  const result = await validateThemeVotingV2(theme.id, teacher.id, 'approved', 'Bon travail');
+  
+  expect(result.teacherVote).toBe('approved');
+  expect(result.status).toBe('PENDING_VALIDATION'); // Attend DA
+});
+
+it('validateThemeVotingV2 - Teacher + DA approuvent = VALIDATED', async () => {
+  const theme = await createTheme(student.id);
+  
+  await validateThemeVotingV2(theme.id, teacher.id, 'approved', '');
+  const result = await validateThemeVotingV2(theme.id, da.id, 'approved', '');
+  
+  expect(result.status).toBe('VALIDATED');
+});
+
+it('validateThemeVotingV2 - DA rejette = REJECTED', async () => {
+  const theme = await createTheme(student.id);
+  
+  await validateThemeVotingV2(theme.id, teacher.id, 'approved', '');
+  const result = await validateThemeVotingV2(theme.id, da.id, 'rejected', 'Not original enough');
+  
+  expect(result.status).toBe('REJECTED');
+});
+
+B) Mettre à jour tests/unit/documents.test.ts :
+
+it('createDocument - prérequis VALIDATED uniquement', async () => {
+  const theme = await createTheme(student.id, { status: 'PENDING_VALIDATION' });
+  const file = createMockFile();
+  
+  expect(createDocument(student.id, file)).rejects.toThrow('VALIDATED theme');
+});
+
+it('analyzeDocument - seuil 20% correctement appliqué', async () => {
+  const document = await createDocument(student.id, file);
+  const report = await analyzeDocument(document.id);
+  
+  expect(report.flagged).toBe(report.globalSimilarity >= 20);
+});
+
+C) Mettre à jour tests/unit/appreciation.test.ts (NOUVEAU) :
+
+it('finalAppreciation - Teacher approuve', async () => {
+  const doc = await createAndAnalyzeDocument();
+  const result = await appreciateDocument(doc.id, teacher.id, { 
+    decision: 'APPROVED', 
+    comment: 'Excellent travail' 
+  });
+  
+  expect(result.teacherDecision).toBe('APPROVED');
+});
+
+it('finalAppreciation - Teacher + DA approuvent = APPROVED', async () => {
+  const doc = await createAndAnalyzeDocument();
+  
+  await appreciateDocument(doc.id, teacher.id, { decision: 'APPROVED' });
+  const result = await appreciateDocument(doc.id, da.id, { decision: 'APPROVED' });
+  
+  expect(result.finalDecision).toBe('APPROVED');
+});
+
+D) Relancer les tests :
+
+  npm run test
+  # Tous les 51 tests doivent passer (certains seront modifiés)
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 7 — MIGRATION BD ET SEED
+═══════════════════════════════════════════════════════════════
+
+A) Générer et appliquer la migration :
+
+  npx prisma migrate dev --name remove-v1-workflow
+
+B) Mettre à jour prisma/seed.js :
+
+Créer un thème dans l'état v2 (VALIDATED) :
+
+const theme = await prisma.theme.create({
+  data: {
+    studentId: student.id,
+    title: 'AI in Education',
+    status: 'VALIDATED',  // ← Directement VALIDATED pour test
+    teacherVote: 'approved',
+    daVote: 'approved',
+    teacherVotedAt: new Date(),
+    daVotedAt: new Date()
+  }
+});
+
+C) Relancer le seed :
+
+  npx prisma db seed
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 8 — VERIFICATION FINALE
+═══════════════════════════════════════════════════════════════
+
+Checklist avant merge :
+
+  □ Git branches créées (backup + feature)
+  □ schema.prisma nettoyé (v2 uniquement)
+  □ Migration appliquée sans erreur
+  □ src/server/themes.ts reécrit
+  □ src/server/documents.ts reécrit
+  □ /final-appreciation route créée et testée
+  □ Tous les tests passent (npm run test)
+  □ TypeScript propre (npx tsc --noEmit)
+  □ Doc mises à jour (workflow, sources, roadmap, COPILOT)
+  □ Login fonctionne (curl /api/login)
+  □ Seed fonctionne (npx prisma db seed)
+  □ Pas d'erreur tsc --noEmit
+
+═══════════════════════════════════════════════════════════════
+ÉTAPE 9 — COMMIT ET MERGE
+═══════════════════════════════════════════════════════════════
+
+Commit par étape :
+
+git add prisma/
+git commit -m "chore(db): schema migration v1→v2 workflow
+
+- Enum ThemeStatus : PENDING → PENDING_VALIDATION → VALIDATED/REJECTED
+- Enum DocumentStatus : unchanged
+- Enum AppreciationDecision : valide FinalAppreciation (remplace Deliberation)
+- Model Theme : votes parallèles (teacher/da), supprime CD/DA séquentiel
+- Model FinalAppreciation : v2 implémentation
+- Model Deliberation : supprimé
+- Migration : détecte et corrige les données existantes"
+
+git add src/server/themes.ts src/server/documents.ts
+git commit -m "feat: migration themes et documents vers v2
+
+- validateThemeVotingV2() : votes parallèles
+- createDocument() : prérequis = VALIDATED uniquement
+- analyzeDocument() : applique seuil 20% correctement
+- Notification parallèle à Teacher + DA
+- Logs d'audit complets"
+
+git add src/app/api/documents/*/final-appreciation/route.ts
+git commit -m "feat(api): implémenter /final-appreciation route v2
+
+- POST /api/documents/{id}/final-appreciation
+- Support votes parallèles Teacher + DA
+- Calcul décision finale après 2 votes
+- Notification étudiant"
+
+git add *.md
+git commit -m "docs: mettre à jour doc pour v2 uniquement
+
+- workflow.md : validation conjointe uniquement
+- sources.md : marquer comme legacy (v1)
+- roadmap.md : phases v2
+- COPILOT.md : états v2
+- Supprimer toute mention v1"
+
+git add tests/
+git commit -m "test: réécrire tests unitaires pour v2
+
+- Theme voting test v2
+- Document prerequisite test v2
+- FinalAppreciation test v2
+- Tous les 51+ tests passent"
+
+git checkout main
+git merge feature/migrate-to-v2-workflow --no-ff \
+  -m "feat: migrate handal to v2 workflow (validation conjointe)
+
+Fixes all 12 OpenCode issues:
+- ✅ Hybrid v1/v2 logic removed (themes.ts)
+- ✅ FinalAppreciation route implemented
+- ✅ Document upload prerequisite fixed (VALIDATED only)
+- ✅ Final score removed from Theme
+- ✅ ThemeStatus enum cleaned (4 values only)
+- ✅ Deliberation removed (FinalAppreciation only)
+- ✅ Documentation aligned (workflow v2 only)
+- ✅ Routes documented and implemented
+- ✅ Threshold 20% applied consistently
+- ✅ All tests updated and passing
+
+Breaking changes:
+- Theme.cdDecision removed
+- Theme.daDecision removed
+- Deliberation model removed
+- Old v1 routes removed"
+
+git push origin main
+
+═══════════════════════════════════════════════════════════════
+RÈGLES STRICTES
+═══════════════════════════════════════════════════════════════
+
+✅ OBLIGATOIRE
+- Créer les 2 branches Git AVANT tout changement
+- Migrer COMPLÈTEMENT vers v2 (pas de code hybride)
+- Conserver les 4 comptes de démo + mots de passe
+- Tous les tests doivent passer (51+)
+- TypeScript strict : npx tsc --noEmit = 0 erreur
+- Métadonnées de migration : avant/après, données affectées
+
+❌ INTERDIT
+- Ne pas laisser de code v1 en commentaires
+- Ne pas garder les vieux enums (DeliberationDecision)
+- Ne pas modifier les routes d'auth
+- Ne pas toucher aux dashboards sans test
+- Ne pas laisser de TODO ou FIXME sans issue associée
+
+⚠️ EN CAS D'ERREUR
+Si une migration échoue :
+
+  1. Montrer l'erreur complète
+  2. Proposer une correction (data migration, drop, etc.)
+  3. NE PAS continuer sans validation
+
+Si tout casse, revenir à stable :
+
+  git checkout backup/before-v2-migration
+  npx prisma migrate deploy
+  npx prisma generate
+
+═══════════════════════════════════════════════════════════════
+PROGRESSION ATTENDUE
+═══════════════════════════════════════════════════════════════
+
+Procède étape par étape.
+Après chaque étape :
+1. Montre les changements exacts (diff)
+2. Confirme que les tests passent
+3. Attends validation avant de continuer
+
+Commence par l'ÉTAPE 0 (Git) et confirme les branches créées.
