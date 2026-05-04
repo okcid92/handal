@@ -290,9 +290,11 @@ export async function POST(request: NextRequest) {
             }
 
             const filtered = filterInstitutionalContent(extractedText);
+            // Analyze theme on RAW text (unfiltered) for better keyword extraction
+            // Filtered content removes too much context (Ch1, institutional sections)
             const profile = analyzeTheme({
               name: file.name,
-              content: filtered.filteredContent,
+              content: extractedText,
             });
             const cover = extractCoverMetadata(extractedText);
 
