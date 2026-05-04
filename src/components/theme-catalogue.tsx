@@ -9,6 +9,7 @@ import {
   User,
   Calendar,
   RefreshCw,
+  ExternalLink,
 } from "lucide-react";
 import { apiFetch } from "@/lib/frontend-api";
 
@@ -185,7 +186,7 @@ export function ThemeCatalogue() {
         >
           {/* En-tête table */}
           <div
-            className="hidden gap-4 border-b px-5 py-3 text-[10px] font-bold uppercase tracking-widest md:grid md:grid-cols-[1fr_160px_100px_110px]"
+            className="hidden gap-4 border-b px-5 py-3 text-[10px] font-bold uppercase tracking-widest md:grid md:grid-cols-[1fr_160px_100px_100px_50px]"
             style={{
               borderColor: "var(--line)",
               color: "var(--text-soft)",
@@ -196,6 +197,7 @@ export function ThemeCatalogue() {
             <span>Auteur · Filière</span>
             <span>Technologies</span>
             <span>Année</span>
+            <span></span>
           </div>
 
           {/* Lignes */}
@@ -203,16 +205,31 @@ export function ThemeCatalogue() {
             {entries.map((entry) => (
               <div
                 key={entry.id}
-                className="grid gap-3 px-5 py-4 transition hover:bg-[#faf7f4] md:grid-cols-[1fr_160px_100px_110px] md:gap-4"
+                className="grid gap-3 px-5 py-4 transition hover:bg-[#faf7f4] md:grid-cols-[1fr_160px_100px_100px_50px] md:gap-4"
               >
                 {/* Sujet */}
                 <div className="min-w-0">
-                  <p
-                    className="truncate text-sm font-semibold"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    {entry.subjectLabel ?? entry.originalName}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`/api/documents/${entry.id}/view`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="truncate text-sm font-semibold hover:underline"
+                      style={{ color: "var(--foreground)" }}
+                      title="Ouvrir le document"
+                    >
+                      {entry.subjectLabel ?? entry.originalName}
+                    </a>
+                    <a
+                      href={`/api/documents/${entry.id}/view`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0"
+                      title="Ouvrir le document"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" style={{ color: "var(--primary)" }} />
+                    </a>
+                  </div>
                   {entry.subjectLabel && (
                     <p
                       className="mt-0.5 truncate text-[10px]"
@@ -304,6 +321,20 @@ export function ThemeCatalogue() {
                   >
                     {entry.academicYear ?? "—"}
                   </span>
+                </div>
+
+                {/* Vue */}
+                <div className="flex items-center justify-center">
+                  <a
+                    href={`/api/documents/${entry.id}/view`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center rounded-lg border px-2 py-1 text-xs font-medium transition hover:bg-[#f5ece8]"
+                    style={{ borderColor: "var(--line)", color: "var(--primary)" }}
+                    title="Ouvrir le document"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
                 </div>
               </div>
             ))}
