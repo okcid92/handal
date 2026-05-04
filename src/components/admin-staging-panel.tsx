@@ -395,25 +395,36 @@ export function AdminStagingPanel() {
   }, [load]);
 
   async function handleApprove(id: string, edit: EditState) {
-    await apiFetch(`/api/admin/reference-docs/${id}/approve`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        subjectLabel: edit.subjectLabel,
-        techStack: edit.techStack
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-        authorName: edit.authorName || null,
-        department: edit.department || null,
-        academicYear: edit.academicYear || null,
-      }),
-    });
-    setNotice({
-      msg: "Document approuvé et indexé comme référence.",
-      ok: true,
-    });
-    setDocs((prev) => prev.filter((d) => d.id !== id));
-    setTimeout(() => setNotice(null), 4000);
+    try {
+      await apiFetch(`/api/admin/reference-docs/${id}/approve`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          subjectLabel: edit.subjectLabel,
+          techStack: edit.techStack
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
+          authorName: edit.authorName || null,
+          department: edit.department || null,
+          academicYear: edit.academicYear || null,
+        }),
+      });
+      // Remove from list and show success notice
+      setDocs((prev) => prev.filter((d) => d.id !== id));
+      setNotice({
+        msg: "Document approuvé et indexé comme référence.",
+        ok: true,
+      });
+    } catch (err) {
+      // Re-fetch to ensure UI is in sync with actual DB state
+      await load();
+      setNotice({
+        msg: err instanceof Error ? err.message : "Erreur lors de l'approbation",
+        ok: false,
+      });
+    } finally {
+      setTimeout(() => setNotice(null), 4000);
+    }
   }
 
   async function handleReject(id: string) {
