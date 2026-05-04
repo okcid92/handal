@@ -15,17 +15,17 @@ const payloadSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ document: string }> },
 ) {
   try {
     assertSameOrigin(request);
     const session = guardRole(request, ["TEACHER", "DA", "ADMIN"]);
-    const { id } = await params;
+    const { document: documentIdStr } = await params;
     const { decision, comment, mention } = payloadSchema.parse(
       await request.json(),
     );
 
-    const documentId = BigInt(id);
+    const documentId = BigInt(documentIdStr);
 
     const document = await prisma.document.findUnique({
       where: { id: documentId },
