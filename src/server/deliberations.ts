@@ -245,7 +245,11 @@ export async function createDeliberation(
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
     decider: row.decider_id
-      ? { id: BigInt(row.decider_id), name: row.decider_name, role: row.decider_role }
+      ? {
+          id: BigInt(row.decider_id),
+          name: row.decider_name,
+          role: row.decider_role,
+        }
       : undefined,
   };
 

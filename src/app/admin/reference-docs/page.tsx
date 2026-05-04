@@ -39,10 +39,12 @@ export default function AdminReferenceDocsPage() {
         </div>
 
         {tab === "upload" ? (
-          <AdminReferenceBulkUpload onUploadDone={() => {
-            setStagingKey(k => k + 1);
-            setTab("staging");
-          }} />
+          <AdminReferenceBulkUpload
+            onUploadDone={() => {
+              setStagingKey((k) => k + 1);
+              setTab("staging");
+            }}
+          />
         ) : (
           <AdminStagingPanel key={stagingKey} />
         )}

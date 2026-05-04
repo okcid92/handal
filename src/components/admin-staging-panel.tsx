@@ -379,12 +379,12 @@ export function AdminStagingPanel() {
 
   useEffect(() => {
     load();
-    
+
     // Auto-refresh every 5 seconds to catch newly uploaded documents
     const interval = setInterval(() => {
       load();
     }, 5000);
-    
+
     return () => clearInterval(interval);
   }, [load]);
 
