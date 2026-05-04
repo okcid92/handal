@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import {
   LayoutDashboard,
   Library,
+  BookOpen,
   ShieldCheck,
   FileSearch,
   Users,
@@ -160,6 +161,7 @@ export function AdminTracker({
           <h1 className="text-lg font-extrabold tracking-tight" style={{ color: "var(--foreground)" }}>
             {view === "dashboard" && "Tableau de bord"}
             {view === "reference-docs" && "Documents de référence"}
+            {view === "reference-library" && "Base de Référence"}
             {view === "staging" && "Zone de staging"}
             {view === "reports" && "Rapports système"}
             {view === "users" && "Utilisateurs"}
@@ -352,6 +354,18 @@ export function AdminTracker({
                 subtitle="Importez les mémoires des années précédentes"
               />
               <AdminReferenceBulkUpload onUploadDone={() => onNotify("Documents importés avec succès.")} />
+            </div>
+          )}
+
+          {/* ── Base de Référence ── */}
+          {view === "reference-library" && (
+            <div className="space-y-5">
+              <SectionHeader
+                icon={BookOpen}
+                title="Base de Référence"
+                subtitle="Documents approuvés et indexés pour la détection de plagiat"
+              />
+              <AdminStagingPanel showApprovedOnly />
             </div>
           )}
 

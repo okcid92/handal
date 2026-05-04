@@ -12,11 +12,12 @@ import {
 } from "lucide-react";
 import { HandalLogo } from "./HandalLogo";
 
-export type AdminView = "dashboard" | "reference-docs" | "staging" | "reports" | "users";
+export type AdminView = "dashboard" | "reference-docs" | "reference-library" | "staging" | "reports" | "users";
 
 const NAV: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { id: "reference-docs", label: "Documents de référence", icon: Library },
+  { id: "reference-library", label: "Base de Référence", icon: BookOpen },
   { id: "staging", label: "Zone de staging", icon: ShieldCheck },
   { id: "reports", label: "Rapports système", icon: FileSearch },
   { id: "users", label: "Utilisateurs", icon: Users },
@@ -150,14 +151,16 @@ export function AdminLayout({
             Ressources
           </p>
           <a
-            href="/admin/reference-docs"
+            href="/api/reference-docs"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all"
             style={{ color: "var(--foreground)", background: "transparent" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(123,36,56,0.07)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
           >
             <BookOpen className="h-4 w-4 shrink-0" />
-            <span className="flex-1 text-left">Base de Référence</span>
+            <span className="flex-1 text-left">API Référence</span>
           </a>
         </nav>
 
