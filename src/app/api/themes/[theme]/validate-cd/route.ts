@@ -4,7 +4,7 @@ import { z } from "zod";
 import { errorResponse } from "@/lib/api-errors";
 import { guardRole } from "@/lib/route-guards";
 import { assertSameOrigin } from "@/lib/security";
-import { validateThemeCd } from "@/server/themes";
+import { validateThemeVotingV2 } from "@/server/themes";
 
 const payloadSchema = z.object({
   decision: z.enum(["approved", "rejected"]),
@@ -21,17 +21,14 @@ export async function PATCH(
     const { theme } = await params;
     const payload = payloadSchema.parse(await request.json());
 
-    const updatedTheme = await validateThemeCd(
+    const updatedTheme = await validateThemeVotingV2(
       BigInt(theme),
       BigInt(session.userId),
       payload.decision,
-      payload.comment ?? null,
+      payload.comment ?? "",
     );
 
-    return NextResponse.json({
-      ok: true,
-      theme: updatedTheme,
-    });
+    return NextResponse.json({ ok: true, theme: updatedTheme });
   } catch (error) {
     return errorResponse(error);
   }

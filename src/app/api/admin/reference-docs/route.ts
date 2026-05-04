@@ -321,7 +321,7 @@ export async function POST(request: NextRequest) {
                   checksum,
                   extractedText: extractedText || null,
                   analysisStatus: "PENDING",
-                  documentStatus: "PENDING_ADMIN_REVIEW",
+                  documentStatus: "SUBMITTED",
                   isReference: false,
                   isFinal: false,
                   stagingMetadata: JSON.stringify(stagingMetadata),

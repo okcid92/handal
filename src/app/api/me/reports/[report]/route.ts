@@ -83,17 +83,7 @@ export async function GET(
             theme: { select: { title: true } },
           },
         },
-        deliberations: {
-          orderBy: { decidedAt: "desc" },
-          select: {
-            id: true,
-            decision: true,
-            notes: true,
-            committee: true,
-            decidedAt: true,
-            decider: { select: { name: true, role: true } },
-          },
-        },
+        // deliberations removed in v2 – replaced by FinalAppreciation
       },
     });
 
@@ -125,14 +115,7 @@ export async function GET(
           originalName: row.document.originalName,
           title: row.document.theme?.title ?? row.document.originalName,
         },
-        deliberations: row.deliberations.map((d) => ({
-          id: d.id.toString(),
-          decision: d.decision,
-          notes: d.notes,
-          committee: d.committee,
-          decidedAt: d.decidedAt.toISOString(),
-          decider: d.decider ? { name: d.decider.name, role: d.decider.role } : null,
-        })),
+        // deliberations removed in v2 – see FinalAppreciation instead
       },
     });
   } catch (error) {

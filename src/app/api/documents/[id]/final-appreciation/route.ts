@@ -15,20 +15,21 @@ const payloadSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     assertSameOrigin(request);
     const session = guardRole(request, ["TEACHER", "DA", "ADMIN"]);
+    const { id } = await params;
     const { decision, comment, mention } = payloadSchema.parse(
       await request.json(),
     );
 
-    const documentId = BigInt(params.id);
+    const documentId = BigInt(id);
 
     const document = await prisma.document.findUnique({
       where: { id: documentId },
-      include: { similarityReport: true, finalAppreciation: true, student: true },
+      include: { appreciation: true, student: true },
     });
 
     if (!document) {
@@ -43,9 +44,9 @@ export async function POST(
       );
     }
 
-    let appreciation = document.finalAppreciation;
+    let appreciation = document.appreciation;
     if (!appreciation) {
-      appreciation = await prisma.finalAppreciation.create({
+      appreciation = await prisma.appreciation.create({
         data: { documentId },
       });
     }
@@ -81,7 +82,7 @@ export async function POST(
       updateData.daDecidedAt = new Date();
     }
 
-    const updatedAppreciation = await prisma.finalAppreciation.update({
+    const updatedAppreciation = await prisma.appreciation.update({
       where: { id: appreciation.id },
       data: updateData,
     });
@@ -98,7 +99,7 @@ export async function POST(
           ? AppreciationDecision.REJECTED
           : decision;
 
-      const finalAppreciation = await prisma.finalAppreciation.update({
+      const appreciation = await prisma.appreciation.update({
         where: { id: appreciation.id },
         data: {
           finalDecision,
@@ -122,7 +123,7 @@ export async function POST(
         mention: mention || null,
       });
 
-      return NextResponse.json({ ok: true, data: finalAppreciation });
+      return NextResponse.json({ ok: true, data: appreciation });
     }
 
     return NextResponse.json({ ok: true, data: updatedAppreciation });

@@ -1,16 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorResponse } from "@/lib/api-errors";
-import { ApiError } from "@/lib/api-errors";
-import { assertSameOrigin } from "@/lib/security";
+import { z } from "zod";
 
-export async function PATCH(request: NextRequest) {
+import { errorResponse } from "@/lib/api-errors";
+import { guardRole } from "@/lib/route-guards";
+import { assertSameOrigin } from "@/lib/security";
+import { validateThemeVotingV2 } from "@/server/themes";
+
+const payloadSchema = z.object({
+  decision: z.enum(["approved", "rejected"]),
+  comment: z.string().trim().optional().nullable(),
+});
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ theme: string }> },
+) {
   try {
     assertSameOrigin(request);
-    throw new ApiError(
-      "La validation des thèmes est assurée uniquement par le Chef de Département. La DA intervient à l'étape Délibération.",
-      403,
-      "DA_THEME_VALIDATION_DISABLED",
+    const session = guardRole(request, ["DA", "ADMIN"]);
+    const { theme } = await params;
+    const payload = payloadSchema.parse(await request.json());
+
+    const updatedTheme = await validateThemeVotingV2(
+      BigInt(theme),
+      BigInt(session.userId),
+      payload.decision,
+      payload.comment ?? "",
     );
+
+    return NextResponse.json({ ok: true, theme: updatedTheme });
   } catch (error) {
     return errorResponse(error);
   }
