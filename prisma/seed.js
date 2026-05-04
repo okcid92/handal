@@ -9,7 +9,7 @@ const passwordHash = bcrypt.hashSync(seedPassword, 12);
 
 const accounts = [
   {
-    name: "Student Demo",
+    name: "Dicko Alou",
     ine: "N01331820231",
     email: null,
     password: passwordHash,
@@ -17,7 +17,7 @@ const accounts = [
     department: "MIAGE",
   },
   {
-    name: "Teacher Demo",
+    name: "Dr. Yacouba Ouatara",
     ine: null,
     email: "teacher@handal.local",
     password: passwordHash,
@@ -25,7 +25,7 @@ const accounts = [
     department: "Informatique",
   },
   {
-    name: "DA Demo",
+    name: "Dr. Lucien Zaongo",
     ine: null,
     email: "da@handal.local",
     password: passwordHash,
@@ -33,7 +33,7 @@ const accounts = [
     department: "Direction Academique",
   },
   {
-    name: "Admin Demo",
+    name: "Administration",
     ine: null,
     email: "admin@handal.local",
     password: passwordHash,
