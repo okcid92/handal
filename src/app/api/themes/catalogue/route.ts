@@ -45,12 +45,17 @@ export async function GET(request: NextRequest) {
           originalName: doc.originalName,
           subjectLabel: meta.subjectLabel ?? null,
           techStack: meta.techStack ?? [],
-          authorName: meta.authorName ?? doc.student.name,
-          department: meta.department ?? doc.student.department ?? null,
+          authorName: meta.authorName ?? null,
+          department: meta.department ?? null,
           academicYear: meta.academicYear ?? null,
           topKeywords: meta.topKeywords ?? [],
           indexedAt: doc.createdAt.toISOString(),
         };
+      })
+      // Only show documents with valid metadata (from staging approval)
+      .filter((e) => {
+        if (!e.subjectLabel || !e.authorName) return false;
+        return true;
       })
       .filter((e) => {
         if (year && e.academicYear !== year) return false;
