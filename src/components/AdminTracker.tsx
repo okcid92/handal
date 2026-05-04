@@ -8,6 +8,9 @@ import {
   Search,
   Eye,
   CheckCircle,
+  User,
+  BookOpen,
+  GraduationCap,
 } from "lucide-react";
 import { apiFetch } from "@/lib/frontend-api";
 import type { AdminView } from "./AdminLayout";
@@ -192,10 +195,25 @@ function ReferenceDocsView() {
                   </div>
                   <div>
                     <p className="font-medium" style={{ color: COLORS.text }}>{doc.originalName}</p>
-                    <div className="mt-1 flex flex-wrap gap-2 text-xs" style={{ color: COLORS.textMuted }}>
-                      {meta?.authorName && <span>👤 {meta.authorName}</span>}
-                      {meta?.subjectLabel && <span>📚 {meta.subjectLabel}</span>}
-                      {meta?.department && <span>🏫 {meta.department}</span>}
+                    <div className="mt-1 flex flex-wrap items-center gap-3 text-xs" style={{ color: COLORS.textMuted }}>
+                      {meta?.authorName && (
+                        <span className="flex items-center gap-1">
+                          <User className="h-3 w-3" />
+                          {meta.authorName}
+                        </span>
+                      )}
+                      {meta?.subjectLabel && (
+                        <span className="flex items-center gap-1">
+                          <BookOpen className="h-3 w-3" />
+                          {meta.subjectLabel}
+                        </span>
+                      )}
+                      {meta?.department && (
+                        <span className="flex items-center gap-1">
+                          <GraduationCap className="h-3 w-3" />
+                          {meta.department}
+                        </span>
+                      )}
                     </div>
                     <p className="mt-0.5 text-xs" style={{ color: COLORS.textMuted }}>
                       {Math.round(Number(doc.fileSize) / 1024)} Ko • {new Date(doc.createdAt).toLocaleDateString("fr-FR")}
