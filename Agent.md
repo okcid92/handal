@@ -5,12 +5,14 @@ Read this file at the start of every work session.
 ## Startup
 
 ### First thing to do
+
 1. Read this file entirely
 2. Open `contexts/project-overview.md` to understand the Handal project
 3. Check `contexts/progress-tracer.md` to see development progress
 4. Review `contexts/ai-workflow-rules.md` for development process
 
 ### Before implementing a feature
+
 1. Read the feature spec in `contexts/features-spec/{feature}.md`
 2. Read `contexts/architecture-context.md` for technical structure
 3. Verify `contexts/code-standards.md` for conventions
@@ -22,14 +24,14 @@ Read this file at the start of every work session.
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 14+ (App Router) |
-| Language | TypeScript (strict) |
-| Styling | Tailwind CSS v4 |
-| Database | MySQL |
-| ORM | Prisma |
-| Auth | Custom (session-based) |
+| Layer     | Technology                   |
+| --------- | ---------------------------- |
+| Framework | Next.js 16.2.4+ (App Router) |
+| Language  | TypeScript (strict)          |
+| Styling   | Tailwind CSS v4              |
+| Database  | MySQL                        |
+| ORM       | Prisma                       |
+| Auth      | Custom (session-based)       |
 
 ## Critical Non-Negotiable Rules
 
@@ -52,16 +54,19 @@ REQUESTED_REVIEW, PENDING_ADMIN_REVIEW
 ## 3-Phase Workflow Handal
 
 ### Phase 1 — Theme
+
 - Student submits theme proposal
 - Auto-check duplicate (≥70% → reject)
 - Validation: TEACHER + DA (Direction Adjoint)
 
 ### Phase 2 — Document
+
 - PDF upload
 - Content filter (remove IBAM institutional content)
 - Analysis: TF-IDF + Cosine (40%) / Jaccard (30%) / N-gram (30%)
 
 ### Phase 3 — Verdict
+
 - Score < 20% → `CLEAN` → human appreciation
 - Score ≥ 20% → `FLAGGED_PLAGIARISM` → rewrite required
 
@@ -92,6 +97,7 @@ git commit -m "feat: implement {feature-name}
 ## Problem Management
 
 ### If a problem blocks
+
 1. Create issue file in `contexts/issues/to-be-fixed/`
 2. Update progress-tracer.md with blocker info
 3. Move to another task if possible
