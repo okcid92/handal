@@ -7,15 +7,15 @@ import { analyzeDocument } from "@/server/documents";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ document: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     assertSameOrigin(request);
     const session = guardTeacher(request);
-    const { document } = await params;
+    const { id } = await params;
 
     const result = await analyzeDocument(
-      BigInt(document),
+      BigInt(id),
       BigInt(session.userId),
     );
 

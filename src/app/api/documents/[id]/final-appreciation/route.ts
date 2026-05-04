@@ -23,14 +23,15 @@ function serializeBigInt<T>(value: T): T {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     assertSameOrigin(request);
     const session = guardRole(request, ["TEACHER", "DA", "ADMIN"]);
     const { decision, comment, mention } = payloadSchema.parse(await request.json());
 
-    const documentId = BigInt(params.id);
+    const { id } = await params;
+    const documentId = BigInt(id);
     const document = await prisma.document.findUnique({
       where: { id: documentId },
       include: { appreciation: true },

@@ -69,14 +69,14 @@ function buildStorageCandidates(storagePath: string) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ document: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     guardRole(request, ["TEACHER", "DA", "ADMIN"]);
-    const { document } = await params;
+    const { id } = await params;
 
     const record = await prisma.document.findUnique({
-      where: { id: BigInt(document) },
+      where: { id: BigInt(id) },
       select: {
         id: true,
         originalName: true,
