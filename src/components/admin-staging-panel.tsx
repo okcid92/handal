@@ -375,13 +375,19 @@ function StagingCard({
   );
 }
 
-export function AdminStagingPanel() {
+export function AdminStagingPanel({ showApprovedOnly = false, hideTabs = false }: { showApprovedOnly?: boolean; hideTabs?: boolean }) {
   const [tab, setTab] = useState<"pending" | "approved">("pending");
   const [docs, setDocs] = useState<StagingDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<{ msg: string; ok: boolean } | null>(
     null,
   );
+
+  useEffect(() => {
+    if (showApprovedOnly) {
+      setTab("approved");
+    }
+  }, [showApprovedOnly]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -455,12 +461,18 @@ export function AdminStagingPanel() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-serif text-3xl font-normal tracking-tight text-[#2b1d16]">
-            Documents de Référence
+            {showApprovedOnly || hideTabs 
+              ? (showApprovedOnly ? "Documents approuvés" : "En attente d'approbation")
+              : "Documents de Référence"}
           </h2>
           <p className="text-sm font-medium text-[#6c5448]">
-            {tab === "pending"
-              ? "Vérifiez et corrigez les métadonnées avant indexation"
-              : "Documents approuvés et indexés"}
+            {showApprovedOnly 
+              ? "Documents indexés dans la base de référence"
+              : hideTabs
+                ? "Vérifiez et corrigez les métadonnées avant indexation"
+                : (tab === "pending"
+                  ? "Vérifiez et corrigez les métadonnées avant indexation"
+                  : "Documents approuvés et indexés")}
           </p>
         </div>
         <button
@@ -477,25 +489,27 @@ export function AdminStagingPanel() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 rounded-xl border border-[#7b2438]/10 bg-[#faf7f4] p-1">
-        {[
-          { id: "pending", label: "En attente d'approbation" },
-          { id: "approved", label: "Approuvés et indexés" },
-        ].map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id as "pending" | "approved")}
-            className={`flex-1 rounded-lg px-4 py-2.5 text-xs font-bold transition ${
-              tab === t.id
-                ? "bg-[#7b2438] text-white"
-                : "text-[#6c5448] hover:bg-white/50"
-            }`}
-          >
-            {t.label} ({tab === t.id ? docs.length : "..."})
-          </button>
-        ))}
-      </div>
+      {(showApprovedOnly || hideTabs) ? null : (
+        <div className="flex gap-2 rounded-xl border border-[#7b2438]/10 bg-[#faf7f4] p-1">
+          {[
+            { id: "pending", label: "En attente d'approbation" },
+            { id: "approved", label: "Approuvés et indexés" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id as "pending" | "approved")}
+              className={`flex-1 rounded-lg px-4 py-2.5 text-xs font-bold transition ${
+                tab === t.id
+                  ? "bg-[#7b2438] text-white"
+                  : "text-[#6c5448] hover:bg-white/50"
+              }`}
+            >
+              {t.label} ({tab === t.id ? docs.length : "..."})
+            </button>
+          ))}
+        </div>
+      )}
 
       {notice && (
         <div
@@ -515,7 +529,19 @@ export function AdminStagingPanel() {
         </div>
       ) : docs.length === 0 ? (
         <div className="section-frame flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[#7b2438]/15 py-16 text-center">
-          {tab === "pending" ? (
+          {showApprovedOnly || (hideTabs && tab === "approved") ? (
+            <>
+              <CheckCircle className="h-10 w-10 text-green-500/60" />
+              <div>
+                <p className="text-sm font-bold text-[#2b1d16]">
+                  Aucun document dans la base de référence
+                </p>
+                <p className="mt-1 text-xs text-[#6c5448]">
+                  Importez et approuvez des documents pour commencer.
+                </p>
+              </div>
+            </>
+          ) : hideTabs || tab === "pending" ? (
             <>
               <CheckCircle className="h-10 w-10 text-amber-500/60" />
               <div>

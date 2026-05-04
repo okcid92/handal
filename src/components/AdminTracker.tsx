@@ -349,9 +349,10 @@ export function AdminTracker({
               <SectionHeader
                 icon={Library}
                 title="Documents de référence"
-                subtitle="Importez les mémoires des années précédentes"
+                subtitle="Base de référence pour la détection de plagiat"
               />
               <AdminReferenceBulkUpload onUploadDone={() => onNotify("Documents importés avec succès.")} />
+              <AdminStagingPanel showApprovedOnly />
             </div>
           )}
 
@@ -363,7 +364,7 @@ export function AdminTracker({
                 title="Zone de staging"
                 subtitle="Vérifiez et corrigez les métadonnées avant indexation"
               />
-              <AdminStagingPanel />
+              <AdminStagingPanel hideTabs />
             </div>
           )}
 

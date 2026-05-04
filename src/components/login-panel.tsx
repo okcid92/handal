@@ -12,7 +12,7 @@ type LoginResponse = {
   };
 };
 
-const DEMO_PASSWORD = "mon926732";
+const DEMO_PASSWORD = "Handal@2025!";
 
 const demoAccounts = {
   student: {

@@ -4,7 +4,7 @@ const { PrismaClient } = require("@prisma/client");
 
 const prisma = new PrismaClient();
 
-const seedPassword = process.env.SEED_PASSWORD || "mon926732";
+const seedPassword = process.env.SEED_PASSWORD || "Handal@2025!";
 const passwordHash = bcrypt.hashSync(seedPassword, 12);
 
 const accounts = [
