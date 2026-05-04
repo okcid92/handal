@@ -60,10 +60,12 @@ function StagingCard({
   doc,
   onApprove,
   onReject,
+  isApproved = false,
 }: {
   doc: StagingDocument;
   onApprove: (id: string, data: EditState) => Promise<void>;
   onReject: (id: string) => Promise<void>;
+  isApproved?: boolean;
 }) {
   // Parse JSON string if needed (Prisma returns string for JSON columns)
   let meta: StagingMetadata | null = null;
@@ -134,7 +136,8 @@ function StagingCard({
 
       <div className="grid gap-0 md:grid-cols-[1fr_220px]">
         {/* Champs éditables */}
-        <div className="space-y-4 p-5">
+        {!isApproved && (
+          <div className="space-y-4 p-5">
           {/* Sujet */}
           <div>
             <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
@@ -294,35 +297,39 @@ function StagingCard({
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={handleApprove}
-              disabled={approving || rejecting}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#7b2438] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#5f1b2a] disabled:opacity-50"
-            >
-              {approving ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              ) : (
-                <CheckCircle className="h-4 w-4" />
-              )}
-              Approuver et indexer
-            </button>
-            <button
-              type="button"
-              onClick={handleReject}
-              disabled={approving || rejecting}
-              className="inline-flex items-center gap-2 rounded-xl border-2 border-[#7b2438]/20 px-4 py-2.5 text-sm font-bold text-[#7b2438] transition hover:bg-[#f2d9e0] disabled:opacity-50"
-            >
-              {rejecting ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#7b2438]/30 border-t-[#7b2438]" />
-              ) : (
-                <XCircle className="h-4 w-4" />
-              )}
-              Rejeter
-            </button>
-          </div>
+          {!isApproved && (
+            <div className="flex gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleApprove}
+                disabled={approving || rejecting}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#7b2438] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#5f1b2a] disabled:opacity-50"
+              >
+                {approving ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                ) : (
+                  <CheckCircle className="h-4 w-4" />
+                )}
+                Approuver et indexer
+              </button>
+              <button
+                type="button"
+                onClick={handleReject}
+                disabled={approving || rejecting}
+                className="inline-flex items-center gap-2 rounded-xl border-2 border-[#7b2438]/20 px-4 py-2.5 text-sm font-bold text-[#7b2438] transition hover:bg-[#f2d9e0] disabled:opacity-50"
+              >
+                {rejecting ? (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#7b2438]/30 border-t-[#7b2438]" />
+                ) : (
+                  <XCircle className="h-4 w-4" />
+                )}
+                Rejeter
+              </button>
+            </div>
+          )}
         </div>
+
+          )}
 
         {/* Aperçu page de garde */}
         <div className="border-l border-[#7b2438]/10 bg-[#faf7f4] p-4 flex flex-col gap-3">
@@ -369,6 +376,7 @@ function StagingCard({
 }
 
 export function AdminStagingPanel() {
+  const [tab, setTab] = useState<"pending" | "approved">("pending");
   const [docs, setDocs] = useState<StagingDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<{ msg: string; ok: boolean } | null>(
@@ -378,17 +386,20 @@ export function AdminStagingPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const endpoint = tab === "pending" 
+        ? "/api/admin/reference-docs/staging"
+        : "/api/admin/reference-docs/approved";
       const data = await apiFetch<{
         ok: boolean;
         documents: StagingDocument[];
-      }>("/api/admin/reference-docs/staging");
+      }>(endpoint);
       setDocs(data.documents);
     } catch {
       setDocs([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [tab]);
 
   useEffect(() => {
     load();
@@ -444,10 +455,12 @@ export function AdminStagingPanel() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-serif text-3xl font-normal tracking-tight text-[#2b1d16]">
-            Staging Area
+            Documents de Référence
           </h2>
           <p className="text-sm font-medium text-[#6c5448]">
-            Vérifiez et corrigez les métadonnées avant indexation définitive
+            {tab === "pending"
+              ? "Vérifiez et corrigez les métadonnées avant indexation"
+              : "Documents approuvés et indexés"}
           </p>
         </div>
         <button
@@ -461,6 +474,27 @@ export function AdminStagingPanel() {
           />
           Actualiser
         </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 rounded-xl border border-[#7b2438]/10 bg-[#faf7f4] p-1">
+        {[
+          { id: "pending", label: "En attente d'approbation" },
+          { id: "approved", label: "Approuvés et indexés" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id as "pending" | "approved")}
+            className={`flex-1 rounded-lg px-4 py-2.5 text-xs font-bold transition ${
+              tab === t.id
+                ? "bg-[#7b2438] text-white"
+                : "text-[#6c5448] hover:bg-white/50"
+            }`}
+          >
+            {t.label} ({tab === t.id ? docs.length : "..."})
+          </button>
+        ))}
       </div>
 
       {notice && (
@@ -481,15 +515,31 @@ export function AdminStagingPanel() {
         </div>
       ) : docs.length === 0 ? (
         <div className="section-frame flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-[#7b2438]/15 py-16 text-center">
-          <CheckCircle className="h-10 w-10 text-green-500/60" />
-          <div>
-            <p className="text-sm font-bold text-[#2b1d16]">
-              Aucun document en attente
-            </p>
-            <p className="mt-1 text-xs text-[#6c5448]">
-              Tous les documents uploadés ont été traités.
-            </p>
-          </div>
+          {tab === "pending" ? (
+            <>
+              <CheckCircle className="h-10 w-10 text-amber-500/60" />
+              <div>
+                <p className="text-sm font-bold text-[#2b1d16]">
+                  Aucun document en attente
+                </p>
+                <p className="mt-1 text-xs text-[#6c5448]">
+                  Tous les documents ont été approuvés.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <CheckCircle className="h-10 w-10 text-green-500/60" />
+              <div>
+                <p className="text-sm font-bold text-[#2b1d16]">
+                  Aucun document approuvé
+                </p>
+                <p className="mt-1 text-xs text-[#6c5448]">
+                  Approuvez des documents pour les voir ici.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -499,6 +549,7 @@ export function AdminStagingPanel() {
               doc={doc}
               onApprove={handleApprove}
               onReject={handleReject}
+              isApproved={tab === "approved"}
             />
           ))}
         </div>
