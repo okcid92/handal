@@ -5,13 +5,15 @@ import {
   Library,
   Users,
   LogOut,
+  ShieldCheck,
 } from "lucide-react";
 
-export type AdminView = "dashboard" | "reference-docs" | "users";
+export type AdminView = "dashboard" | "reference-docs" | "staging" | "users";
 
 const NAV: { id: AdminView; label: string; icon: React.ElementType }[] = [
   { id: "dashboard", label: "Uploader un document", icon: Upload },
   { id: "reference-docs", label: "Documents de référence", icon: Library },
+  { id: "staging", label: "Zone de staging", icon: ShieldCheck },
   { id: "users", label: "Utilisateurs", icon: Users },
 ];
 

@@ -12,6 +12,7 @@ import {
 import { apiFetch } from "@/lib/frontend-api";
 import type { AdminView } from "./AdminLayout";
 import { AdminReferenceBulkUpload } from "./admin-reference-bulk-upload";
+import { AdminStagingPanel } from "./admin-staging-panel";
 
 const COLORS = {
   primary: "#7d1c2a",
@@ -53,7 +54,20 @@ export function AdminTracker({ view, onNotify }: Props) {
     <div className="p-6 sm:p-8">
       {view === "dashboard" && <DashboardView onNotify={onNotify} />}
       {view === "reference-docs" && <ReferenceDocsView />}
+      {view === "staging" && <StagingView />}
       {view === "users" && <UsersView />}
+    </div>
+  );
+}
+
+function StagingView() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-serif text-2xl font-normal tracking-tight" style={{ color: COLORS.text }}>Zone de staging</h1>
+        <p className="mt-1 text-sm" style={{ color: COLORS.textMuted }}>Vérifiez et corrigez les métadonnées avant indexation</p>
+      </div>
+      <AdminStagingPanel />
     </div>
   );
 }
