@@ -349,10 +349,9 @@ export function AdminTracker({
               <SectionHeader
                 icon={Library}
                 title="Documents de référence"
-                subtitle="Base de référence pour la détection de plagiat"
+                subtitle="Importez les mémoires des années précédentes"
               />
               <AdminReferenceBulkUpload onUploadDone={() => onNotify("Documents importés avec succès.")} />
-              <AdminStagingPanel showApprovedOnly />
             </div>
           )}
 
