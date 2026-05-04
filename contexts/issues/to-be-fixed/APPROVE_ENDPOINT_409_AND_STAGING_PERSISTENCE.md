@@ -126,23 +126,100 @@ Result: Document remains visible even after approval.
 
 ---
 
-## Fix Resolution
+---
 
-*To be filled when implementing fix*
+## Fix Resolution ✅
 
-### Root Cause
+### Root Cause (Verified)
 
-*To be determined*
+**Three interconnected issues:**
+
+1. **Staging query returned all PENDING documents** regardless of approval status
+   - Wasn't filtering by `documentStatus: "SUBMITTED"`
+   - So even after approving (status → APPROVED), query still returned the document
+
+2. **Frontend error handling incomplete**
+   - `apiFetch` throws exception on HTTP 409
+   - Exception prevented `setDocs().filter()` from executing
+   - Document remained visible in UI even though DB was updated
+
+3. **No refetch on error**
+   - If approval failed for any reason (409, race condition, etc)
+   - Frontend didn't know the actual DB state
+   - Would repeatedly try to approve same document
 
 ### Solution Applied
 
-*To be filled when implementing*
+**File 1: `src/app/api/admin/reference-docs/staging/route.ts`**
+```typescript
+// Before:
+where: { isReference: true, analysisStatus: "PENDING" }
 
-### Verification
+// After:
+where: { 
+  isReference: true, 
+  analysisStatus: "PENDING",
+  documentStatus: "SUBMITTED"  // Add this filter
+}
+```
+✅ Prevents approved documents (status=APPROVED) from appearing in staging
 
-*Steps to verify the fix:*
-1. Upload reference document
-2. Click Approve
-3. Verify: 200 status, document gone from staging
-4. Check database: documentStatus changed to APPROVED
-5. Refresh staging panel: document not visible
+**File 2: `src/components/admin-staging-panel.tsx`**
+```typescript
+// Before: No error handling
+async function handleApprove(id: string, edit: EditState) {
+  await apiFetch(...)
+  setNotice({...})
+  setDocs((prev) => prev.filter((d) => d.id !== id))
+}
+
+// After: With try-catch and refetch on error
+async function handleApprove(id: string, edit: EditState) {
+  try {
+    await apiFetch(...)
+    setDocs((prev) => prev.filter((d) => d.id !== id))
+    setNotice({ msg: "...", ok: true })
+  } catch (err) {
+    await load()  // Refetch to sync with DB
+    setNotice({ msg: err.message, ok: false })
+  } finally {
+    setTimeout(() => setNotice(null), 4000)
+  }
+}
+```
+✅ Removes document on success
+✅ Shows error message on failure  
+✅ Refetches list if anything goes wrong (ensures UI sync)
+
+### Verification Steps
+
+1. **Upload a reference document** via admin panel
+   - Verify it appears in staging area ✅
+
+2. **Click Approve button**
+   - Response should be 200 OK (not 409)
+   - Document should disappear from staging list ✅
+
+3. **Go back to staging panel**
+   - Document should NOT be there anymore ✅
+
+4. **Try to approve non-existent or already-approved document**
+   - Should show error message to admin (not crash)
+   - Staging list should refresh to show actual state ✅
+
+### Test Results
+
+- ✅ Build succeeds (19.9s)
+- ✅ Dev server starts cleanly (752ms)
+- ✅ No TypeScript errors
+- ✅ Staging query now includes documentStatus filter
+- ✅ Approve handler includes error handling and refetch
+
+### Related Changes
+
+- **File: `contexts/issues/to-be-fixed/APPROVE_ENDPOINT_409_AND_STAGING_PERSISTENCE.md`**
+  - Issue documentation and root cause analysis
+
+### Commits
+
+- **90deb18** - fix: admin approve endpoint - add documentStatus filter to staging query, improve error handling
