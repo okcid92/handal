@@ -11,6 +11,7 @@ import {
   User,
   BookOpen,
   GraduationCap,
+  Trash2,
 } from "lucide-react";
 import { apiFetch } from "@/lib/frontend-api";
 import type { AdminView } from "./AdminLayout";
@@ -151,13 +152,31 @@ function DashboardView({ onNotify }: { onNotify: (msg: string, ok?: boolean) => 
 function ReferenceDocsView() {
   const [docs, setDocs] = useState<ReferenceDoc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadDocs = useCallback(() => {
     apiFetch<{ ok: boolean; documents: ReferenceDoc[] }>("/api/admin/reference-docs/approved")
       .then((res) => setDocs(res.documents))
       .catch(() => setDocs([]))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadDocs();
+  }, [loadDocs]);
+
+  const handleDelete = async (docId: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer ce document ?")) return;
+    setDeleting(docId);
+    try {
+      await apiFetch(`/api/admin/reference-docs/${docId}`, { method: "DELETE" });
+      setDocs((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur de suppression");
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -220,15 +239,25 @@ function ReferenceDocsView() {
                     </p>
                   </div>
                 </div>
-                <a
-                  href={`/api/documents/${doc.id}/view`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:bg-[#f5ece8]"
-                  style={{ borderColor: COLORS.border, color: COLORS.primary }}
-                >
-                  Voir
-                </a>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleDelete(doc.id)}
+                    disabled={deleting === doc.id}
+                    className="rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:bg-red-50"
+                    style={{ borderColor: COLORS.border, color: "#dc2626" }}
+                  >
+                    {deleting === doc.id ? "..." : <Trash2 className="h-3.5 w-3.5" />}
+                  </button>
+                  <a
+                    href={`/api/documents/${doc.id}/view`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:bg-[#f5ece8]"
+                    style={{ borderColor: COLORS.border, color: COLORS.primary }}
+                  >
+                    Voir
+                  </a>
+                </div>
               </div>
             );
           })}
