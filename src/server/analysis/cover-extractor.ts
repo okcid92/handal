@@ -91,6 +91,11 @@ function cleanSubject(raw: string): string {
       /(option\s*:?[\s\-]?m\.?i\.?a\.?g\.?e|m\.?i\.?a\.?g\.?e|institut burkinab[eé]|ujkz|universit[eé][^,]*ki\-zerbo)/gi,
       "",
     )
+    // Tronquer si "SOMMAIRE", "RAPPORT", "LICENCE" ou autres mots parasites apparaissent en fin
+    .replace(
+      /\s+(rapport\s+de\s+stage|licence|sommaire|dedicace|table\s+des\s+matieres|remerciements|bibliographie|annexes|i\s+s?ommaire).*$/i,
+      "",
+    )
     .replace(/\s{2,}/g, " ")
     .trim();
   // Garde le texte original si le nettoyage a trop réduit
@@ -211,12 +216,16 @@ function extractSubjectByAnchors(cover: string): string | null {
         const firstSentenceEnd = cleaned.search(/\.(?=\s|$)/);
         if (firstSentenceEnd > 0) {
           const truncated = cleaned.slice(0, firstSentenceEnd).trim();
-          if (isValidSubject(truncated)) return truncated;
+          if (isValidSubject(truncated)) {
+            // Limit to 120 chars for frontend display
+            return truncated.length > 120 ? truncated.slice(0, 120).trim() : truncated;
+          }
         }
       }
 
       if (isValidSubject(cleaned)) {
-        return cleaned.length > 200 ? cleaned.slice(0, 200).trim() : cleaned;
+        // Limit to 120 chars for frontend display
+        return cleaned.length > 120 ? cleaned.slice(0, 120).trim() : cleaned;
       }
     }
   }

@@ -1,45 +1,62 @@
-# ai-workflow-rules.md — AI Development Process
+# ai-workflow-rules.md — Handal AI Development Process
 
-Define standardized process for AI agents contributing to Handal project.
+## Philosophy
 
-## Mandatory Alignment
+**Spec-driven development** > vibe coding. Always follow feature specs exactly.
 
-All development must adhere to:
-- 3-phase Handal workflow (Theme → Document → Verdict)
-- Critical non-negotiable rules (detectedTitle, content filter, thresholds, uppercase statuses)
-- Valid status list
-- IBAM brand color #6c5448
+## Development Flow
 
-## Task Execution Flow
+### 1. Before Starting Any Task
+```
+1. Read /Agent.md (at project root)
+2. Read contexts/features-spec/{feature}.md
+3. Check contexts/progress-tracer.md for current status
+4. Review contexts/architecture-context.md
+5. Review contexts/code-standards.md
+```
 
-### 1. Context Loading
-- Read all files in `contexts/` before starting any task
-- Verify current task aligns with 3-phase workflow
+### 2. During Implementation
+- Implement exactly as specified in the feature spec
+- Do not add extra features not in the spec
+- Do not skip any requirement
+- Use TypeScript strict mode
 
-### 2. Requirement Analysis
-- Map task to relevant workflow phase
-- Apply phase-specific rules (e.g., content filter before Phase 2 analysis)
+### 3. After Implementation
+- Verify against "check when done" section
+- Update progress-tracer.md to mark feature as completed
+- Commit all changes
 
-### 3. Implementation
-- Follow `code-standards.md` conventions
-- Use UI components per `ui-context.md`
-- Integrate analysis algorithms per `architecture-context.md`
+## Critical Rules
 
-### 4. Validation
-- Verify all statuses are UPPERCASE
-- Confirm `detectedTitle` is displayed (not ID/filename)
-- Check score thresholds (<20% = CLEAN, ≥20% = FLAGGED_PLAGIARISM)
-- Run lint/typecheck per project config
+1. **Always display `detectedTitle`** — never ID or filename
+2. **Always apply content filter** before any analysis
+3. Score < 20% → `CLEAN`
+4. Score ≥ 20% → `FLAGGED_PLAGIARISM`
+5. All statuses in UPPERCASE
 
-### 5. Documentation
-- Update `progress-tracer.md` with task status
-- Modify relevant context files if scope changes
+## Valid Statuses (from Prisma)
+
+```
+PENDING, PENDING_VALIDATION, VALIDATED_CD, VALIDATED_DA, VALIDATED, REJECTED
+DOCUMENT_SUBMITTED, ANALYSIS_PENDING, ANALYSIS_IN_PROGRESS, ANALYSIS_COMPLETE
+CLEAN, FLAGGED_PLAGIARISM, APPROVED, APPROVED_WITH_MENTION
+```
 
 ## Prohibited Actions
 
-- Skip `content-filter.ts` before analysis
+- Skip content filter before analysis
 - Use lowercase statuses
-- Display raw file IDs/filenames instead of `detectedTitle`
-- Include generic code unrelated to Handal
+- Display raw file IDs or filenames
 - Leave console.log or dead code
 - Commit without testing
+
+## Issue Management
+
+### Creating an Issue
+- Create file in `contexts/issues/to-be-fixed/`
+- Include: problem description, steps to reproduce, expected behavior
+
+### Fixing an Issue
+- Move fixed issue to `contexts/issues/fixed-issues/`
+- Add fix details to the issue file
+- Update progress-tracer.md
