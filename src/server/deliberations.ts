@@ -204,25 +204,50 @@ export async function createDeliberation(
     );
   }
 
-  const created = await prisma.deliberation.create({
-    data: {
-      similarityReportId: report.id,
-      decidedBy,
-      committee: payload.committee?.trim() || null,
-      decision: normalizeDecision(payload.decision),
-      notes: payload.notes?.trim() || null,
-      decidedAt: new Date(),
-    },
-    include: {
-      decider: {
-        select: {
-          id: true,
-          name: true,
-          role: true,
-        },
-      },
-    },
-  });
+  const decidedAt = new Date();
+  const decision = normalizeDecision(payload.decision);
+  const committee = payload.committee?.trim() || null;
+  const notes = payload.notes?.trim() || null;
+
+  // Use raw SQL since Deliberation model is not exposed in Prisma client
+  await prisma.$executeRaw`
+    INSERT INTO deliberations (similarity_report_id, decided_by, committee, decision, notes, decided_at, created_at, updated_at)
+    VALUES (${report.id}, ${decidedBy}, ${committee}, ${decision}, ${notes}, ${decidedAt}, ${decidedAt}, ${decidedAt})
+  `;
+
+  // Fetch the created deliberation with decider info
+  const rawCreated: any[] = await prisma.$queryRaw`
+    SELECT d.*, u.id AS decider_id, u.name AS decider_name, u.role AS decider_role
+    FROM deliberations d
+    LEFT JOIN users u ON u.id = d.decided_by
+    WHERE d.similarity_report_id = ${report.id} AND d.decided_by = ${decidedBy} AND d.decided_at = ${decidedAt}
+    ORDER BY d.created_at DESC
+    LIMIT 1
+  `;
+
+  if (!rawCreated || rawCreated.length === 0) {
+    throw new ApiError(
+      "Failed to create deliberation",
+      500,
+      "DELIBERATION_CREATE_FAILED",
+    );
+  }
+
+  const row = rawCreated[0];
+  const created = {
+    id: BigInt(row.id),
+    similarityReportId: BigInt(row.similarity_report_id),
+    decidedBy: BigInt(row.decided_by),
+    committee: row.committee,
+    decision: row.decision,
+    notes: row.notes,
+    decidedAt: new Date(row.decided_at),
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+    decider: row.decider_id
+      ? { id: BigInt(row.decider_id), name: row.decider_name, role: row.decider_role }
+      : undefined,
+  };
 
   logger.info("report.deliberated", {
     reportId: report.id.toString(),

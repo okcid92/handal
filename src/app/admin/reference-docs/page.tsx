@@ -9,6 +9,7 @@ type Tab = "upload" | "staging";
 
 export default function AdminReferenceDocsPage() {
   const [tab, setTab] = useState<Tab>("upload");
+  const [stagingKey, setStagingKey] = useState(0);
 
   return (
     <div className="app-shell min-h-screen px-6 py-8">
@@ -38,9 +39,12 @@ export default function AdminReferenceDocsPage() {
         </div>
 
         {tab === "upload" ? (
-          <AdminReferenceBulkUpload onUploadDone={() => setTab("staging")} />
+          <AdminReferenceBulkUpload onUploadDone={() => {
+            setStagingKey(k => k + 1);
+            setTab("staging");
+          }} />
         ) : (
-          <AdminStagingPanel />
+          <AdminStagingPanel key={stagingKey} />
         )}
       </div>
     </div>
