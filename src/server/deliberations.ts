@@ -1,4 +1,4 @@
-import { DeliberationDecision } from "@prisma/client";
+// DeliberationDecision enum was removed from Prisma client schema; use string literals instead
 import { constants } from "node:fs";
 import { access, copyFile, mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -20,11 +20,11 @@ export type DeliberationPayload = {
 function normalizeDecision(decision: DeliberationPayload["decision"]) {
   switch (decision) {
     case "final_validation":
-      return DeliberationDecision.FINAL_VALIDATION;
+      return "FINAL_VALIDATION";
     case "sanction":
-      return DeliberationDecision.SANCTION;
+      return "SANCTION";
     case "rewrite_required":
-      return DeliberationDecision.REWRITE_REQUIRED;
+      return "REWRITE_REQUIRED";
     default:
       throw new ApiError(
         "Invalid deliberation decision",
@@ -47,18 +47,6 @@ async function loadReport(reportId: bigint) {
           },
         },
       },
-      deliberations: {
-        orderBy: { decidedAt: "desc" },
-        include: {
-          decider: {
-            select: {
-              id: true,
-              name: true,
-              role: true,
-            },
-          },
-        },
-      },
     },
   });
 
@@ -66,10 +54,45 @@ async function loadReport(reportId: bigint) {
     throw new ApiError("Report not found", 404, "REPORT_NOT_FOUND");
   }
 
-  return report;
+  // Deliberations are stored in a separate table; fetch them explicitly
+  // Deliberations table exists in DB but may not be exposed in Prisma client types.
+  // Query via raw SQL and join the decider (user) for the caller.
+  const rawDeliberations: any[] = await prisma.$queryRaw`
+    SELECT d.*, u.id AS decider_id, u.name AS decider_name, u.role AS decider_role
+    FROM deliberations d
+    LEFT JOIN users u ON u.id = d.decided_by
+    WHERE d.similarity_report_id = ${report.id}
+    ORDER BY d.decided_at DESC
+  `;
+
+  const deliberations = rawDeliberations.map((row) => ({
+    id: BigInt(row.id),
+    similarityReportId: BigInt(row.similarity_report_id),
+    decidedBy: BigInt(row.decided_by),
+    committee: row.committee,
+    decision: row.decision,
+    notes: row.notes,
+    decidedAt: new Date(row.decided_at),
+    createdAt: new Date(row.created_at),
+    updatedAt: new Date(row.updated_at),
+    decider: row.decider_id
+      ? {
+          id: BigInt(row.decider_id),
+          name: row.decider_name,
+          role: row.decider_role,
+        }
+      : undefined,
+  }));
+
+  (report as any).deliberations = deliberations;
+
+  return report as any;
 }
 
-function buildReferenceStagingMetadata(extractedText: string, fallbackTitle?: string | null) {
+function buildReferenceStagingMetadata(
+  extractedText: string,
+  fallbackTitle?: string | null,
+) {
   const filtered = filterInstitutionalContent(extractedText);
   const profile = analyzeTheme({
     name: "validated-report",
@@ -79,7 +102,10 @@ function buildReferenceStagingMetadata(extractedText: string, fallbackTitle?: st
 
   return {
     subjectLabel:
-      fallbackTitle?.trim() || cover.subjectLabel || profile.subjectLabel || null,
+      fallbackTitle?.trim() ||
+      cover.subjectLabel ||
+      profile.subjectLabel ||
+      null,
     techStack: profile.techStack ?? [],
     authorName: cover.authorName ?? null,
     department: cover.department ?? null,
@@ -136,7 +162,7 @@ function serializeDeliberation(deliberation: {
   similarityReportId: bigint;
   decidedBy: bigint;
   committee: string | null;
-  decision: DeliberationDecision;
+  decision: string;
   notes: string | null;
   decidedAt: Date;
   createdAt: Date;
@@ -236,7 +262,10 @@ export async function validateReportByChefDept(
 
     let themeId = loadedReport.document.themeId;
     if (metadata?.subjectLabel) {
-      themeId = await findOrCreateReferenceTheme(metadata.subjectLabel, decidedBy);
+      themeId = await findOrCreateReferenceTheme(
+        metadata.subjectLabel,
+        decidedBy,
+      );
     }
 
     let promotedStoragePath: string | null = null;

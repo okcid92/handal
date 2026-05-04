@@ -43,6 +43,7 @@ export interface PlagiarismReport {
   analyzedAt: Date;
   maxSimilarity: number;
   avgSimilarity: number;
+  combined: number;
   results: SimilarityResult[];
   exclusionNote: string | null;
   filterResult: Pick<
@@ -488,6 +489,7 @@ export async function analyzePlagiarismReport(
     analyzedAt: new Date(),
     maxSimilarity,
     avgSimilarity,
+    combined: clamp01(maxSimilarity),
     results,
     exclusionNote: buildExclusionNote(filterResult),
     filterResult: {

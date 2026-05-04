@@ -55,11 +55,8 @@ export async function GET(request: NextRequest) {
                 id: true,
                 title: true,
                 status: true,
-                teacherApproval: true,
-                daApproval: true,
-                // champs legacy v1
-                validatedCdBy: true,
-                validatedDaBy: true,
+                teacherVote: true,
+                daVote: true,
                 updatedAt: true,
                 createdAt: true,
               },
@@ -100,11 +97,11 @@ export async function GET(request: NextRequest) {
               title: activeTheme.title,
               status: activeTheme.status,
               // v2 : votes simultanés
-              teacherApproval: activeTheme.teacherApproval,
-              daApproval: activeTheme.daApproval,
-              // v1 legacy : validé séquentiellement
-              validatedCd: activeTheme.validatedCdBy !== null,
-              validatedDa: activeTheme.validatedDaBy !== null,
+              teacherApproval: activeTheme.teacherVote !== null,
+              daApproval: activeTheme.daVote !== null,
+              // v1 legacy : no legacy fields here; expose false by default
+              validatedCd: false,
+              validatedDa: false,
             }
           : null,
       },

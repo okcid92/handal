@@ -100,7 +100,7 @@ const featureCards = [
   {
     title: "Intelligence sémantique",
     description:
-      "Score combiné plagiat seuil strict à 20 % et signalement automatique des cas critiques.",
+      "Score combiné plagiat + détection IA, seuil strict à 20 % et signalement automatique des cas critiques.",
     tag: "Analyse",
     icon: (
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

@@ -46,7 +46,7 @@ export async function POST(
 
     let appreciation = document.appreciation;
     if (!appreciation) {
-      appreciation = await prisma.appreciation.create({
+      appreciation = await prisma.finalAppreciation.create({
         data: { documentId },
       });
     }
@@ -82,7 +82,7 @@ export async function POST(
       updateData.daDecidedAt = new Date();
     }
 
-    const updatedAppreciation = await prisma.appreciation.update({
+    const updatedAppreciation = await prisma.finalAppreciation.update({
       where: { id: appreciation.id },
       data: updateData,
     });
@@ -94,12 +94,13 @@ export async function POST(
 
       const finalDecision = canApprove
         ? AppreciationDecision.APPROVED
-        : updatedAppreciation.teacherDecision === AppreciationDecision.REJECTED ||
+        : updatedAppreciation.teacherDecision ===
+              AppreciationDecision.REJECTED ||
             updatedAppreciation.daDecision === AppreciationDecision.REJECTED
           ? AppreciationDecision.REJECTED
           : decision;
 
-      const appreciation = await prisma.appreciation.update({
+      const finalizedAppreciation = await prisma.finalAppreciation.update({
         where: { id: appreciation.id },
         data: {
           finalDecision,
@@ -108,22 +109,28 @@ export async function POST(
         },
       });
 
-      const newDocumentStatus = canApprove ? DocumentStatus.APPROVED : DocumentStatus.REJECTED;
+      const newDocumentStatus = canApprove
+        ? DocumentStatus.APPROVED
+        : DocumentStatus.REJECTED;
       await prisma.document.update({
         where: { id: documentId },
         data: { documentStatus: newDocumentStatus },
       });
 
       await notifyStudent(document.studentId, {
-        type: newDocumentStatus === DocumentStatus.APPROVED ? "APPRECIATION_APPROVED" : "APPRECIATION_REJECTED",
+        type:
+          newDocumentStatus === DocumentStatus.APPROVED
+            ? "APPRECIATION_APPROVED"
+            : "APPRECIATION_REJECTED",
         documentId,
-        message: newDocumentStatus === DocumentStatus.APPROVED
-          ? `Votre mémoire a été approuvé. Vous êtes autorisé à faire la soutenance.`
-          : `Votre mémoire a été rejeté. Veuillez contacter le jury pour les détails.`,
+        message:
+          newDocumentStatus === DocumentStatus.APPROVED
+            ? `Votre mémoire a été approuvé. Vous êtes autorisé à faire la soutenance.`
+            : `Votre mémoire a été rejeté. Veuillez contacter le jury pour les détails.`,
         mention: mention || null,
       });
 
-      return NextResponse.json({ ok: true, data: appreciation });
+      return NextResponse.json({ ok: true, data: finalizedAppreciation });
     }
 
     return NextResponse.json({ ok: true, data: updatedAppreciation });
@@ -134,7 +141,12 @@ export async function POST(
 
 async function notifyStudent(
   studentId: bigint,
-  payload: { type: string; documentId: bigint; message: string; mention?: string | null },
+  payload: {
+    type: string;
+    documentId: bigint;
+    message: string;
+    mention?: string | null;
+  },
 ) {
   // Implementation simple de notification (logger)
   console.log(`Notification to student ${studentId}: ${payload.message}`);

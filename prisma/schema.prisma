@@ -25,34 +25,35 @@ model User {
   referenceDocuments     ReferenceDocument[] @relation("ReferenceUploadedBy")
   reportsGenerated       SimilarityReport[]
   themesOwned            Theme[]             @relation("StudentThemes")
+  deliberations          Deliberation[]
 
   @@map("users")
 }
 
 model Theme {
-  id                   BigInt      @id @default(autoincrement())
-  studentId            BigInt      @map("student_id")
-  title                String      @db.VarChar(500)
-  titleNormalized      String?     @unique @map("title_normalized")
-  description          String?     @db.Text
-  status               ThemeStatus @default(PENDING)
+  id              BigInt      @id @default(autoincrement())
+  studentId       BigInt      @map("student_id")
+  title           String      @db.VarChar(500)
+  titleNormalized String?     @unique @map("title_normalized")
+  description     String?     @db.Text
+  status          ThemeStatus @default(PENDING)
 
-  themeSimilarityScore Decimal?    @map("theme_similarity_score") @db.Decimal(5, 2)
-  themeSignature       String?     @map("theme_signature") @db.LongText
+  themeSimilarityScore Decimal? @map("theme_similarity_score") @db.Decimal(5, 2)
+  themeSignature       String?  @map("theme_signature") @db.LongText
 
-  teacherVote          String?     @map("teacher_vote")
-  teacherComment       String?     @map("teacher_comment") @db.Text
-  teacherVotedAt       DateTime?   @map("teacher_voted_at")
+  teacherVote    String?   @map("teacher_vote")
+  teacherComment String?   @map("teacher_comment") @db.Text
+  teacherVotedAt DateTime? @map("teacher_voted_at")
 
-  daVote               String?     @map("da_vote")
-  daComment            String?     @map("da_comment") @db.Text
-  daVotedAt            DateTime?   @map("da_voted_at")
+  daVote    String?   @map("da_vote")
+  daComment String?   @map("da_comment") @db.Text
+  daVotedAt DateTime? @map("da_voted_at")
 
-  createdAt            DateTime    @default(now()) @map("created_at")
-  updatedAt            DateTime    @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  student              User        @relation("StudentThemes", fields: [studentId], references: [id], map: "themes_student_id_fkey")
-  documents            Document[]
+  student   User       @relation("StudentThemes", fields: [studentId], references: [id], map: "themes_student_id_fkey")
+  documents Document[]
 
   @@index([studentId])
   @@index([status])
@@ -60,30 +61,30 @@ model Theme {
 }
 
 model Document {
-  id                  BigInt         @id @default(autoincrement())
-  themeId             BigInt?        @map("theme_id")
-  studentId           BigInt         @map("student_id")
-  originalName        String         @map("original_name")
-  storagePath         String         @map("storage_path")
-  mimeType            String         @map("mime_type")
-  fileSize            BigInt         @map("file_size")
+  id                  BigInt             @id @default(autoincrement())
+  themeId             BigInt?            @map("theme_id")
+  studentId           BigInt             @map("student_id")
+  originalName        String             @map("original_name")
+  storagePath         String             @map("storage_path")
+  mimeType            String             @map("mime_type")
+  fileSize            BigInt             @map("file_size")
   checksum            String
-  isFinal             Boolean        @default(true) @map("is_final")
-  isReference         Boolean        @default(false) @map("is_reference")
-  documentStatus      DocumentStatus @default(SUBMITTED) @map("document_status")
-  submittedAt         DateTime       @map("submitted_at")
-  createdAt           DateTime       @default(now()) @map("created_at")
-  updatedAt           DateTime       @updatedAt @map("updated_at")
-  extractedText       String?        @map("extracted_text") @db.LongText
-  analysisStatus      AnalysisStatus @default(PENDING) @map("analysis_status")
-  analysisQueuedAt    DateTime?      @map("analysis_queued_at")
-  analysisStartedAt   DateTime?      @map("analysis_started_at")
-  analysisCompletedAt DateTime?      @map("analysis_completed_at")
-  analysisError       String?        @map("analysis_error") @db.Text
-  uploadAttempts      Int            @default(1) @map("upload_attempts")
-  stagingMetadata     String?        @map("staging_metadata") @db.LongText
-  student             User           @relation("DocumentStudent", fields: [studentId], references: [id], map: "documents_student_id_fkey")
-  theme               Theme?         @relation(fields: [themeId], references: [id], onDelete: Restrict, map: "documents_theme_id_fkey")
+  isFinal             Boolean            @default(true) @map("is_final")
+  isReference         Boolean            @default(false) @map("is_reference")
+  documentStatus      DocumentStatus     @default(SUBMITTED) @map("document_status")
+  submittedAt         DateTime           @map("submitted_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+  extractedText       String?            @map("extracted_text") @db.LongText
+  analysisStatus      AnalysisStatus     @default(PENDING) @map("analysis_status")
+  analysisQueuedAt    DateTime?          @map("analysis_queued_at")
+  analysisStartedAt   DateTime?          @map("analysis_started_at")
+  analysisCompletedAt DateTime?          @map("analysis_completed_at")
+  analysisError       String?            @map("analysis_error") @db.Text
+  uploadAttempts      Int                @default(1) @map("upload_attempts")
+  stagingMetadata     String?            @map("staging_metadata") @db.LongText
+  student             User               @relation("DocumentStudent", fields: [studentId], references: [id], map: "documents_student_id_fkey")
+  theme               Theme?             @relation(fields: [themeId], references: [id], onDelete: Restrict, map: "documents_theme_id_fkey")
   appreciation        FinalAppreciation?
   reports             SimilarityReport[]
 
@@ -161,10 +162,29 @@ model SimilarityReport {
   updatedAt           DateTime       @updatedAt @map("updated_at")
   document            Document       @relation(fields: [documentId], references: [id], map: "similarity_reports_document_id_fkey")
   generatorUser       User?          @relation(fields: [generatedBy], references: [id], map: "similarity_reports_generated_by_fkey")
+  deliberations       Deliberation[]
 
   @@index([documentId])
   @@index([generatedBy], map: "similarity_reports_generated_by_user_fkey")
   @@map("similarity_reports")
+}
+
+model Deliberation {
+  id                 BigInt           @id @default(autoincrement())
+  similarityReportId BigInt           @map("similarity_report_id")
+  decidedBy          BigInt           @map("decided_by")
+  committee          String?          @map("committee") @db.VarChar(255)
+  decision           String           @map("decision") @db.VarChar(50)
+  notes              String?          @map("notes") @db.Text
+  decidedAt          DateTime         @map("decided_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+  report             SimilarityReport @relation(fields: [similarityReportId], references: [id], map: "deliberations_report_id_fkey")
+  decider            User             @relation(fields: [decidedBy], references: [id], map: "deliberations_decided_by_fkey")
+
+  @@index([similarityReportId])
+  @@index([decidedBy])
+  @@map("deliberations")
 }
 
 model AnalysisHistory {
