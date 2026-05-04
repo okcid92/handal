@@ -324,7 +324,7 @@ export async function POST(request: NextRequest) {
                   extractedText: extractedText || null,
                   analysisStatus: "PENDING",
                   documentStatus: "SUBMITTED",
-                  isReference: false,
+                  isReference: true,
                   isFinal: false,
                   stagingMetadata: JSON.stringify(stagingMetadata),
                   submittedAt: new Date(),

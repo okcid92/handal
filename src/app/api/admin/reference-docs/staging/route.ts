@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     guardAdmin(request);
 
     const docs = await prisma.document.findMany({
-      where: { isReference: false, analysisStatus: "PENDING" },
+      where: { isReference: true, analysisStatus: "PENDING" },
       select: {
         id: true,
         originalName: true,

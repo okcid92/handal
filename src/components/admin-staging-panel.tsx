@@ -65,7 +65,20 @@ function StagingCard({
   onApprove: (id: string, data: EditState) => Promise<void>;
   onReject: (id: string) => Promise<void>;
 }) {
-  const meta = doc.stagingMetadata;
+  // Parse JSON string if needed (Prisma returns string for JSON columns)
+  let meta: StagingMetadata | null = null;
+  if (doc.stagingMetadata) {
+    if (typeof doc.stagingMetadata === "string") {
+      try {
+        meta = JSON.parse(doc.stagingMetadata);
+      } catch {
+        meta = null;
+      }
+    } else {
+      meta = doc.stagingMetadata;
+    }
+  }
+
   const [edit, setEdit] = useState<EditState>({
     subjectLabel: meta?.subjectLabel ?? "",
     techStack: meta?.techStack?.join(", ") ?? "",
