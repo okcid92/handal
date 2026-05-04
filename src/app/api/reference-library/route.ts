@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     const where: any = {
       isReference: true,
       extractedText: { not: null },
+      documentStatus: "APPROVED",
     };
 
     if (search) {
