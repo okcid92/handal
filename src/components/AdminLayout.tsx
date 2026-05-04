@@ -24,7 +24,14 @@ type Props = {
   children: React.ReactNode;
 };
 
-const BRAND = "#6c5448";
+const COLORS = {
+  primary: "#7d1c2a",
+  background: "#f4efe8",
+  surface: "#ffffff",
+  text: "#1e1410",
+  textMuted: "#6b5649",
+  border: "#ddd4c4",
+};
 
 export function AdminLayout({
   view,
@@ -37,37 +44,45 @@ export function AdminLayout({
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-white md:flex" style={{ borderRight: "1.5px solid #e8e0db" }}>
+      <aside
+        className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto md:flex"
+        style={{ background: COLORS.surface, borderRight: `1.5px solid ${COLORS.border}` }}
+      >
         {/* Header */}
-        <div className="border-b px-5 py-4" style={{ borderColor: "#e8e0db" }}>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7d1c2a]">
-              <span className="text-sm font-bold text-white">H</span>
-            </div>
-            <span className="text-lg font-bold" style={{ color: BRAND }}>HANDAL</span>
+        <div className="flex h-[68px] items-center gap-2.5 border-b px-4" style={{ borderColor: COLORS.border }}>
+          <div className="flex h-[48px] w-[48px] items-center justify-center overflow-hidden">
+            <img src="/brand/origina-logo.png" alt="Handal" className="h-[48px] w-auto object-contain" style={{ height: "auto" }} />
           </div>
-          <div className="mt-2 rounded-full bg-[#6c5448]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider w-fit" style={{ color: BRAND }}>
-            Administration
+          <div>
+            <strong className="block text-[0.95rem] font-medium tracking-[0.01em]" style={{ color: COLORS.text }}>
+              HANDAL
+            </strong>
+            <span className="text-[10px] tracking-[0.03em]" style={{ color: COLORS.textMuted }}>
+              Administration
+            </span>
           </div>
         </div>
 
         {/* Profile */}
-        <div className="border-b px-5 py-4" style={{ borderColor: "#e8e0db" }}>
+        <div className="border-b p-4" style={{ borderColor: COLORS.border }}>
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold text-white" style={{ background: BRAND }}>
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-bold text-white"
+              style={{ background: COLORS.primary }}
+            >
               A
             </div>
             <div>
-              <p className="text-sm font-bold" style={{ color: "#1a1a1a" }}>{userName}</p>
-              <p className="text-xs" style={{ color: "#6b7280" }}>Administrateur</p>
+              <p className="text-sm font-bold" style={{ color: COLORS.text }}>{userName}</p>
+              <p className="text-xs" style={{ color: COLORS.textMuted }}>Administrateur</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onLogout}
             disabled={logoutLoading}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border py-2 text-sm font-semibold transition hover:opacity-75 disabled:opacity-40"
-            style={{ borderColor: "rgba(108,84,72,0.3)", color: BRAND }}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border py-2 text-sm font-semibold transition hover:opacity-75 disabled:opacity-40"
+            style={{ borderColor: COLORS.border, color: COLORS.textMuted }}
           >
             <LogOut className="h-4 w-4" />
             {logoutLoading ? "..." : "Déconnexion"}
@@ -76,7 +91,7 @@ export function AdminLayout({
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-4">
-          <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: "#9ca3af" }}>
+          <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textMuted }}>
             Menu
           </p>
           <div className="space-y-1">
@@ -87,14 +102,14 @@ export function AdminLayout({
                   key={id}
                   type="button"
                   onClick={() => onViewChange(id)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all"
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all"
                   style={
                     active
-                      ? { background: BRAND, color: "#fff" }
-                      : { color: "#4b5563", background: "transparent" }
+                      ? { background: COLORS.primary, color: "#fff", boxShadow: "0 4px 14px rgba(125,28,42,0.22)" }
+                      : { color: COLORS.text, background: "transparent" }
                   }
                   onMouseEnter={(e) => {
-                    if (!active) (e.currentTarget as HTMLElement).style.background = "#faf7f5";
+                    if (!active) (e.currentTarget as HTMLElement).style.background = "rgba(125,28,42,0.07)";
                   }}
                   onMouseLeave={(e) => {
                     if (!active) (e.currentTarget as HTMLElement).style.background = "transparent";
@@ -110,7 +125,7 @@ export function AdminLayout({
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto" style={{ background: "#faf7f5" }}>
+      <main className="flex-1 overflow-y-auto" style={{ background: COLORS.background }}>
         {children}
       </main>
     </div>
