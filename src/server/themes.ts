@@ -345,23 +345,19 @@ export async function validateThemeVotingV2(
     data:
       voter.role === "TEACHER"
         ? {
-            teacherVote: decision,
+            teacherApproval: decision === "approved",
             teacherComment: comment,
-            teacherVotedAt: new Date(),
+            teacherValidatedAt: new Date(),
           }
         : {
-            daVote: decision,
+            daApproval: decision === "approved",
             daComment: comment,
-            daVotedAt: new Date(),
+            daValidatedAt: new Date(),
           },
   });
 
-  if (updatedTheme.teacherVote && updatedTheme.daVote) {
-    const finalStatus =
-      updatedTheme.teacherVote === "approved" &&
-      updatedTheme.daVote === "approved"
-        ? ThemeStatus.VALIDATED
-        : ThemeStatus.REJECTED;
+  if (updatedTheme.teacherApproval && updatedTheme.daApproval) {
+    const finalStatus = ThemeStatus.VALIDATED;
 
     const finalTheme = await prisma.theme.update({
       where: { id: themeId },
@@ -427,10 +423,10 @@ export async function findOrCreateReferenceTheme(
           description ??
           `Theme extrait automatiquement depuis un document de reference IBAM : ${cleaned}.`,
         status: ThemeStatus.VALIDATED,
-        teacherVote: "approved",
-        daVote: "approved",
-        teacherVotedAt: new Date(),
-        daVotedAt: new Date(),
+        teacherApproval: true,
+        daApproval: true,
+        teacherValidatedAt: new Date(),
+        daValidatedAt: new Date(),
       },
       select: { id: true },
     });
