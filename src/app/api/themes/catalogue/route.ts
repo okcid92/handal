@@ -39,7 +39,16 @@ export async function GET(request: NextRequest) {
 
     const entries = docs
       .map((doc) => {
-        const meta = (doc.stagingMetadata ?? {}) as Meta;
+        let meta: Meta = {};
+        try {
+          if (doc.stagingMetadata && typeof doc.stagingMetadata === "string") {
+            meta = JSON.parse(doc.stagingMetadata) as Meta;
+          } else if (doc.stagingMetadata && typeof doc.stagingMetadata === "object") {
+            meta = doc.stagingMetadata as unknown as Meta;
+          }
+        } catch {
+          // ignore parse errors
+        }
         return {
           id: doc.id.toString(),
           originalName: doc.originalName,
@@ -74,13 +83,17 @@ export async function GET(request: NextRequest) {
       });
 
     // Années disponibles pour le filtre
-    const years = [
-      ...new Set(
-        docs
-          .map((d) => ((d.stagingMetadata as Meta)?.academicYear) ?? null)
-          .filter((y): y is string => y !== null),
-      ),
-    ].sort((a, b) => b.localeCompare(a));
+    const allMeta: Meta[] = [];
+    for (const doc of docs) {
+      try {
+        if (doc.stagingMetadata && typeof doc.stagingMetadata === "string") {
+          allMeta.push(JSON.parse(doc.stagingMetadata) as Meta);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const years = [...new Set(allMeta.map(m => m.academicYear).filter((y): y is string => y !== null))].sort((a, b) => b.localeCompare(a));
 
     return NextResponse.json({ ok: true, entries, years, total: entries.length });
   } catch (error) {
