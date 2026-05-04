@@ -196,6 +196,18 @@ export async function POST(request: NextRequest) {
               .update(buffer)
               .digest("hex");
 
+            // Check for duplicate
+            const existingDoc = await prisma.document.findFirst({
+              where: { checksum },
+            });
+            if (existingDoc) {
+              const msg = `Ce document existe déjà dans la base`;
+              console.warn(`[ADMIN-REF-UPLOAD] Duplicate detected: ${file.name}`);
+              errors.push({ fileName: file.name, error: msg });
+              emit("file-error", { fileName: file.name, error: msg });
+              continue;
+            }
+
             console.log(`[ADMIN-REF-UPLOAD] Buffer created for ${file.name}:`, {
               size: buffer.length,
               checksum: checksum.slice(0, 8) + "...",

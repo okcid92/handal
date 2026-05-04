@@ -129,7 +129,7 @@ function DashboardView({ onNotify }: { onNotify: (msg: string, ok?: boolean) => 
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {/* Documents */}
         <div
           className="rounded-xl border bg-white p-5 shadow-[0_1px_3px_rgba(30,20,16,0.08)] transition hover:shadow-[0_4px_16px_rgba(30,20,16,0.08)]"
@@ -161,22 +161,6 @@ function DashboardView({ onNotify }: { onNotify: (msg: string, ok?: boolean) => 
             </div>
           </div>
         </div>
-
-        {/* Last Import */}
-        <div
-          className="rounded-xl border bg-white p-5 shadow-[0_1px_3px_rgba(30,20,16,0.08)] transition hover:shadow-[0_4px_16px_rgba(30,20,16,0.08)]"
-          style={{ borderColor: COLORS.border, borderTopWidth: "3px", borderTopColor: "#22c55e" }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#f0fdf4" }}>
-              <Upload className="h-5 w-5" style={{ color: "#22c55e" }} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textMuted }}>Dernière importation</p>
-              <p className="text-3xl font-bold" style={{ color: COLORS.text }}>{loading ? "..." : formatLastImport}</p>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Upload Zone */}
@@ -191,69 +175,6 @@ function DashboardView({ onNotify }: { onNotify: (msg: string, ok?: boolean) => 
           onNotify("Document importé avec succès ! Le fichier a été ajouté à la base de référence.", true);
           loadStats();
         }} />
-      </div>
-
-      {/* Recent Documents */}
-      <div className="rounded-xl border bg-white shadow-[0_1px_3px_rgba(30,20,16,0.08)] overflow-hidden" style={{ borderColor: COLORS.border }}>
-        <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "#f3f0ee" }}>
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4" style={{ color: COLORS.primary }} />
-            <p className="font-serif text-lg font-normal" style={{ color: COLORS.text }}>Documents de référence récents</p>
-          </div>
-          <button className="text-sm font-medium transition hover:opacity-75" style={{ color: COLORS.primary }}>
-            Voir tous →
-          </button>
-        </div>
-        {recentDocs.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12">
-            <span className="text-4xl" style={{ color: `${COLORS.primary}20` }}>📭</span>
-            <p className="text-sm font-medium" style={{ color: COLORS.textMuted }}>Aucun document importé pour l'instant</p>
-            <p className="text-xs" style={{ color: COLORS.textMuted }}>Utilisez la zone ci-dessus pour ajouter des fichiers</p>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead>
-              <tr style={{ background: COLORS.background }}>
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textMuted }}>Nom du document</th>
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textMuted }}>Taille</th>
-                <th className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textMuted }}>Importé le</th>
-                <th className="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentDocs.map((doc, i) => (
-                <tr
-                  key={doc.id}
-                  className="border-b transition hover:bg-[#faf7f4]"
-                  style={{ borderColor: "#f3f0ee" }}
-                >
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium" style={{ color: COLORS.text }}>📄 {doc.originalName}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-sm" style={{ color: COLORS.textMuted }}>
-                    {Math.round(Number(doc.fileSize) / 1024)} Ko
-                  </td>
-                  <td className="px-5 py-3 text-sm" style={{ color: COLORS.textMuted }}>
-                    {new Date(doc.createdAt).toLocaleDateString("fr-FR")}
-                  </td>
-                  <td className="px-5 py-3">
-                    <a
-                      href={`/api/documents/${doc.id}/view`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex h-8 w-8 items-center justify-center rounded transition hover:bg-[#f5ece8]"
-                      style={{ color: COLORS.primary }}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
       </div>
     </div>
   );
