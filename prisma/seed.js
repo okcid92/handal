@@ -79,12 +79,12 @@ async function main() {
       description:
         "Etude des usages de l'intelligence artificielle dans l'apprentissage universitaire.",
       status: "VALIDATED",
-      teacherVote: "approved",
+      teacherApproval: true,
       teacherComment: "Sujet pertinent pour le departement.",
-      teacherVotedAt: now,
-      daVote: "approved",
+      teacherValidatedAt: now,
+      daApproval: true,
       daComment: "Validation academique conjointe confirmee.",
-      daVotedAt: now,
+      daValidatedAt: now,
     },
     create: {
       studentId: student.id,
@@ -93,12 +93,12 @@ async function main() {
       description:
         "Etude des usages de l'intelligence artificielle dans l'apprentissage universitaire.",
       status: "VALIDATED",
-      teacherVote: "approved",
+      teacherApproval: true,
       teacherComment: "Sujet pertinent pour le departement.",
-      teacherVotedAt: now,
-      daVote: "approved",
+      teacherValidatedAt: now,
+      daApproval: true,
       daComment: "Validation academique conjointe confirmee.",
-      daVotedAt: now,
+      daValidatedAt: now,
     },
   });
 
