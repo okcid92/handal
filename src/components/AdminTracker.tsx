@@ -67,7 +67,7 @@ function StagingView() {
         <h1 className="font-serif text-2xl font-normal tracking-tight" style={{ color: COLORS.text }}>Zone de staging</h1>
         <p className="mt-1 text-sm" style={{ color: COLORS.textMuted }}>Vérifiez et corrigez les métadonnées avant indexation</p>
       </div>
-      <AdminStagingPanel />
+      <AdminStagingPanel hideTabs />
     </div>
   );
 }
@@ -116,51 +116,16 @@ function DashboardView({ onNotify }: { onNotify: (msg: string, ok?: boolean) => 
   }, [lastImport]);
 
   return (
-    <div className="space-y-8">
+<div className="space-y-8">
       {/* Header */}
       <div>
         <h1 className="font-serif text-2xl font-normal tracking-tight" style={{ color: COLORS.text }}>
           Bonjour, Administrateur 👋
         </h1>
         <p className="mt-1 text-sm font-normal" style={{ color: COLORS.textMuted }}>
-          Voici un aperçu rapide de vos tâches
+          Gérez vos documents de référence et utilisateurs
         </p>
         <hr className="mt-6" style={{ borderColor: COLORS.border }} />
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* Documents */}
-        <div
-          className="rounded-xl border bg-white p-5 shadow-[0_1px_3px_rgba(30,20,16,0.08)] transition hover:shadow-[0_4px_16px_rgba(30,20,16,0.08)]"
-          style={{ borderColor: COLORS.border, borderTopWidth: "3px", borderTopColor: COLORS.primary }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#f5ece8" }}>
-              <FileText className="h-5 w-5" style={{ color: COLORS.primary }} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textMuted }}>Documents de référence</p>
-              <p className="text-3xl font-bold" style={{ color: COLORS.text }}>{loading ? "..." : docCount}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Users */}
-        <div
-          className="rounded-xl border bg-white p-5 shadow-[0_1px_3px_rgba(30,20,16,0.08)] transition hover:shadow-[0_4px_16px_rgba(30,20,16,0.08)]"
-          style={{ borderColor: COLORS.border, borderTopWidth: "3px", borderTopColor: "#3b82f6" }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#eff6ff" }}>
-              <UserPlus className="h-5 w-5" style={{ color: "#3b82f6" }} />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: COLORS.textMuted }}>Utilisateurs enregistrés</p>
-              <p className="text-3xl font-bold" style={{ color: COLORS.text }}>{loading ? "..." : userCount}</p>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Upload Zone */}
