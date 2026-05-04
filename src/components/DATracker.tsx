@@ -16,6 +16,8 @@ import {
 import type { DaView } from "./DALayout";
 import { apiFetch } from "@/lib/frontend-api";
 import { ReferenceLibraryViewer } from "./reference-library-viewer";
+import { ScoreRing } from "./shared/ScoreRing";
+import { RiskBadge as RiskBadgeComponent, getRiskLevel } from "./shared/RiskBadge";
 
 type ReportRow = {
   id: string;
@@ -280,6 +282,7 @@ export function DATracker({
   const [search, setSearch] = useState("");
   const [selectedReport, setSelectedReport] = useState<ReportRow | null>(null);
   const [deliberatedIds, setDeliberatedIds] = useState<Set<string>>(new Set());
+  const [reportFilter, setReportFilter] = useState<"all" | "high" | "low">("all");
 
   // Délibération
   const [deliberationDecision, setDeliberationDecision] = useState<
@@ -289,16 +292,29 @@ export function DATracker({
   const [notes, setNotes] = useState("");
 
   const filtered = useMemo(() => {
+    let result = reports;
+    
+    // Apply search filter
     const q = search.toLowerCase().trim();
-    if (!q) return reports;
-    return reports.filter(
-      (r) =>
-        (r.student?.firstName ?? "").toLowerCase().includes(q) ||
-        (r.student?.lastName ?? "").toLowerCase().includes(q) ||
-        (r.student?.department ?? "").toLowerCase().includes(q) ||
-        r.id.includes(q),
-    );
-  }, [reports, search]);
+    if (q) {
+      result = result.filter(
+        (r) =>
+          (r.student?.firstName ?? "").toLowerCase().includes(q) ||
+          (r.student?.lastName ?? "").toLowerCase().includes(q) ||
+          (r.student?.department ?? "").toLowerCase().includes(q) ||
+          r.id.includes(q),
+      );
+    }
+    
+    // Apply risk filter
+    if (reportFilter === "high") {
+      result = result.filter((r) => r.riskLevel === "HIGH");
+    } else if (reportFilter === "low") {
+      result = result.filter((r) => r.riskLevel === "LOW");
+    }
+    
+    return result;
+  }, [reports, search, reportFilter]);
 
   const highRiskCount = reports.filter((r) => r.riskLevel === "HIGH").length;
   const mediumRiskCount = reports.filter(
@@ -697,11 +713,37 @@ export function DATracker({
           {/* ── Rapports finaux ── */}
           {view === "reports" && (
             <div className="space-y-5">
-              <SectionHeader
-                icon={FileSearch}
-                title="Rapports finaux d'analyse"
-                subtitle={`${filtered.length} rapport${filtered.length > 1 ? "s" : ""} disponible${filtered.length > 1 ? "s" : ""}`}
-              />
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-bold text-[#2A1A12]">Rapports finaux</h1>
+                  <p className="text-sm text-[#6c5448]">
+                    {filtered.length} rapport{filtered.length > 1 ? "s" : ""} disponible{filtered.length > 1 ? "s" : ""}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {[
+                    { key: "all", label: "Tous", color: "#6c5448" },
+                    { key: "high", label: "Risque élevé", color: "#dc2626" },
+                    { key: "low", label: "Risque faible", color: "#16a34a" },
+                  ].map((filter) => (
+                    <button
+                      key={filter.key}
+                      type="button"
+                      onClick={() => setReportFilter(filter.key as typeof reportFilter)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                        reportFilter === filter.key 
+                          ? "text-white" 
+                          : "bg-white border border-[#6c5448]/20 text-[#6c5448]"
+                      }`}
+                      style={{
+                        background: reportFilter === filter.key ? filter.color : undefined,
+                      }}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {/* Tableau */}
               {filtered.length === 0 ? (
@@ -1169,28 +1211,23 @@ function StudentReportCard({
   onClick: () => void;
 }) {
   const similarity = parseFloat(bestReport.globalSimilarity) || 0;
-  const riskColor = similarity >= 50 ? "#b91c1c" : similarity >= 20 ? "#c98a2f" : "#16a34a";
-  const riskLabel = similarity >= 50 ? "Risque élevé" : similarity >= 20 ? "Risque moyen" : "Risque faible";
+  const riskLevel = getRiskLevel(similarity);
   
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-2xl border-2 bg-white p-4 text-left transition hover:shadow-md"
+      className="w-full rounded-2xl border-2 bg-white p-4 text-left transition hover:shadow-md flex items-center gap-4"
       style={{ borderColor: "rgba(123,36,56,0.12)" }}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-bold text-[#2A1A12]">{studentName}</p>
-          <p className="text-xs text-[#6c5448] mt-1">
-            {totalReports} tentative{totalReports > 1 ? "s" : ""} · Best: {bestReport.document?.title || bestReport.document?.originalName || "Document"}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-lg font-bold" style={{ color: riskColor }}>{similarity.toFixed(1)}%</p>
-          <span className="text-xs" style={{ color: riskColor }}>{riskLabel}</span>
-        </div>
+      <ScoreRing value={similarity} size={56} strokeWidth={5} />
+      <div className="flex-1">
+        <p className="text-sm font-bold text-[#2A1A12]">{studentName}</p>
+        <p className="text-xs text-[#6c5448] mt-1">
+          {totalReports} tentative{totalReports > 1 ? "s" : ""} · {bestReport.document?.title || bestReport.document?.originalName || "Document"}
+        </p>
       </div>
+      <RiskBadgeComponent level={riskLevel} size="md" />
     </button>
   );
 }
