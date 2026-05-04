@@ -27,9 +27,23 @@ export async function PATCH(
       payload.comment ?? "",
     );
 
+    function serializeBigInt(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === "bigint") return obj.toString();
+  if (Array.isArray(obj)) return obj.map(serializeBigInt);
+  if (typeof obj === "object") {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = serializeBigInt(value);
+    }
+    return result;
+  }
+  return obj;
+}
+
     return NextResponse.json({
       ok: true,
-      theme: updatedTheme,
+      theme: serializeBigInt(updatedTheme),
     });
   } catch (error) {
     return errorResponse(error);
