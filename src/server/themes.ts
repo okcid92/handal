@@ -356,7 +356,7 @@ export async function validateThemeVotingV2(
           },
   });
 
-  if (updatedTheme.teacherApproval && updatedTheme.daApproval) {
+  if (updatedTheme.teacherApproval) {
     const finalStatus = ThemeStatus.VALIDATED;
 
     const finalTheme = await prisma.theme.update({
