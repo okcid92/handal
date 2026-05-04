@@ -1,21 +1,23 @@
 # progress-tracer.md — Handal Development Progress
 
 ## Current Phase
-*Phase 3: Verdict & Appreciation*
+*Admin Dashboard Redesign*
 
 ## Current Goal
-*Complete the DA review and final appreciation workflow*
+*Simplify admin dashboard to 3 core functions per feature spec*
 
 ## Completed
 - Phase 1: Theme Module (complete)
 - Phase 2: Document Analysis (complete)
+- Phase 3: Verdict & Appreciation (complete)
 - Context Files Setup (complete)
+- Admin Dashboard base implementation
 
 ## In Progress
-- None
+- Admin Dashboard Redesign (Simplification) - Finalizing
 
 ## Next To Do
-- Refine appreciation workflow (if needed)
+- Test the new admin dashboard
 
 ---
 
@@ -27,6 +29,7 @@
 | Phase 1 | Theme Module | ✅ Complete | 100% |
 | Phase 2 | Document Analysis | ✅ Complete | 100% |
 | Phase 3 | Verdict & Appreciation | ✅ Complete | 100% |
+| Admin | Dashboard Redesign | ✅ Complete | 100% |
 
 ---
 
@@ -42,6 +45,7 @@
 | `/api/reports/` | ✅ Complete | Similarity reports |
 | `/api/me/` | ✅ Complete | Current user |
 | `/api/admin/` | ✅ Complete | Admin functions |
+| `/api/admin/reference-docs/` | ✅ Complete | Reference docs management |
 | `/api/login/` | ✅ Complete | Authentication |
 | `/api/logout/` | ✅ Complete | Logout |
 
@@ -51,17 +55,18 @@
 | Student | Dashboard | ✅ Complete |
 | Teacher | Dashboard | ✅ Complete |
 | DA | Dashboard | ✅ Complete |
-| Admin | Dashboard | ✅ Complete |
+| Admin | Dashboard | 🔄 In Progress (Simplification) |
 
 ### Components
 | Component | Status |
 |-----------|--------|
 | CDTracker | ✅ Complete |
 | DATracker | ✅ Complete |
-| AdminTracker | ✅ Complete |
-| student-dashboard | ✅ Complete |
+| AdminTracker | 🔄 In Progress |
+| AdminLayout | 🔄 In Progress |
+| AdminStagingPanel | ✅ Complete |
+| AdminReferenceBulkUpload | ✅ Complete |
 | login-panel | ✅ Complete |
-| historique-attempts | ✅ Complete |
 | reference-library-viewer | ✅ Complete |
 
 ### Database
@@ -75,6 +80,26 @@
 | ReferenceDocument | ✅ Complete |
 | AnalysisHistory | ✅ Complete |
 | Deliberation | ✅ Complete |
+
+---
+
+## Admin Dashboard Redesign Spec
+
+According to `contexts/features-spec/02-redisign-admin-dash.md`:
+
+### Required Views (3 only)
+1. **Uploader un document** - Upload reference documents
+2. **Documents de référence** - View approved reference documents
+3. **Utilisateurs** - User list management
+
+### Implementation Status
+| View | Status | Notes |
+|------|--------|-------|
+| Upload (dashboard) | ✅ Done | Integrated upload zone with 3 KPI cards |
+| Documents list (reference-docs) | ✅ Done | Reference docs view |
+| Users (users) | ✅ Done | Search + filters + table |
+| Staging zone | ✅ Removed | Not in spec |
+| Reports | ✅ Removed | Not in spec |
 
 ---
 
@@ -92,3 +117,4 @@
 ## Recent Updates
 - 2024-01: Full application implemented
 - 2024-05-04: Context files aligned with actual codebase
+- 2024-05-04: Added Base de Référence as dashboard tab

@@ -1,491 +1,433 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
-  LayoutDashboard,
-  Library,
-  BookOpen,
-  ShieldCheck,
-  FileSearch,
-  Users,
-  AlertTriangle,
-  TrendingUp,
-  CheckCircle,
-  Globe,
-  Server,
+  FileText,
+  UserPlus,
+  Upload,
+  Search,
   ChevronRight,
+  Eye,
+  X,
+  CheckCircle,
 } from "lucide-react";
+import { apiFetch } from "@/lib/frontend-api";
 import type { AdminView } from "./AdminLayout";
 import { AdminReferenceBulkUpload } from "./admin-reference-bulk-upload";
-import { AdminStagingPanel } from "./admin-staging-panel";
 
-type ThemeSummary = { id: string; status: string };
-type ReportSummary = { id: string; riskLevel: string };
+type User = {
+  id: string;
+  name: string;
+  ine: string | null;
+  email: string | null;
+  role: string;
+  department: string | null;
+};
 
-function SectionHeader({
-  icon: Icon,
-  title,
-  subtitle,
-}: {
-  icon: React.ElementType;
-  title: string;
-  subtitle?: string;
-}) {
+type ReferenceDoc = {
+  id: string;
+  originalName: string;
+  fileSize: string;
+  createdAt: string;
+  stagingMetadata: unknown;
+};
+
+const BRAND = "#6c5448";
+
+type Props = {
+  view: AdminView;
+  onNotify: (msg: string, ok?: boolean) => void;
+};
+
+export function AdminTracker({ view, onNotify }: Props) {
   return (
-    <div className="flex items-center gap-3 border-b pb-5" style={{ borderColor: "var(--line)" }}>
-      <div
-        className="flex h-10 w-10 items-center justify-center rounded-xl"
-        style={{ background: "rgba(123,36,56,0.08)" }}
-      >
-        <Icon className="h-5 w-5" style={{ color: "var(--primary)" }} />
-      </div>
+    <div className="p-8">
+      {view === "dashboard" && <DashboardView onNotify={onNotify} />}
+      {view === "reference-docs" && <ReferenceDocsView />}
+      {view === "users" && <UsersView />}
+    </div>
+  );
+}
+
+function DashboardView({ onNotify }: { onNotify: (msg: string, ok?: boolean) => void }) {
+  const [docCount, setDocCount] = useState(0);
+  const [userCount, setUserCount] = useState(0);
+  const [lastImport, setLastImport] = useState<string | null>(null);
+  const [recentDocs, setRecentDocs] = useState<ReferenceDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadStats = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [docsRes, usersRes] = await Promise.all([
+        apiFetch<{ ok: boolean; documents: ReferenceDoc[] }>("/api/admin/reference-docs/approved"),
+        apiFetch<{ ok: boolean; users: User[] }>("/api/admin/users"),
+      ]);
+      setDocCount(docsRes.documents.length);
+      setUserCount(usersRes.users.length);
+      if (docsRes.documents.length > 0) {
+        const sorted = [...docsRes.documents].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setLastImport(sorted[0].createdAt);
+        setRecentDocs(sorted.slice(0, 5));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  const formatLastImport = useMemo(() => {
+    if (!lastImport) return "Aucune";
+    const diff = Date.now() - new Date(lastImport).getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days === 0) return "Aujourd'hui";
+    if (days === 1) return "Hier";
+    return `Il y a ${days}j`;
+  }, [lastImport]);
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
       <div>
-        <h2 className="text-xl font-extrabold tracking-tight" style={{ color: "var(--foreground)" }}>
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="text-xs font-medium" style={{ color: "var(--text-soft)" }}>
-            {subtitle}
+        <h1 className="text-2xl font-bold" style={{ color: "#1a1a1a" }}>
+          Bonjour, Administrateur 👋
+        </h1>
+        <p className="mt-1 text-sm" style={{ color: "#6b7280" }}>
+          Voici un aperçu rapide de vos tâches
+        </p>
+        <hr className="mt-6" style={{ borderColor: "#e8e0db" }} />
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Documents */}
+        <div
+          className="rounded-xl border bg-white p-5 shadow-sm transition hover:shadow-md"
+          style={{ borderColor: "#e8e0db", borderTopWidth: "3px", borderTopColor: BRAND }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: `${BRAND}10` }}>
+              <FileText className="h-5 w-5" style={{ color: BRAND }} />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Documents de référence</p>
+              <p className="text-3xl font-bold" style={{ color: "#1a1a1a" }}>{loading ? "..." : docCount}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Users */}
+        <div
+          className="rounded-xl border bg-white p-5 shadow-sm transition hover:shadow-md"
+          style={{ borderColor: "#e8e0db", borderTopWidth: "3px", borderTopColor: "#3b82f6" }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#3b82f610" }}>
+              <UserPlus className="h-5 w-5" style={{ color: "#3b82f6" }} />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Utilisateurs enregistrés</p>
+              <p className="text-3xl font-bold" style={{ color: "#1a1a1a" }}>{loading ? "..." : userCount}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Last Import */}
+        <div
+          className="rounded-xl border bg-white p-5 shadow-sm transition hover:shadow-md"
+          style={{ borderColor: "#e8e0db", borderTopWidth: "3px", borderTopColor: "#22c55e" }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "#22c55e10" }}>
+              <Upload className="h-5 w-5" style={{ color: "#22c55e" }} />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Dernière importation</p>
+              <p className="text-3xl font-bold" style={{ color: "#1a1a1a" }}>{loading ? "..." : formatLastImport}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Upload Zone */}
+      <div className="rounded-xl border bg-white p-8 shadow-sm" style={{ borderColor: "#e8e0db" }}>
+        <div className="mb-4 flex items-center gap-2">
+          <Upload className="h-4 w-4" style={{ color: "#9ca3af" }} />
+          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>
+            Importer un document de référence
           </p>
+        </div>
+        <AdminReferenceBulkUpload onUploadDone={() => {
+          onNotify("Document importé avec succès !", true);
+          loadStats();
+        }} />
+      </div>
+
+      {/* Recent Documents */}
+      <div className="rounded-xl border bg-white shadow-sm" style={{ borderColor: "#e8e0db" }}>
+        <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "#f3f0ee" }}>
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4" style={{ color: BRAND }} />
+            <p className="font-bold" style={{ color: "#1a1a1a" }}>Documents de référence récents</p>
+          </div>
+          <button className="text-sm font-semibold transition hover:opacity-75" style={{ color: BRAND }}>
+            Voir tous →
+          </button>
+        </div>
+        {recentDocs.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-12">
+            <span className="text-4xl" style={{ color: `${BRAND}20` }}>📭</span>
+            <p className="text-sm" style={{ color: "#6b7280" }}>Aucun document importé pour l'instant</p>
+            <p className="text-xs" style={{ color: "#9ca3af" }}>Utilisez la zone ci-dessus pour ajouter des fichiers</p>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr style={{ background: "#faf7f5" }}>
+                <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Nom du document</th>
+                <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Taille</th>
+                <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Importé le</th>
+                <th className="px-5 py-3"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentDocs.map((doc, i) => (
+                <tr
+                  key={doc.id}
+                  className="border-b transition hover:bg-[#faf7f5]"
+                  style={{ borderColor: "#f3f0ee" }}
+                >
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold" style={{ color: "#1a1a1a" }}>📄 {doc.originalName}</span>
+                    </div>
+                  </td>
+                  <td className="px-5 py-3 text-sm" style={{ color: "#6b7280" }}>
+                    {Math.round(Number(doc.fileSize) / 1024)} Ko
+                  </td>
+                  <td className="px-5 py-3 text-sm" style={{ color: "#6b7280" }}>
+                    {new Date(doc.createdAt).toLocaleDateString("fr-FR")}
+                  </td>
+                  <td className="px-5 py-3">
+                    <a
+                      href={`/api/documents/${doc.id}/view`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded transition hover:bg-[#6c5448]/10"
+                      style={{ color: BRAND }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
   );
 }
 
-function KpiCard({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  tone?: "neutral" | "ok" | "warn" | "danger";
-}) {
-  const toneStyles = {
-    neutral: { borderColor: "rgba(123,36,56,0.12)", background: "rgba(123,36,56,0.07)", color: "var(--foreground)" },
-    ok: { borderColor: "rgba(22,163,74,0.24)", background: "rgba(22,163,74,0.08)", color: "#166534" },
-    warn: { borderColor: "rgba(201,138,47,0.28)", background: "rgba(201,138,47,0.14)", color: "#9a6a28" },
-    danger: { borderColor: "rgba(220,38,38,0.22)", background: "rgba(220,38,38,0.10)", color: "#b91c1c" },
-  }[tone];
+function ReferenceDocsView() {
+  const [docs, setDocs] = useState<ReferenceDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch<{ ok: boolean; documents: ReferenceDoc[] }>("/api/admin/reference-docs/approved")
+      .then((res) => setDocs(res.documents))
+      .catch(() => setDocs([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div
-      className="rounded-2xl border-2 px-4 py-3"
-      style={{ borderColor: toneStyles.borderColor, background: toneStyles.background }}
-    >
-      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>
-        {label}
-      </p>
-      <p className="mt-1 text-2xl font-extrabold" style={{ color: toneStyles.color }}>
-        {value}
-      </p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold" style={{ color: "#1a1a1a" }}>Documents de référence</h1>
+        <p className="mt-1 text-sm" style={{ color: "#6b7280" }}>{docs.length} document{docs.length !== 1 ? "s" : ""} dans la base</p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#6c5448]/20 border-t-[#6c5448]" />
+        </div>
+      ) : docs.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-[#6c5448]/15 py-16">
+          <CheckCircle className="h-10 w-10 text-green-500/60" />
+          <p className="text-sm font-bold" style={{ color: "#1a1a1a" }}>Aucun document dans la base</p>
+          <p className="text-xs" style={{ color: "#6b7280" }}>Importez des documents depuis le tableau de bord.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {docs.map((doc) => (
+            <div key={doc.id} className="flex items-center justify-between rounded-xl border bg-white p-4" style={{ borderColor: "#e8e0db" }}>
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5" style={{ color: BRAND }} />
+                <div>
+                  <p className="font-semibold" style={{ color: "#1a1a1a" }}>{doc.originalName}</p>
+                  <p className="text-xs" style={{ color: "#6b7280" }}>
+                    {Math.round(Number(doc.fileSize) / 1024)} Ko • {new Date(doc.createdAt).toLocaleDateString("fr-FR")}
+                  </p>
+                </div>
+              </div>
+              <a
+                href={`/api/documents/${doc.id}/view`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition hover:bg-[#faf7f5]"
+                style={{ borderColor: "#e8e0db", color: BRAND }}
+              >
+                Voir
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function Shortcut({
-  href,
-  title,
-  description,
-  icon: Icon,
-  onClick,
-}: {
-  href?: string;
-  title: string;
-  description: string;
-  icon: React.ElementType;
-  onClick?: () => void;
-}) {
-  const cls =
-    "group flex items-start justify-between rounded-2xl border bg-white/88 p-4 transition hover:-translate-y-0.5 hover:border-[#c98a2f]/55 hover:bg-[#fffaf2]";
-  const style = { borderColor: "rgba(123,36,56,0.14)" };
-  const inner = (
-    <>
-      <div className="flex gap-3">
-        <div className="mt-0.5 rounded-lg bg-[#f6e7ea] p-2 text-[#7b2438]">
-          <Icon className="h-4 w-4" />
-        </div>
-        <div>
-          <div className="font-semibold text-[#2b1d16]">{title}</div>
-          <div className="mt-1 text-sm text-[#6c5448]">{description}</div>
-        </div>
-      </div>
-      <ChevronRight className="h-4 w-4 text-[#6c5448] transition group-hover:translate-x-1 group-hover:text-[#7b2438]" />
-    </>
-  );
+function UsersView() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "STUDENT" | "TEACHER" | "DA">("all");
 
-  if (onClick) {
+  useEffect(() => {
+    apiFetch<{ ok: boolean; users: User[] }>("/api/admin/users")
+      .then((res) => setUsers(res.users))
+      .catch(() => setUsers([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((u) => {
+      const matchesFilter = filter === "all" || u.role === filter;
+      const matchesSearch =
+        !search ||
+        u.name.toLowerCase().includes(search.toLowerCase()) ||
+        u.ine?.toLowerCase().includes(search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(search.toLowerCase());
+      return matchesFilter && matchesSearch;
+    });
+  }, [users, search, filter]);
+
+  const getInitials = (name: string) => name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+
+  const getRoleBadge = (role: string) => {
+    const styles: Record<string, { bg: string; text: string; border: string }> = {
+      STUDENT: { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe" },
+      TEACHER: { bg: "#fffbeb", text: "#b45309", border: "#fde68a" },
+      DA: { bg: "#faf5ff", text: "#7e22ce", border: "#e9d5ff" },
+      ADMIN: { bg: "#faf5ff", text: "#7e22ce", border: "#e9d5ff" },
+    };
+    const s = styles[role] || styles.STUDENT;
     return (
-      <button type="button" onClick={onClick} className={cls} style={style}>
-        {inner}
-      </button>
-    );
-  }
-  return (
-    <a href={href} className={cls} style={style}>
-      {inner}
-    </a>
-  );
-}
-
-export function AdminTracker({
-  view,
-  onViewChange,
-  themes,
-  reports,
-  onNotify,
-}: {
-  view: AdminView;
-  onViewChange: (v: AdminView) => void;
-  themes: ThemeSummary[];
-  reports: ReportSummary[];
-  onNotify: (msg: string, ok?: boolean) => void;
-}) {
-  const highRiskCount = useMemo(() => reports.filter((r) => r.riskLevel === "HIGH").length, [reports]);
-  const mediumRiskCount = useMemo(() => reports.filter((r) => r.riskLevel === "MEDIUM").length, [reports]);
-  const lowRiskCount = useMemo(() => reports.filter((r) => r.riskLevel === "LOW").length, [reports]);
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Topbar */}
-      <div
-        className="sticky top-0 z-10 flex flex-wrap items-center gap-3 border-b px-4 py-3 sm:px-8 sm:py-4"
-        style={{
-          borderColor: "var(--line)",
-          background: "rgba(247,241,232,0.94)",
-          backdropFilter: "blur(12px)",
-        }}
+      <span
+        className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+        style={{ background: s.bg, color: s.text, border: `1px solid ${s.border}` }}
       >
-        <div className="flex-1">
-          <h1 className="text-lg font-extrabold tracking-tight" style={{ color: "var(--foreground)" }}>
-            {view === "dashboard" && "Tableau de bord"}
-            {view === "reference-docs" && "Documents de référence"}
-            {view === "reference-library" && "Base de Référence"}
-            {view === "staging" && "Zone de staging"}
-            {view === "reports" && "Rapports système"}
-            {view === "users" && "Utilisateurs"}
-          </h1>
-        </div>
+        {role === "STUDENT" ? "Étudiant" : role === "TEACHER" ? "Enseignant" : role === "DA" ? "DA" : "Admin"}
+      </span>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold" style={{ color: "#1a1a1a" }}>Utilisateurs</h1>
+        <p className="mt-1 text-sm" style={{ color: "#6b7280" }}>Liste des comptes enregistrés sur la plateforme</p>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
-        <div className="mx-auto max-w-5xl space-y-6">
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: "#9ca3af" }} />
+        <input
+          type="text"
+          placeholder="Rechercher par nom, INE ou email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded-lg border py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-[#6c5448] focus:ring-2 focus:ring-[#6c5448]/20"
+          style={{ borderColor: "#e8e0db" }}
+        />
+      </div>
 
-          {/* ── Dashboard ── */}
-          {view === "dashboard" && (
-            <div className="space-y-6">
-              <SectionHeader
-                icon={LayoutDashboard}
-                title="Supervision globale"
-                subtitle="Vue d'ensemble de la plateforme Handal"
-              />
+      {/* Filters */}
+      <div className="flex gap-2">
+        {(["all", "STUDENT", "TEACHER", "DA"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className="rounded-full px-4 py-1.5 text-xs font-semibold transition"
+            style={
+              filter === f
+                ? { background: BRAND, color: "#fff" }
+                : { background: "#fff", border: "1px solid #e8e0db", color: "#4b5563" }
+            }
+          >
+            {f === "all" ? "Tous" : f === "STUDENT" ? "Étudiants" : f === "TEACHER" ? "Enseignants" : "DA"}
+          </button>
+        ))}
+      </div>
 
-              {/* Alert banner */}
-              <div
-                className="rounded-2xl px-5 py-4 text-white"
-                style={{ background: "#7D1C2A" }}
-              >
-                <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                    style={{ background: "rgba(255,255,255,0.14)" }}
-                  >
-                    <Globe className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h2 className="text-sm font-semibold">
-                      {themes.length + highRiskCount} élément(s) nécessitent votre attention
-                    </h2>
-                    <p className="text-xs text-white/75">
-                      {themes.length} thèmes en attente · {highRiskCount} rapports à risque élevé · {reports.length} rapports totaux
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onViewChange("reports")}
-                    className="rounded-lg border px-3 py-1.5 text-xs font-semibold"
-                    style={{ borderColor: "rgba(255,255,255,0.35)", background: "rgba(255,255,255,0.14)" }}
-                  >
-                    Voir les rapports
-                  </button>
-                </div>
-              </div>
-
-              {/* KPIs */}
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <KpiCard label="Thèmes en attente" value={String(themes.length)} tone={themes.length > 0 ? "warn" : "ok"} />
-                <KpiCard label="Rapports totaux" value={String(reports.length)} />
-                <KpiCard label="Risque élevé" value={String(highRiskCount)} tone={highRiskCount > 0 ? "danger" : "ok"} />
-                <KpiCard label="Session admin" value="Active" tone="ok" />
-              </div>
-
-              {/* Shortcuts + Status */}
-              <div className="grid gap-6 xl:grid-cols-2">
-                <div className="rounded-2xl border bg-white p-5" style={{ borderColor: "rgba(123,36,56,0.12)" }}>
-                  <p className="mb-4 text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>
-                    Accès rapides
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Shortcut
-                      icon={Library}
-                      title="Documents de référence"
-                      description="Importer et valider la base de référence"
-                      onClick={() => onViewChange("reference-docs")}
-                    />
-                    <Shortcut
-                      icon={ShieldCheck}
-                      title="Zone de staging"
-                      description="Contrôler la qualité avant indexation"
-                      onClick={() => onViewChange("staging")}
-                    />
-                    <Shortcut
-                      icon={FileSearch}
-                      title="Rapports système"
-                      description="Superviser les analyses de plagiat"
-                      onClick={() => onViewChange("reports")}
-                    />
-                    <Shortcut
-                      icon={Globe}
-                      title="Flux étudiant"
-                      description="Voir le parcours étudiant"
-                      href="/student"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-2xl border bg-white p-5" style={{ borderColor: "rgba(123,36,56,0.12)" }}>
-                    <div className="mb-3 flex items-center gap-2">
-                      <Server className="h-4 w-4" style={{ color: "var(--primary)" }} />
-                      <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>État du serveur</p>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      {[
-                        { label: "API", status: "Opérationnelle", ok: true },
-                        { label: "Base de données", status: "Connectée", ok: true },
-                        { label: "Stockage", status: "Disponible", ok: true },
-                      ].map(({ label, status, ok }) => (
-                        <div key={label} className="flex items-center justify-between">
-                          <span style={{ color: "var(--text-soft)" }}>{label}</span>
-                          <span
-                            className="flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold"
-                            style={{
-                              background: ok ? "rgba(22,163,74,0.10)" : "rgba(220,38,38,0.10)",
-                              color: ok ? "#166534" : "#b91c1c",
-                            }}
-                          >
-                            <CheckCircle className="h-3 w-3" /> {status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border bg-white p-5" style={{ borderColor: "rgba(123,36,56,0.12)" }}>
-                    <div className="mb-3 flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4" style={{ color: "var(--primary)" }} />
-                      <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Points d'attention</p>
-                    </div>
-                    <ul className="space-y-2 text-xs" style={{ color: "var(--text-soft)" }}>
-                      <li className="rounded-xl border border-[#7b2438]/12 bg-white/85 px-3 py-2">
-                        Vérifier les rapports à risque élevé avant délibération finale.
-                      </li>
-                      <li className="rounded-xl border border-[#7b2438]/12 bg-white/85 px-3 py-2">
-                        Contrôler la qualité de la base de référence dans la staging area.
-                      </li>
-                      <li className="rounded-xl border border-[#7b2438]/12 bg-white/85 px-3 py-2">
-                        Superviser la cohérence des flux étudiant, enseignant et DA.
-                      </li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
-              {/* Distribution des risques */}
-              <div className="rounded-2xl border bg-white p-5" style={{ borderColor: "rgba(123,36,56,0.12)" }}>
-                <p className="mb-4 text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>
-                  Distribution des risques
-                </p>
-                <div className="grid grid-cols-3 gap-3 text-center text-xs">
-                  <div className="rounded-xl border bg-red-50 p-3" style={{ borderColor: "rgba(220,38,38,0.22)" }}>
-                    <p className="text-2xl font-extrabold text-red-700">{highRiskCount}</p>
-                    <p className="mt-1 text-red-600">Risque élevé</p>
-                  </div>
-                  <div className="rounded-xl border bg-orange-50 p-3" style={{ borderColor: "rgba(201,138,47,0.28)" }}>
-                    <p className="text-2xl font-extrabold text-orange-700">{mediumRiskCount}</p>
-                    <p className="mt-1 text-orange-600">Risque moyen</p>
-                  </div>
-                  <div className="rounded-xl border bg-green-50 p-3" style={{ borderColor: "rgba(22,163,74,0.24)" }}>
-                    <p className="text-2xl font-extrabold text-green-700">{lowRiskCount}</p>
-                    <p className="mt-1 text-green-600">Risque faible</p>
-                  </div>
-                </div>
-                {reports.length > 0 && (
-                  <div className="mt-4">
-                    <div className="mb-1 flex justify-between text-[10px]" style={{ color: "var(--text-soft)" }}>
-                      <span>Répartition globale</span>
-                      <span>{reports.length} rapports</span>
-                    </div>
-                    <div className="flex h-2 overflow-hidden rounded-full" style={{ background: "rgba(123,36,56,0.08)" }}>
-                      {highRiskCount > 0 && (
-                        <div className="h-full bg-red-500" style={{ width: `${(highRiskCount / reports.length) * 100}%` }} />
-                      )}
-                      {mediumRiskCount > 0 && (
-                        <div className="h-full bg-orange-400" style={{ width: `${(mediumRiskCount / reports.length) * 100}%` }} />
-                      )}
-                      {lowRiskCount > 0 && (
-                        <div className="h-full bg-green-500" style={{ width: `${(lowRiskCount / reports.length) * 100}%` }} />
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── Documents de référence ── */}
-          {view === "reference-docs" && (
-            <div className="space-y-5">
-              <SectionHeader
-                icon={Library}
-                title="Documents de référence"
-                subtitle="Importez les mémoires des années précédentes"
-              />
-              <AdminReferenceBulkUpload onUploadDone={() => onNotify("Documents importés avec succès.")} />
-            </div>
-          )}
-
-          {/* ── Base de Référence ── */}
-          {view === "reference-library" && (
-            <div className="space-y-5">
-              <SectionHeader
-                icon={BookOpen}
-                title="Base de Référence"
-                subtitle="Documents approuvés et indexés pour la détection de plagiat"
-              />
-              <AdminStagingPanel showApprovedOnly />
-            </div>
-          )}
-
-          {/* ── Staging ── */}
-          {view === "staging" && (
-            <div className="space-y-5">
-              <SectionHeader
-                icon={ShieldCheck}
-                title="Zone de staging"
-                subtitle="Vérifiez et corrigez les métadonnées avant indexation"
-              />
-              <AdminStagingPanel hideTabs />
-            </div>
-          )}
-
-          {/* ── Rapports système ── */}
-          {view === "reports" && (
-            <div className="space-y-5">
-              <SectionHeader
-                icon={FileSearch}
-                title="Rapports système"
-                subtitle={`${reports.length} rapport${reports.length > 1 ? "s" : ""} disponible${reports.length > 1 ? "s" : ""}`}
-              />
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <KpiCard label="Total" value={String(reports.length)} />
-                <KpiCard label="Risque élevé" value={String(highRiskCount)} tone={highRiskCount > 0 ? "danger" : "ok"} />
-                <KpiCard label="Risque moyen" value={String(mediumRiskCount)} tone={mediumRiskCount > 0 ? "warn" : "ok"} />
-                <KpiCard label="Risque faible" value={String(lowRiskCount)} tone="ok" />
-              </div>
-              <div className="rounded-2xl border bg-white overflow-hidden" style={{ borderColor: "rgba(123,36,56,0.12)" }}>
-                <div
-                  className="grid grid-cols-3 gap-4 border-b px-5 py-3"
-                  style={{ borderColor: "rgba(123,36,56,0.10)", background: "rgba(123,36,56,0.04)" }}
+      {/* Table */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <span className="h-8 w-8 animate-spin rounded-full border-2 border-[#6c5448]/20 border-t-[#6c5448]" />
+        </div>
+      ) : (
+        <div className="rounded-xl border bg-white shadow-sm overflow-hidden" style={{ borderColor: "#e8e0db" }}>
+          <table className="w-full">
+            <thead>
+              <tr style={{ background: "#faf7f5" }}>
+                <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Avatar</th>
+                <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Nom</th>
+                <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Email / INE</th>
+                <th className="px-5 py-3 text-left text-xs font-bold uppercase tracking-wider" style={{ color: "#9ca3af" }}>Rôle</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((user, i) => (
+                <tr
+                  key={user.id}
+                  className="border-b transition hover:bg-[#faf7f5]"
+                  style={{ borderColor: i < filteredUsers.length - 1 ? "#f3f0ee" : "transparent" }}
                 >
-                  {["ID Rapport", "Niveau de risque", "Action"].map((h) => (
-                    <span key={h} className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-soft)" }}>
-                      {h}
-                    </span>
-                  ))}
-                </div>
-                {reports.length === 0 ? (
-                  <p className="px-5 py-8 text-center text-sm" style={{ color: "var(--text-soft)" }}>
-                    Aucun rapport disponible.
-                  </p>
-                ) : (
-                  reports.map((r, i) => (
+                  <td className="px-5 py-3">
                     <div
-                      key={r.id}
-                      className="grid grid-cols-3 items-center gap-4 px-5 py-3"
-                      style={{ borderBottom: i < reports.length - 1 ? "1px solid rgba(123,36,56,0.07)" : "none" }}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold"
+                      style={{ background: `${BRAND}15`, color: BRAND }}
                     >
-                      <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                        #{r.id}
-                      </span>
-                      <span>
-                        {r.riskLevel === "HIGH" && (
-                          <span className="rounded-full border border-red-300 bg-red-50 px-2.5 py-0.5 text-[11px] font-bold text-red-700">Élevé</span>
-                        )}
-                        {r.riskLevel === "MEDIUM" && (
-                          <span className="rounded-full border border-orange-300 bg-orange-50 px-2.5 py-0.5 text-[11px] font-bold text-orange-700">Moyen</span>
-                        )}
-                        {r.riskLevel === "LOW" && (
-                          <span className="rounded-full border border-green-300 bg-green-50 px-2.5 py-0.5 text-[11px] font-bold text-green-700">Faible</span>
-                        )}
-                      </span>
-                      <a
-                        href={`/api/reports/${r.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs font-semibold"
-                        style={{ color: "var(--primary)" }}
-                      >
-                        Voir <ChevronRight className="h-3 w-3" />
-                      </a>
+                      {getInitials(user.name)}
                     </div>
-                  ))
-                )}
-              </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    <p className="text-sm font-semibold" style={{ color: "#1a1a1a" }}>{user.name}</p>
+                    {user.department && <p className="text-xs" style={{ color: "#6b7280" }}>{user.department}</p>}
+                  </td>
+                  <td className="px-5 py-3">
+                    <p className="text-sm" style={{ color: "#6b7280" }}>{user.ine || user.email || "-"}</p>
+                  </td>
+                  <td className="px-5 py-3">{getRoleBadge(user.role)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filteredUsers.length === 0 && (
+            <div className="py-12 text-center text-sm" style={{ color: "#6b7280" }}>
+              Aucun utilisateur trouvé
             </div>
           )}
-
-          {/* ── Utilisateurs ── */}
-          {view === "users" && (
-            <div className="space-y-5">
-              <SectionHeader
-                icon={Users}
-                title="Gestion des utilisateurs"
-                subtitle="Supervision des comptes et des rôles"
-              />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Shortcut
-                  icon={Globe}
-                  title="Flux étudiant"
-                  description="Voir le parcours étudiant"
-                  href="/student"
-                />
-                <Shortcut
-                  icon={TrendingUp}
-                  title="Flux enseignant"
-                  description="Modération et rapports CD"
-                  href="/teacher"
-                />
-                <Shortcut
-                  icon={FileSearch}
-                  title="Flux DA"
-                  description="Validation et délibération"
-                  href="/da"
-                />
-                <Shortcut
-                  icon={Server}
-                  title="API Reports"
-                  description="JSON brut des rapports"
-                  href="/api/reports"
-                />
-              </div>
-            </div>
-          )}
-
         </div>
-      </div>
+      )}
     </div>
   );
 }
