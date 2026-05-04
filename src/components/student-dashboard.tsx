@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/frontend-api";
 import HistoriqueAttempts from "./historique-attempts";
+import { SimilarityHighlighter } from "./SimilarityHighlighter";
 
 type OverviewResponse = {
   user: {
@@ -61,19 +62,28 @@ type ReportDetail = {
   documentId: string;
   globalSimilarity: string;
   riskLevel: string;
-  matchedSources: Array<{
-    name: string;
+  matchedSources?: Array<{
+    name?: string;
+    similarity?: number;
+    type?: string;
+    sourceId?: string | null;
+    sourceLabel?: string | null;
+    sourceDocumentId?: string | null;
+  }>;
+  highlightedSegments: Array<{
+    type: "student" | "reference";
+    text: string;
+    startIndex: number;
+    endIndex: number;
     similarity: number;
-    type: string;
-    sourceId: string | null;
-    sourceLabel: string | null;
-    sourceDocumentId: string | null;
+    matchedWith: string;
   }>;
   analyzedAt: string;
   document: {
     id: string;
     originalName: string;
     title: string;
+    extractedText: string;
   };
   deliberations: Array<{
     id: string;
@@ -639,6 +649,53 @@ export function StudentDashboard() {
                         </div>
                       );
                     })}
+                    {parseFloat(reportModal.globalSimilarity) >= 15 && (
+                      <div className="mt-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+                        <p className="mb-3 text-xs font-bold uppercase tracking-wider text-yellow-700">
+                          {parseFloat(reportModal.globalSimilarity) >= 50 ? "⚠️ Documents similaires détectés" : "Sources similaires détectées"}
+                        </p>
+                        
+                        {/* Show matched sources first */}
+                        {reportModal.matchedSources && reportModal.matchedSources.length > 0 && (
+                          <div className="mb-4 space-y-2">
+                            {reportModal.matchedSources.slice(0, 5).map((src, i) => (
+                              <div key={i} className="flex items-center justify-between rounded bg-white p-2 text-sm">
+                                <span className="text-[#5f483e] truncate flex-1 mr-2">{src.sourceLabel || src.name || `Document #${i+1}`}</span>
+                                <span className={`rounded-full px-2 py-0.5 text-xs font-bold whitespace-nowrap ${(src.similarity || 0) >= 50 ? "bg-red-100 text-red-700" : (src.similarity || 0) >= 20 ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}>
+                                  {(src.similarity || 0).toFixed(1)}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Show detailed segments if available */}
+                        {reportModal.highlightedSegments && reportModal.highlightedSegments.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-yellow-200">
+                            <p className="text-xs font-semibold text-[#6c5448] mb-2">Segments similaires trouvés:</p>
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                              {reportModal.highlightedSegments.slice(0, 10).map((seg, i) => (
+                                <div key={i} className={`rounded p-2 text-xs ${seg.type === "student" ? "bg-red-50 border-l-2 border-red-400" : "bg-yellow-50 border-l-2 border-yellow-400"}`}>
+                                  <span className="font-semibold">{seg.type === "student" ? "📝 Votre texte" : "📄 Source"}:</span>
+                                  <p className="text-[#5f483e] mt-1 line-clamp-2">{seg.text || "Texte non disponible"}</p>
+                                  <span className="text-[#6c5448]/70">Similarité: {Math.round((seg.similarity || 0) * 100)}% • {seg.matchedWith?.split(":")[2] || "Document de référence"}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {(!reportModal.matchedSources || reportModal.matchedSources.length === 0) && (!reportModal.highlightedSegments || reportModal.highlightedSegments.length === 0) && (
+                          <div className="text-center py-4">
+                            <p className="text-sm text-[#6c5448] font-medium">
+                              {parseFloat(reportModal.globalSimilarity) >= 50 
+                                ? "Similarité très élevée détectée avec un autre document" 
+                                : "Aucune source de référence identifiée"}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : null}
               </div>
@@ -1337,19 +1394,19 @@ export function StudentDashboard() {
                         </p>
                         <div className="space-y-2">
                           {reportModal.matchedSources
-                            .filter((src) =>
-                              !src.name.toLowerCase().includes("commission") &&
-                              !src.name.toLowerCase().includes("jury")
+                            ?.filter((src) =>
+                              (src.name || "").toLowerCase().includes("commission") === false &&
+                              (src.name || "").toLowerCase().includes("jury") === false
                             )
                             .slice(0, 6)
                             .map((src, i) => {
-                              const label = src.sourceLabel && src.sourceLabel.length > 3
+                              const label = (src.sourceLabel && src.sourceLabel.length > 3)
                                 ? src.sourceLabel
-                                : src.name
+                                : (src.name || "")
                                     .replace(/rapport\s*#?\d*/gi, "Document d'archive")
                                     .replace(/^(reference|validated):\d+:/, "")
                                     .trim() || `Source #${i + 1}`;
-                              const pct = Math.min(src.similarity, 100);
+                              const pct = Math.min(src.similarity || 0, 100);
                               const scoreColor =
                                 pct >= 50 ? "#b91c1c" : pct >= 20 ? "#c98a2f" : "#16a34a";
                               const barColor =

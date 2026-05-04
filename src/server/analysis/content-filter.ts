@@ -95,7 +95,7 @@ const MIN_PARAGRAPH_TOKENS = 15;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-const STOPWORDS_FR = new Set<string>([
+export const STOPWORDS_FR = new Set<string>([
   "a",
   "abord",
   "afin",

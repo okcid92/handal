@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ report: string }> },
 ) {
   try {
-    guardRole(request, ["TEACHER", "DA", "ADMIN"]);
+    guardRole(request, ["TEACHER", "DA", "ADMIN", "STUDENT"]);
     const { report } = await params;
 
     const result = await getReport(BigInt(report));

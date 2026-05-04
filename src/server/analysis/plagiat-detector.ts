@@ -5,6 +5,7 @@ import {
   tokenizeAndStem,
   type FilterResult,
 } from "./content-filter";
+import { findMatchingSegments, type TextSegment } from "./segment-matcher";
 
 export interface Document {
   name: string;
@@ -26,6 +27,7 @@ export interface DetailedScores {
 
 export interface SimilarityResult {
   name: string;
+  sourceId?: string;
   cosineTFIDF: number;
   jaccard: number;
   ngram: number;
@@ -36,6 +38,9 @@ export interface SimilarityResult {
   semantic?: number;
   combined: number;
   commonPhrases: string[];
+  studentSegments?: TextSegment[];
+  referenceSegments?: TextSegment[];
+  totalMatchedWords?: number;
 }
 
 export interface PlagiarismReport {
@@ -461,6 +466,22 @@ export async function analyzePlagiarismReport(
   const results: SimilarityResult[] = [];
   for (const ref of filteredReferences) {
     const detailed = await analyzePlagiarism(filteredMain.content, ref.content);
+    
+    let studentSegments: TextSegment[] = [];
+    let referenceSegments: TextSegment[] = [];
+    let totalMatchedWords = 0;
+    
+    if (detailed.combined > 0.15 && filteredMain.content.length > 100 && ref.content.length > 100) {
+      const segmentResult = findMatchingSegments(
+        filteredMain.content.slice(0, 5000),
+        ref.content.slice(0, 5000),
+        { minSegmentLength: 15, similarityThreshold: 0.6 }
+      );
+      studentSegments = segmentResult.studentSegments;
+      referenceSegments = segmentResult.referenceSegments;
+      totalMatchedWords = segmentResult.totalMatchedWords;
+    }
+    
     results.push({
       name: ref.name,
       cosineTFIDF: detailed.cosine,
@@ -473,6 +494,9 @@ export async function analyzePlagiarismReport(
       semantic: detailed.semantic,
       combined: detailed.combined,
       commonPhrases: findCommonPhrases(filteredMain.content, ref.content),
+      studentSegments,
+      referenceSegments,
+      totalMatchedWords,
     });
   }
 

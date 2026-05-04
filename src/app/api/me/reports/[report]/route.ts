@@ -13,11 +13,18 @@ type RawSource = {
 };
 
 async function resolveSourceTitles(sources: RawSource[]) {
+  if (sources.length === 0) return sources;
+  
   const ids = sources
     .map((s) => s.sourceId)
     .filter((id): id is string => id !== null);
 
-  if (ids.length === 0) return sources;
+  if (ids.length === 0) {
+    return sources.map((s) => ({
+      ...s,
+      sourceLabel: s.sourceLabel || s.name || "Source inconnue",
+    }));
+  }
 
   const bigIds = ids.map((id) => BigInt(id));
   const [refDocs, valDocs] = await Promise.all([
@@ -80,6 +87,7 @@ export async function GET(
             id: true,
             studentId: true,
             originalName: true,
+            extractedText: true,
             theme: { select: { title: true } },
           },
         },
@@ -94,11 +102,21 @@ export async function GET(
       throw new ApiError("Forbidden", 403, "FORBIDDEN");
     }
 
-    const rawSources = Array.isArray(row.matchedSources)
-      ? (row.matchedSources as RawSource[])
-      : [];
+    const rawSources = typeof row.matchedSources === "string" 
+      ? JSON.parse(row.matchedSources || "[]") 
+      : Array.isArray(row.matchedSources)
+        ? (row.matchedSources as RawSource[])
+        : [];
 
     const enrichedSources = await resolveSourceTitles(rawSources);
+
+    const rawSegments = typeof row.highlightedSegments === "string" 
+      ? JSON.parse(row.highlightedSegments || "[]") 
+      : row.highlightedSegments ?? [];
+
+    console.log("[DEBUG] Report ID:", row.id.toString());
+    console.log("[DEBUG] rawSources:", JSON.stringify(rawSources).slice(0, 500));
+    console.log("[DEBUG] rawSegments:", JSON.stringify(rawSegments).slice(0, 300));
 
     return NextResponse.json({
       ok: true,
@@ -108,11 +126,13 @@ export async function GET(
         globalSimilarity: row.globalSimilarity.toString(),
         riskLevel: row.riskLevel,
         matchedSources: enrichedSources,
+        highlightedSegments: rawSegments,
         analyzedAt: row.analyzedAt.toISOString(),
         document: {
           id: row.document.id.toString(),
           originalName: row.document.originalName,
           title: row.document.theme?.title ?? row.document.originalName,
+          extractedText: row.document.extractedText ?? "",
         },
       },
     });

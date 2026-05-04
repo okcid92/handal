@@ -72,11 +72,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    guardRole(request, ["TEACHER", "DA", "ADMIN"]);
+    const session = guardRole(request, ["TEACHER", "DA", "ADMIN", "STUDENT"]);
     const { id } = await params;
+    const docId = BigInt(id);
 
     const record = await prisma.document.findUnique({
-      where: { id: BigInt(id) },
+      where: { id: docId },
       select: {
         id: true,
         originalName: true,
@@ -84,11 +85,17 @@ export async function GET(
         storagePath: true,
         checksum: true,
         isReference: true,
+        studentId: true,
       },
     });
 
     if (!record) {
       throw new ApiError("Document not found", 404, "DOCUMENT_NOT_FOUND");
+    }
+
+    // Students can only view reference documents or their own documents
+    if (session.role === "STUDENT" && !record.isReference && record.studentId !== BigInt(session.userId)) {
+      throw new ApiError("Forbidden", 403, "FORBIDDEN");
     }
 
     const candidates = buildStorageCandidates(record.storagePath);

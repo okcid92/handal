@@ -332,6 +332,35 @@ export function DATracker({
 
   const showSearch = view === "reports" || view === "dashboard";
 
+  // Group reports by student and get best report (lowest similarity)
+  const reportsByStudent = useMemo(() => {
+    const grouped: Record<string, { studentName: string; reports: ReportRow[]; bestReport: ReportRow }> = {};
+    
+    for (const report of reports) {
+      const studentId = report.documentId;
+      const studentName = report.student 
+        ? `${report.student.firstName} ${report.student.lastName}`
+        : report.document?.title || report.document?.originalName || "Inconnu";
+      
+      if (!grouped[studentId]) {
+        grouped[studentId] = { studentName, reports: [], bestReport: report };
+      }
+      grouped[studentId].reports.push(report);
+      
+      // Keep the one with lowest similarity
+      const currSim = parseFloat(report.globalSimilarity) || 0;
+      const bestSim = parseFloat(grouped[studentId].bestReport.globalSimilarity) || 0;
+      if (currSim < bestSim) {
+        grouped[studentId].bestReport = report;
+      }
+    }
+    
+    // Sort students by their best report similarity (lowest first = best for deliberation)
+    return Object.values(grouped).sort((a, b) => 
+      (parseFloat(a.bestReport.globalSimilarity) || 0) - (parseFloat(b.bestReport.globalSimilarity) || 0)
+    );
+  }, [reports]);
+
   const recentActivity = useMemo(() => {
     return reports
       .slice()
@@ -474,34 +503,27 @@ export function DATracker({
                 />
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
-                {/* Recent reports list */}
+              <div className="space-y-4">
+                {/* Reports grouped by student - sorted by best similarity first */}
                 <div className="space-y-3">
-                  <p
-                    className="text-[10px] font-bold uppercase tracking-widest"
-                    style={{ color: "var(--text-soft)" }}
-                  >
-                    Derniers rapports à vérifier
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
+                    Étudiants à traiter (meilleur rapport en premier)
                   </p>
-                  {filtered.length === 0 ? (
+                  {reportsByStudent.length === 0 ? (
                     <div
                       className="rounded-2xl border-2 bg-white p-8 text-center text-sm"
-                      style={{
-                        borderColor: "rgba(123,36,56,0.10)",
-                        color: "var(--text-soft)",
-                      }}
+                      style={{ borderColor: "rgba(123,36,56,0.10)", color: "var(--text-soft)" }}
                     >
-                      Aucun rapport disponible pour le moment.
+                      Aucun rapport disponible.
                     </div>
                   ) : (
-                    filtered.slice(0, 5).map((r) => (
-                      <ReportCard
-                        key={r.id}
-                        report={r}
-                        onClick={() => {
-                          setSelectedReport(r);
-                          onNotify("");
-                        }}
+                    reportsByStudent.map((group) => (
+                      <StudentReportCard
+                        key={group.studentName}
+                        studentName={group.studentName}
+                        bestReport={group.bestReport}
+                        totalReports={group.reports.length}
+                        onClick={() => setSelectedReport(group.bestReport)}
                       />
                     ))
                   )}
@@ -1128,6 +1150,45 @@ function ReportCard({
             className="h-4 w-4 shrink-0"
             style={{ color: "rgba(123,36,56,0.35)" }}
           />
+        </div>
+      </div>
+    </button>
+  );
+}
+
+// ── StudentReportCard (grouped by student) ────────────────────────
+function StudentReportCard({
+  studentName,
+  bestReport,
+  totalReports,
+  onClick,
+}: {
+  studentName: string;
+  bestReport: ReportRow;
+  totalReports: number;
+  onClick: () => void;
+}) {
+  const similarity = parseFloat(bestReport.globalSimilarity) || 0;
+  const riskColor = similarity >= 50 ? "#b91c1c" : similarity >= 20 ? "#c98a2f" : "#16a34a";
+  const riskLabel = similarity >= 50 ? "Risque élevé" : similarity >= 20 ? "Risque moyen" : "Risque faible";
+  
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-2xl border-2 bg-white p-4 text-left transition hover:shadow-md"
+      style={{ borderColor: "rgba(123,36,56,0.12)" }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-bold text-[#2A1A12]">{studentName}</p>
+          <p className="text-xs text-[#6c5448] mt-1">
+            {totalReports} tentative{totalReports > 1 ? "s" : ""} · Best: {bestReport.document?.title || bestReport.document?.originalName || "Document"}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold" style={{ color: riskColor }}>{similarity.toFixed(1)}%</p>
+          <span className="text-xs" style={{ color: riskColor }}>{riskLabel}</span>
         </div>
       </div>
     </button>

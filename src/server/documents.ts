@@ -644,7 +644,7 @@ export async function listAnalysisHistory(studentId: bigint) {
       .map((row) => row.reportId)
       .filter((reportId): reportId is bigint => reportId !== null);
 
-    const reports = reportIds.length
+    const rawReports = reportIds.length
       ? await prisma.similarityReport.findMany({
           where: { id: { in: reportIds } },
           select: {
@@ -659,6 +659,8 @@ export async function listAnalysisHistory(studentId: bigint) {
           },
         })
       : [];
+
+    const reports = rawReports.filter((r) => r.document !== null);
 
     const sourceByReportId = new Map<
       string,
@@ -977,14 +979,28 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
     const matchedSources = enrichMatchedSources(plagiarism.results);
     const topReferenceSource = getTopReferenceSource(matchedSources);
     const highlightedSegments = plagiarism.results
-      .flatMap((result) =>
-        result.commonPhrases.map((phrase, index) => ({
-          start: index * 20,
-          end: index * 20 + phrase.length,
+      .flatMap((result) => {
+        const newSegments = result.studentSegments?.map((seg) => ({
+          type: "student",
+          text: seg.text.slice(0, 300),
+          startIndex: seg.startIndex,
+          endIndex: seg.endIndex,
+          similarity: seg.similarity,
           matchedWith: result.name,
-        })),
-      )
-      .slice(0, 25);
+        })) ?? [];
+        
+        const refSegments = result.referenceSegments?.map((seg) => ({
+          type: "reference",
+          text: seg.text.slice(0, 300),
+          startIndex: seg.startIndex,
+          endIndex: seg.endIndex,
+          similarity: seg.similarity,
+          matchedWith: result.name,
+        })) ?? [];
+        
+        return [...newSegments, ...refSegments];
+      })
+      .slice(0, 50);
 
     const created = await prisma.similarityReport.create({
       data: {
@@ -1054,24 +1070,71 @@ export async function analyzeDocument(documentId: bigint, analystId: bigint) {
 }
 
 export async function listReports() {
-  const reports = await prisma.similarityReport.findMany({
-    orderBy: { analyzedAt: "desc" },
-    include: {
-      document: {
-        include: {
-          theme: {
-            select: {
-              title: true,
-            },
-          },
-        },
-      },
-    },
-  });
+  // Use raw query to handle potential null documents
+  const rawReports = await prisma.$queryRaw<Array<{
+    id: bigint;
+    document_id: bigint;
+    global_similarity: string;
+    ai_score: string | null;
+    risk_level: string;
+    matched_sources: string;
+    highlighted_segments: string;
+    analyzed_at: Date;
+    generated_by: bigint | null;
+    doc_id: bigint | null;
+    doc_original_name: string | null;
+    doc_storage_path: string | null;
+    doc_mime_type: string | null;
+    doc_file_size: bigint | null;
+    doc_checksum: string | null;
+    doc_extracted_text: string | null;
+    doc_theme_title: string | null;
+  }>>`
+    SELECT 
+      r.id, r.document_id, r.global_similarity, r.ai_score, r.risk_level,
+      r.matched_sources, r.highlighted_segments, r.analyzed_at, r.generated_by,
+      d.id as doc_id, d.original_name as doc_original_name, d.storage_path as doc_storage_path,
+      d.mime_type as doc_mime_type, d.file_size as doc_file_size, d.checksum as doc_checksum,
+      d.extracted_text as doc_extracted_text, t.title as doc_theme_title
+    FROM similarity_reports r
+    LEFT JOIN documents d ON r.document_id = d.id
+    LEFT JOIN themes t ON d.theme_id = t.id
+    ORDER BY r.analyzed_at DESC
+  `;
 
-  return reports.map((report) =>
-    serializeReport(report as SimilarityReportWithRelations),
-  );
+  return rawReports
+    .filter((r) => r.doc_id !== null)
+    .map((r) => ({
+      id: r.id.toString(),
+      documentId: r.document_id.toString(),
+      globalSimilarity: r.global_similarity,
+      aiScore: r.ai_score,
+      riskLevel: r.risk_level,
+      matchedSources: r.matched_sources,
+      highlightedSegments: r.highlighted_segments,
+      analyzedAt: r.analyzed_at.toISOString(),
+      generatedBy: r.generated_by?.toString() ?? null,
+      document: {
+        id: r.doc_id!.toString(),
+        themeId: null,
+        studentId: "0",
+        originalName: r.doc_original_name!,
+        title: r.doc_theme_title ?? r.doc_original_name!,
+        storagePath: r.doc_storage_path!,
+        mimeType: r.doc_mime_type!,
+        fileSize: r.doc_file_size?.toString() ?? "0",
+        checksum: r.doc_checksum ?? "",
+        extractedText: r.doc_extracted_text ?? "",
+        analysisStatus: "COMPLETED",
+        analysisQueuedAt: null,
+        analysisStartedAt: null,
+        analysisCompletedAt: null,
+        analysisError: null,
+        isFinal: false,
+        uploadAttempts: 1,
+        submittedAt: new Date().toISOString(),
+      },
+    }));
 }
 
 export async function getReport(reportId: bigint) {
@@ -1162,14 +1225,28 @@ export async function analyzeDocumentInline(documentId: bigint): Promise<{
     const topReferenceSource = getTopReferenceSource(matchedSources);
 
     const highlightedSegments = plagiarism.results
-      .flatMap((r) =>
-        r.commonPhrases.map((phrase, i) => ({
-          start: i * 20,
-          end: i * 20 + phrase.length,
+      .flatMap((r) => {
+        const newSegments = r.studentSegments?.map((seg) => ({
+          type: "student",
+          text: seg.text.slice(0, 300),
+          startIndex: seg.startIndex,
+          endIndex: seg.endIndex,
+          similarity: seg.similarity,
           matchedWith: r.name,
-        })),
-      )
-      .slice(0, 25);
+        })) ?? [];
+        
+        const refSegments = r.referenceSegments?.map((seg) => ({
+          type: "reference",
+          text: seg.text.slice(0, 300),
+          startIndex: seg.startIndex,
+          endIndex: seg.endIndex,
+          similarity: seg.similarity,
+          matchedWith: r.name,
+        })) ?? [];
+        
+        return [...newSegments, ...refSegments];
+      })
+      .slice(0, 50);
 
     const created = await prisma.similarityReport.create({
       data: {
