@@ -63,7 +63,7 @@ describe("final appreciation route", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ decision: "APPROVED", comment: "Excellent" }),
       }) as never,
-      { params: { id: "10" } },
+      { params: Promise.resolve({ id: "10" }) },
     );
 
     const body = await response.json();
@@ -98,7 +98,7 @@ describe("final appreciation route", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ decision: "APPROVED" }),
       }) as never,
-      { params: { id: "11" } },
+      { params: Promise.resolve({ id: "11" }) },
     );
 
     const body = await response.json();

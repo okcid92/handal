@@ -216,16 +216,14 @@ function extractSubjectByAnchors(cover: string): string | null {
         const firstSentenceEnd = cleaned.search(/\.(?=\s|$)/);
         if (firstSentenceEnd > 0) {
           const truncated = cleaned.slice(0, firstSentenceEnd).trim();
-          if (isValidSubject(truncated)) {
-            // Limit to 120 chars for frontend display
-            return truncated.length > 120 ? truncated.slice(0, 120).trim() : truncated;
+            if (isValidSubject(truncated)) {
+            return truncated.length > 200 ? truncated.slice(0, 200).trim() : truncated;
           }
         }
       }
 
       if (isValidSubject(cleaned)) {
-        // Limit to 120 chars for frontend display
-        return cleaned.length > 120 ? cleaned.slice(0, 120).trim() : cleaned;
+        return cleaned.length > 200 ? cleaned.slice(0, 200).trim() : cleaned;
       }
     }
   }

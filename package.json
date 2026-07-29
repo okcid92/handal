@@ -17,6 +17,8 @@
     "prisma:generate": "prisma generate",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:migrate": "prisma migrate dev",
+    "setup:db": "bash scripts/setup-db.sh",
+    "setup:db:reset": "bash scripts/setup-db.sh --reset",
     "admin:reset": "npx tsx scripts/reset-admin.ts",
     "admin:audit": "npx tsx scripts/audit-users.ts"
   },

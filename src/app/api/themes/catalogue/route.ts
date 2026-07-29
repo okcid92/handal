@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
-    guardRole(request, ["TEACHER", "ADMIN"]);
+    guardRole(request, ["TEACHER", "DA", "ADMIN"]);
 
     const { searchParams } = request.nextUrl;
     const year = searchParams.get("year")?.trim() || null;

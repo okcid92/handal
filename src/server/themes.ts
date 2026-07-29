@@ -345,19 +345,41 @@ export async function validateThemeVotingV2(
     data:
       voter.role === "TEACHER"
         ? {
-            teacherApproval: decision === "approved",
+            teacherVote: decision === "approved" ? "approved" : "rejected",
             teacherComment: comment,
-            teacherValidatedAt: new Date(),
+            teacherVotedAt: new Date(),
           }
         : {
-            daApproval: decision === "approved",
+            daVote: decision === "approved" ? "approved" : "rejected",
             daComment: comment,
-            daValidatedAt: new Date(),
+            daVotedAt: new Date(),
           },
   });
 
-  if (updatedTheme.teacherApproval) {
-    const finalStatus = ThemeStatus.VALIDATED;
+  if (voter.role === "TEACHER") {
+    const finalStatus =
+      decision === "approved" ? ThemeStatus.VALIDATED : ThemeStatus.REJECTED;
+
+    const finalTheme = await prisma.theme.update({
+      where: { id: themeId },
+      data: { status: finalStatus },
+    });
+
+    await notifyStudent(theme.studentId, {
+      type: finalStatus === ThemeStatus.VALIDATED ? "THEME_VALIDATED" : "THEME_REJECTED",
+      themeId,
+      message:
+        finalStatus === ThemeStatus.VALIDATED
+            ? `Votre thème "${theme.title}" a été validé. Vous pouvez déposer votre mémoire.`
+            : `Votre thème "${theme.title}" a été rejeté.`,
+    });
+
+    return finalTheme;
+  }
+
+  const hasTeacherVote = updatedTheme.teacherVote !== null;
+  if (hasTeacherVote) {
+    const finalStatus = decision === "approved" ? ThemeStatus.VALIDATED : ThemeStatus.REJECTED;
 
     const finalTheme = await prisma.theme.update({
       where: { id: themeId },
@@ -423,10 +445,10 @@ export async function findOrCreateReferenceTheme(
           description ??
           `Theme extrait automatiquement depuis un document de reference IBAM : ${cleaned}.`,
         status: ThemeStatus.VALIDATED,
-        teacherApproval: true,
-        daApproval: true,
-        teacherValidatedAt: new Date(),
-        daValidatedAt: new Date(),
+        teacherVote: "approved",
+        daVote: "approved",
+        teacherVotedAt: new Date(),
+        daVotedAt: new Date(),
       },
       select: { id: true },
     });

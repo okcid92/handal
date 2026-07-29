@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+
+import { errorResponse } from "@/lib/api-errors";
 import { guardAdmin } from "@/lib/route-guards";
 import { prisma } from "@/lib/prisma";
+
+function serialize<T>(value: T): T {
+  return JSON.parse(
+    JSON.stringify(value, (_key, v) => (typeof v === "bigint" ? v.toString() : v)),
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
     guardAdmin(request);
-    
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -18,8 +26,8 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ ok: true, users });
+    return NextResponse.json({ ok: true, users: serialize(users) });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: "Failed to fetch users" }, { status: 500 });
+    return errorResponse(error);
   }
 }

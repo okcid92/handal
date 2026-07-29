@@ -30,11 +30,14 @@ type OverviewResponse = {
     id: string;
     title: string;
     status: string;
+    teacherVote?: "approved" | "rejected" | null;
+    daVote?: "approved" | "rejected" | null;
     teacherApproval: boolean | null;
     daApproval: boolean | null;
     validatedCd: boolean;
     validatedDa: boolean;
   } | null;
+  hasDeliberationStep?: boolean;
 };
 
 type ValidationStatus = "pending" | "approved" | "rejected";
@@ -251,17 +254,27 @@ export function StudentDashboard() {
         if (t) {
           setThemeSubmitted(true);
           setAlgoStatus(ALGO_APPROVED_STATUSES.includes(t.status) ? "approved" : "pending");
-          const cdApproved = t.teacherApproval === true || t.validatedCd || VALIDATED_STATUSES.includes(t.status);
-          const cdRejected = t.teacherApproval === false;
+          const cdApproved =
+            t.teacherApproval === true ||
+            t.teacherVote === "approved" ||
+            t.validatedCd ||
+            VALIDATED_STATUSES.includes(t.status);
+          const cdRejected =
+            t.teacherApproval === false || t.teacherVote === "rejected";
           setCdStatus(cdApproved ? "approved" : cdRejected ? "rejected" : "pending");
-          const daApproved = t.daApproval === true || t.validatedDa || VALIDATED_STATUSES.includes(t.status);
-          const daRejected = t.daApproval === false;
+          const daApproved =
+            t.daApproval === true ||
+            t.daVote === "approved" ||
+            t.validatedDa ||
+            VALIDATED_STATUSES.includes(t.status);
+          const daRejected = t.daApproval === false || t.daVote === "rejected";
           setDaStatus(daApproved ? "approved" : daRejected ? "rejected" : "pending");
         }
 
-        // Calcul de l'étape : 4 si rapport existe, sinon selon CD
+        // Calcul de l'étape : 4 dès qu'une délibération finale existe
+        const hasDeliberationStep = overviewData.hasDeliberationStep === true;
         const hasReport = history.some((a) => a.reportId);
-        if (hasReport) {
+        if (hasDeliberationStep || hasReport) {
           setActiveStep(4);
           // Charger automatiquement la délibération du dernier rapport
           const latestReportId = history.find((a) => a.reportId)?.reportId;
@@ -275,8 +288,13 @@ export function StudentDashboard() {
               .catch(() => {});
           }
         } else if (t) {
-          const cdApproved = t.teacherApproval === true || t.validatedCd || VALIDATED_STATUSES.includes(t.status);
-          const cdRejected = t.teacherApproval === false;
+          const cdApproved =
+            t.teacherApproval === true ||
+            t.teacherVote === "approved" ||
+            t.validatedCd ||
+            VALIDATED_STATUSES.includes(t.status);
+          const cdRejected =
+            t.teacherApproval === false || t.teacherVote === "rejected";
           setActiveStep(getActiveStep(true, cdApproved ? "approved" : cdRejected ? "rejected" : "pending"));
         }
       })

@@ -36,7 +36,7 @@ describe("validateThemeVotingV2", () => {
     vi.clearAllMocks();
   });
 
-  it("records a teacher approval and keeps pending status", async () => {
+  it("sets VALIDATED immediately when teacher approves", async () => {
     findUniqueTheme.mockResolvedValue({
       id: themeId,
       status: "PENDING_VALIDATION",
@@ -44,13 +44,20 @@ describe("validateThemeVotingV2", () => {
       title: "Data Mining",
     });
     findUser.mockResolvedValue({ id: BigInt(2), role: "TEACHER" });
-    updateTheme.mockResolvedValue({
-      id: themeId,
-      status: "PENDING_VALIDATION",
-      studentId,
-      teacherVote: "approved",
-      daVote: null,
-    });
+    updateTheme
+      .mockResolvedValueOnce({
+        id: themeId,
+        status: "PENDING_VALIDATION",
+        studentId,
+        teacherVote: "approved",
+        daVote: null,
+      })
+      .mockResolvedValueOnce({
+        id: themeId,
+        status: "VALIDATED",
+        studentId,
+        teacherVote: "approved",
+      });
 
     const result = await validateThemeVotingV2(
       themeId,
@@ -60,7 +67,7 @@ describe("validateThemeVotingV2", () => {
     );
 
     expect(result.teacherVote).toBe("approved");
-    expect(result.status).toBe("PENDING_VALIDATION");
+    expect(result.status).toBe("VALIDATED");
   });
 
   it("sets VALIDATED when both teacher and DA approve", async () => {

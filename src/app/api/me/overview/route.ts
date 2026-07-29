@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
                 id: true,
                 title: true,
                 status: true,
-                teacherApproval: true,
-                daApproval: true,
+                teacherVote: true,
+                daVote: true,
                 updatedAt: true,
                 createdAt: true,
               },
@@ -68,6 +68,22 @@ export async function GET(request: NextRequest) {
             )
         : null;
 
+    const latestDeliberation = await prisma.finalAppreciation.findFirst({
+      where: {
+        document: {
+          studentId: BigInt(session.userId),
+        },
+        teacherDecision: { not: null },
+        daDecision: { not: null },
+        finalDecision: { not: null },
+      },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        finalDecision: true,
+      },
+    });
+
     return NextResponse.json(
       {
         ok: true,
@@ -82,13 +98,28 @@ export async function GET(request: NextRequest) {
         overview: {
           role: user.role,
         },
+        hasDeliberationStep: latestDeliberation !== null,
         activeTheme: activeTheme
           ? {
               id: activeTheme.id.toString(),
               title: activeTheme.title,
               status: activeTheme.status,
-              teacherApproval: activeTheme.teacherApproval,
-              daApproval: activeTheme.daApproval,
+              teacherVote: activeTheme.teacherVote,
+              daVote: activeTheme.daVote,
+              teacherApproval:
+                activeTheme.teacherVote === "approved"
+                  ? true
+                  : activeTheme.teacherVote === "rejected"
+                    ? false
+                    : null,
+              daApproval:
+                activeTheme.daVote === "approved"
+                  ? true
+                  : activeTheme.daVote === "rejected"
+                    ? false
+                    : null,
+              validatedCd: activeTheme.teacherVote === "approved",
+              validatedDa: activeTheme.daVote === "approved",
             }
           : null,
       },

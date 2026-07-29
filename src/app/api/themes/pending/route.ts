@@ -6,7 +6,7 @@ import { listPendingThemes } from "@/server/themes";
 
 export async function GET(request: NextRequest) {
   try {
-    guardRole(request, ["TEACHER", "ADMIN"]);
+    guardRole(request, ["TEACHER", "DA", "ADMIN"]);
 
     const themes = await listPendingThemes();
 
