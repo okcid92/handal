@@ -12,6 +12,13 @@ type RawSource = {
   sourceLabel: string | null;
 };
 
+function toDeliberationDecision(decision: string | null | undefined) {
+  if (decision === "APPROVED") return "FINAL_VALIDATION";
+  if (decision === "REJECTED") return "SANCTION";
+  if (decision === "REQUESTED_REVIEW") return "REWRITE_REQUIRED";
+  return null;
+}
+
 async function resolveSourceTitles(sources: RawSource[]) {
   if (sources.length === 0) return sources;
   
@@ -114,9 +121,48 @@ export async function GET(
       ? JSON.parse(row.highlightedSegments || "[]") 
       : row.highlightedSegments ?? [];
 
-    console.log("[DEBUG] Report ID:", row.id.toString());
-    console.log("[DEBUG] rawSources:", JSON.stringify(rawSources).slice(0, 500));
-    console.log("[DEBUG] rawSegments:", JSON.stringify(rawSegments).slice(0, 300));
+    const appreciation = await prisma.finalAppreciation.findUnique({
+      where: { documentId: row.document.id },
+      include: {
+        da: {
+          select: { name: true, role: true },
+        },
+        teacher: {
+          select: { name: true, role: true },
+        },
+      },
+    });
+
+    const deliberationDecision = toDeliberationDecision(
+      appreciation?.finalDecision ??
+        appreciation?.daDecision ??
+        appreciation?.teacherDecision,
+    );
+
+    const deliberations =
+      deliberationDecision && appreciation
+        ? [
+            {
+              id: appreciation.id.toString(),
+              decision: deliberationDecision,
+              notes: appreciation.daComment ?? appreciation.teacherComment ?? null,
+              committee: appreciation.mention ?? null,
+              decidedAt:
+                appreciation.finalizedAt?.toISOString() ??
+                appreciation.daDecidedAt?.toISOString() ??
+                appreciation.teacherDecidedAt?.toISOString() ??
+                appreciation.updatedAt.toISOString(),
+              decider: appreciation.da
+                ? { name: appreciation.da.name, role: appreciation.da.role }
+                : appreciation.teacher
+                  ? {
+                      name: appreciation.teacher.name,
+                      role: appreciation.teacher.role,
+                    }
+                  : null,
+            },
+          ]
+        : [];
 
     return NextResponse.json({
       ok: true,
@@ -134,6 +180,7 @@ export async function GET(
           title: row.document.theme?.title ?? row.document.originalName,
           extractedText: row.document.extractedText ?? "",
         },
+        deliberations,
       },
     });
   } catch (error) {

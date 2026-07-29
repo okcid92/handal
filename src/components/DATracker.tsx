@@ -290,6 +290,7 @@ export function DATracker({
   >("final_validation");
   const [committee, setCommittee] = useState("");
   const [notes, setNotes] = useState("");
+  const [directReportId, setDirectReportId] = useState("");
 
   const filtered = useMemo(() => {
     let result = reports;
@@ -324,9 +325,12 @@ export function DATracker({
 
   async function deliberate(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedReport) return;
+    if (!selectedReport) {
+      onNotify("Aucun rapport sélectionné pour la délibération.", false);
+      return;
+    }
     try {
-      const result = await apiFetch<{
+      await apiFetch<{
         deliberation: { id: string; decision: string };
       }>(`/api/reports/${selectedReport.id}/deliberate`, {
         method: "POST",
@@ -338,6 +342,37 @@ export function DATracker({
       onNotify(`Délibération enregistrée : ${decisionLabel} pour ${reportLabel(selectedReport)}`);
       setDeliberatedIds((prev) => new Set([...prev, selectedReport.id]));
       setSelectedReport(null);
+      setCommittee("");
+      setNotes("");
+      onDeliberated?.();
+    } catch (err) {
+      onNotify(err instanceof Error ? err.message : "Erreur délibération", false);
+    }
+  }
+
+  async function deliberateByReportId(e: React.FormEvent) {
+    e.preventDefault();
+    const reportId = directReportId.trim();
+    if (!reportId) {
+      onNotify("Renseignez un ID de rapport.", false);
+      return;
+    }
+
+    try {
+      await apiFetch<{
+        deliberation: { id: string; decision: string };
+      }>(`/api/reports/${reportId}/deliberate`, {
+        method: "POST",
+        body: JSON.stringify({ decision: deliberationDecision, committee, notes }),
+      });
+      const decisionLabel =
+        deliberationDecision === "final_validation"
+          ? "Validation finale"
+          : deliberationDecision === "sanction"
+            ? "Sanction"
+            : "Réécriture requise";
+      onNotify(`Délibération enregistrée : ${decisionLabel} pour le rapport #${reportId}`);
+      setDirectReportId("");
       setCommittee("");
       setNotes("");
       onDeliberated?.();
@@ -1050,16 +1085,14 @@ export function DATracker({
                   une saisie manuelle par ID.
                 </p>
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                  }}
+                  onSubmit={deliberateByReportId}
                   className="space-y-4"
                 >
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field
                       label="Report ID"
-                      value=""
-                      onChange={() => {}}
+                      value={directReportId}
+                      onChange={setDirectReportId}
                       placeholder="Ex: 11"
                     />
                     <label className="block">
@@ -1070,6 +1103,12 @@ export function DATracker({
                         Décision
                       </span>
                       <select
+                        value={deliberationDecision}
+                        onChange={(e) =>
+                          setDeliberationDecision(
+                            e.target.value as typeof deliberationDecision,
+                          )
+                        }
                         className="h-11 w-full rounded-xl border-2 bg-white px-4 text-sm outline-none"
                         style={{
                           borderColor: "rgba(123,36,56,0.18)",
@@ -1089,14 +1128,14 @@ export function DATracker({
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field
                       label="Commission"
-                      value=""
-                      onChange={() => {}}
+                      value={committee}
+                      onChange={setCommittee}
                       placeholder="Commission pédagogique"
                     />
                     <Field
                       label="Notes"
-                      value=""
-                      onChange={() => {}}
+                      value={notes}
+                      onChange={setNotes}
                       placeholder="Observations..."
                     />
                   </div>
@@ -1104,7 +1143,7 @@ export function DATracker({
                     type="submit"
                     className="btn-primary h-11 w-full rounded-xl font-bold text-white transition"
                   >
-                    Enregistrer
+                    Enregistrer la délibération
                   </button>
                 </form>
               </div>

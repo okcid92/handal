@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ApiError, errorResponse } from "@/lib/api-errors";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { guardRole } from "@/lib/route-guards";
 import { assertSameOrigin } from "@/lib/security";
@@ -45,6 +46,13 @@ export async function POST(
     const { report } = await params;
     const reportId = BigInt(report);
     const payload = payloadSchema.parse(await request.json());
+
+    logger.info("reports.deliberate.requested", {
+      reportId: reportId.toString(),
+      actorUserId: session.userId,
+      actorRole: session.role,
+      decision: payload.decision,
+    });
 
     const reportRow = await prisma.similarityReport.findUnique({
       where: { id: reportId },

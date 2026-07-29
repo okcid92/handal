@@ -1089,13 +1089,16 @@ export async function listReports() {
     doc_checksum: string | null;
     doc_extracted_text: string | null;
     doc_theme_title: string | null;
+    doc_document_status: string | null;
+    doc_is_reference: number | null;
   }>>`
     SELECT 
       r.id, r.document_id, r.global_similarity, r.ai_score, r.risk_level,
       r.matched_sources, r.highlighted_segments, r.analyzed_at, r.generated_by,
       d.id as doc_id, d.original_name as doc_original_name, d.storage_path as doc_storage_path,
       d.mime_type as doc_mime_type, d.file_size as doc_file_size, d.checksum as doc_checksum,
-      d.extracted_text as doc_extracted_text, t.title as doc_theme_title
+      d.extracted_text as doc_extracted_text, t.title as doc_theme_title,
+      d.document_status as doc_document_status, d.is_reference as doc_is_reference
     FROM similarity_reports r
     LEFT JOIN documents d ON r.document_id = d.id
     LEFT JOIN themes t ON d.theme_id = t.id
@@ -1103,7 +1106,14 @@ export async function listReports() {
   `;
 
   return rawReports
-    .filter((r) => r.doc_id !== null)
+    .filter((r) => {
+      if (r.doc_id === null) return false;
+      if (r.doc_is_reference === 1) return false;
+      return (
+        r.doc_document_status === "CLEAN" ||
+        r.doc_document_status === "FLAGGED_PLAGIARISM"
+      );
+    })
     .map((r) => ({
       id: r.id.toString(),
       documentId: r.document_id.toString(),
@@ -1114,6 +1124,8 @@ export async function listReports() {
       highlightedSegments: r.highlighted_segments,
       analyzedAt: r.analyzed_at.toISOString(),
       generatedBy: r.generated_by?.toString() ?? null,
+      isReference: r.doc_is_reference === 1,
+      documentStatus: r.doc_document_status,
       document: {
         id: r.doc_id!.toString(),
         themeId: null,
