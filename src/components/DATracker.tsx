@@ -490,39 +490,30 @@ export function DATracker({
               <SectionHeader
                 icon={LayoutDashboard}
                 title="Vue d'ensemble DA"
-                subtitle="Pilotage des rapports et préparation de la délibération finale"
+                subtitle="Suivi des rapports et délibérations en attente"
               />
 
-              {/* Alert banner */}
               <div
-                className="rounded-2xl px-5 py-4 text-white"
-                style={{ background: "#7D1C2A" }}
+                className="rounded-2xl border bg-white px-4 py-3"
+                style={{ borderColor: "rgba(123,36,56,0.14)" }}
               >
-                <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                    style={{ background: "rgba(255,255,255,0.14)" }}
-                  >
-                    <LayoutDashboard className="h-5 w-5" />
-                  </div>
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div className="flex-1">
-                    <h2 className="text-sm font-semibold">
-                      {reports.length} rapport{reports.length > 1 ? "s" : ""} en
-                      attente de délibération
-                    </h2>
-                    <p className="text-xs text-white/75">
-                      {highRiskCount} à risque élevé · {mediumRiskCount} à
-                      risque moyen · {lowRiskCount} à risque faible
+                    <p className="text-sm font-semibold text-[#2A1A12]">
+                      {reports.length} rapport{reports.length > 1 ? "s" : ""} à traiter
+                    </p>
+                    <p className="text-xs text-[#6c5448]">
+                      Priorisez les dossiers à risque élevé, puis les moyens.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setSelectedReport(filtered[0] ?? null)}
                     disabled={filtered.length === 0}
-                    className="rounded-lg border px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                    className="rounded-lg border px-3 py-1.5 text-xs font-semibold transition hover:bg-[#7b2438]/5 disabled:opacity-40"
                     style={{
-                      borderColor: "rgba(255,255,255,0.35)",
-                      background: "rgba(255,255,255,0.14)",
+                      borderColor: "rgba(123,36,56,0.25)",
+                      color: "var(--primary)",
                     }}
                   >
                     Délibérer maintenant
@@ -554,15 +545,14 @@ export function DATracker({
                 />
               </div>
 
-              <div className="space-y-4">
-                {/* Reports grouped by student - sorted by best similarity first */}
-                <div className="space-y-3">
+              <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
+                <div className="space-y-3 rounded-2xl border bg-white p-4" style={{ borderColor: "rgba(123,36,56,0.12)" }}>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#6c5448]">
                     Étudiants à traiter (meilleur rapport en premier)
                   </p>
                   {reportsByStudent.length === 0 ? (
                     <div
-                      className="rounded-2xl border-2 bg-white p-8 text-center text-sm"
+                      className="rounded-xl border bg-[#faf7f4] p-6 text-center text-sm"
                       style={{ borderColor: "rgba(123,36,56,0.10)", color: "var(--text-soft)" }}
                     >
                       Aucun rapport disponible.
@@ -580,91 +570,7 @@ export function DATracker({
                   )}
                 </div>
 
-                {/* Sidebar panels */}
                 <div className="space-y-4">
-                  {/* Distribution */}
-                  <div
-                    className="rounded-2xl border bg-white"
-                    style={{ borderColor: "#DDD4C8" }}
-                  >
-                    <div
-                      className="border-b px-4 py-3"
-                      style={{ borderColor: "#DDD4C8" }}
-                    >
-                      <h3 className="text-xs font-semibold text-[#2A1A12]">
-                        Distribution des risques
-                      </h3>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 px-4 py-3 text-center text-xs">
-                      <div
-                        className="rounded-lg border bg-red-50 p-2"
-                        style={{
-                          borderColor: "rgba(220,38,38,0.22)",
-                          color: "#b91c1c",
-                        }}
-                      >
-                        <p className="text-lg font-semibold">{highRiskCount}</p>
-                        <p>Élevé</p>
-                      </div>
-                      <div
-                        className="rounded-lg border bg-orange-50 p-2"
-                        style={{
-                          borderColor: "rgba(201,138,47,0.28)",
-                          color: "#9a6a28",
-                        }}
-                      >
-                        <p className="text-lg font-semibold">
-                          {mediumRiskCount}
-                        </p>
-                        <p>Moyen</p>
-                      </div>
-                      <div
-                        className="col-span-2 rounded-lg border bg-green-50 p-2"
-                        style={{
-                          borderColor: "rgba(22,163,74,0.24)",
-                          color: "#166534",
-                        }}
-                      >
-                        <p className="text-lg font-semibold">{lowRiskCount}</p>
-                        <p>Faible</p>
-                      </div>
-                    </div>
-                    {reports.length > 0 && (
-                      <div className="px-4 pb-3">
-                        <div
-                          className="flex h-2 overflow-hidden rounded-full"
-                          style={{ background: "rgba(123,36,56,0.08)" }}
-                        >
-                          {highRiskCount > 0 && (
-                            <div
-                              className="h-full bg-red-500"
-                              style={{
-                                width: `${(highRiskCount / reports.length) * 100}%`,
-                              }}
-                            />
-                          )}
-                          {mediumRiskCount > 0 && (
-                            <div
-                              className="h-full bg-orange-400"
-                              style={{
-                                width: `${(mediumRiskCount / reports.length) * 100}%`,
-                              }}
-                            />
-                          )}
-                          {lowRiskCount > 0 && (
-                            <div
-                              className="h-full bg-green-500"
-                              style={{
-                                width: `${(lowRiskCount / reports.length) * 100}%`,
-                              }}
-                            />
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Activité récente */}
                   <div
                     className="rounded-2xl border bg-white"
                     style={{ borderColor: "#DDD4C8" }}
@@ -704,42 +610,6 @@ export function DATracker({
                       )}
                     </div>
                   </div>
-
-                  {/* Quick action */}
-                  <button
-                    type="button"
-                    onClick={() => setSelectedReport(null)}
-                    className="flex w-full items-center gap-3 rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
-                    style={{ borderColor: "rgba(123,36,56,0.12)" }}
-                  >
-                    <div
-                      className="flex h-9 w-9 items-center justify-center rounded-xl"
-                      style={{ background: "rgba(123,36,56,0.08)" }}
-                    >
-                      <BookOpen
-                        className="h-4 w-4"
-                        style={{ color: "var(--primary)" }}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p
-                        className="text-sm font-semibold"
-                        style={{ color: "var(--foreground)" }}
-                      >
-                        Base de Référence
-                      </p>
-                      <p
-                        className="text-xs"
-                        style={{ color: "var(--text-soft)" }}
-                      >
-                        Consulter la bibliothèque
-                      </p>
-                    </div>
-                    <ChevronRight
-                      className="h-4 w-4"
-                      style={{ color: "rgba(123,36,56,0.35)" }}
-                    />
-                  </button>
                 </div>
               </div>
             </div>
